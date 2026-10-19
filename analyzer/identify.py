@@ -48,8 +48,11 @@ def _meta(track):
     }
 
 
-def probe_set(audio, duration, cache_path, step=24.0, clip=12.0, log=print):
-    """Fingerprint a clip every `step` seconds. Returns a list of probe dicts."""
+def probe_set(audio, duration, cache_path, step=24.0, clip=12.0, span=None, log=print):
+    """Fingerprint a clip every `step` seconds. Returns a list of probe dicts.
+
+    `span` = (start, end) limits probing to where the music is.
+    """
     from shazamio import Shazam
 
     cache = {}
@@ -57,28 +60,36 @@ def probe_set(audio, duration, cache_path, step=24.0, clip=12.0, log=print):
         with open(cache_path) as f:
             cache = {float(k): v for k, v in json.load(f).items()}
 
-    times = [round(t, 2) for t in _frange(4.0, duration - clip, step)]
+    lo, hi = span or (0.0, duration)
+    times = [round(t, 2) for t in _frange(4.0, duration - clip, step) if lo - clip <= t <= hi]
     todo = [t for t in times if t not in cache]
     if todo:
         log(f"    shazam  {len(todo)} probes to send ({len(times) - len(todo)} cached)")
 
     async def run():
         shazam = Shazam()
+        failed_in_a_row = 0
         with tempfile.TemporaryDirectory() as tmp:
             for i, t in enumerate(todo):
                 wav = os.path.join(tmp, "clip.wav")
                 _clip(audio, t, clip, wav)
                 res = None
-                for attempt in range(4):
+                for attempt in range(3):
                     try:
-                        res = await shazam.recognize(wav)
+                        res = await asyncio.wait_for(shazam.recognize(wav), timeout=25)
                         break
                     except Exception as e:  # network / rate limit: back off
                         wait = 2 ** attempt * 3
                         log(f"    shazam  {t:.0f}s: {type(e).__name__}, retry in {wait}s")
                         await asyncio.sleep(wait)
                 if res is None:
+                    failed_in_a_row += 1
+                    if failed_in_a_row >= 3:
+                        log(f"    shazam  not responding (likely rate-limited); continuing with "
+                            f"{len(cache)} cached probes. Re-run later to fill the remaining {len(todo) - i - 1 + 3}.")
+                        break
                     continue  # leave uncached; a re-run will retry it
+                failed_in_a_row = 0
                 matches = res.get("matches") or []
                 cache[t] = {
                     "t": t, "dur": clip,

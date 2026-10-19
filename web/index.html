@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Set Replay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..900;1,62..125,400..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <nav class="sets" id="sets" aria-label="Recordings"></nav>
+    <div class="title-row">
+      <h1 class="title" id="title" title="Double-click to rename">Set Replay</h1>
+      <dl class="facts" id="facts"></dl>
+    </div>
+    <p class="story" id="story">Loading the set…</p>
+  </header>
+
+  <!-- the whole set, coloured by key -->
+  <section class="ribbon-wrap" aria-label="The set, track by track">
+    <div class="overview" id="overview">
+      <canvas id="ovCanvas"></canvas>
+      <div class="ov-window" id="ovWindow"></div>
+      <div class="ov-playhead" id="ovPlayhead"></div>
+    </div>
+    <div class="ribbon" id="ribbon" tabindex="0" aria-label="Set waveform. Click to play from a moment; scroll to zoom.">
+      <div class="r-labels" id="rLabels"></div>
+      <canvas id="rCanvas"></canvas>
+      <div class="r-playhead" id="rPlayhead"></div>
+      <div class="r-hover" id="rHover" hidden></div>
+      <div class="tip" id="rTip" hidden></div>
+    </div>
+    <div class="r-axis" id="rAxis"></div>
+    <div class="r-foot">
+      <div class="r-legend" id="rLegend">
+        <span class="lg"><i class="sw sw-low"></i>Lows</span>
+        <span class="lg"><i class="sw sw-mid"></i>Mids</span>
+        <span class="lg"><i class="sw sw-high"></i>Highs</span>
+        <span class="lg"><i class="mk mk-mix"></i>Mix</span>
+        <span class="lg"><i class="mk mk-drop"></i>Drop</span>
+        <span class="lg lg-key">Colour is the track’s key on the Camelot wheel</span>
+      </div>
+      <div class="r-zoom">
+        <button class="ghost" id="zoomOut" aria-label="Zoom out">−</button>
+        <span id="zoomLabel">Whole set</span>
+        <button class="ghost" id="zoomIn" aria-label="Zoom in">+</button>
+        <button class="ghost" id="zoomFit">Fit</button>
+      </div>
+    </div>
+  </section>
+
+  <main class="desk">
+    <!-- now playing -->
+    <aside class="deck" id="deck" aria-live="polite">
+      <div class="deck-art" id="deckArt"></div>
+      <div class="deck-id">
+        <p class="deck-n" id="deckN"></p>
+        <h2 class="deck-title" id="deckTitle">—</h2>
+        <p class="deck-artist" id="deckArtist"></p>
+      </div>
+      <div class="deck-readout">
+        <div class="ro">
+          <span class="ro-v" id="roBpm">—</span><span class="ro-l">BPM</span>
+        </div>
+        <div class="ro">
+          <span class="ro-v" id="roKey">—</span><span class="ro-l" id="roKeyName">Key</span>
+        </div>
+        <div class="ro">
+          <span class="ro-v" id="roEnergy">—</span><span class="ro-l">Energy</span>
+        </div>
+      </div>
+      <div class="pulse" id="pulse" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <canvas class="spectrum" id="spectrum" aria-hidden="true"></canvas>
+      <div class="deck-styles" id="deckStyles"></div>
+      <div class="deck-links" id="deckLinks"></div>
+      <div class="deck-next" id="deckNext"></div>
+    </aside>
+
+    <!-- setlist -->
+    <section class="setlist-wrap" aria-label="Setlist">
+      <div class="setlist-head">
+        <h2 class="h2">Setlist</h2>
+        <div class="setlist-tools">
+          <button class="ghost" id="followBtn" aria-pressed="true">Follow playback</button>
+          <button class="ghost" id="copyBtn">Copy tracklist</button>
+        </div>
+      </div>
+      <ol class="setlist" id="setlist"></ol>
+    </section>
+  </main>
+
+  <!-- transition inspector -->
+  <section class="mix" id="mix" aria-label="Transition">
+    <div class="mix-head">
+      <h2 class="h2" id="mixTitle">The mix</h2>
+      <div class="mix-nav">
+        <button class="ghost" id="mixPrev" aria-label="Previous transition">Previous</button>
+        <span id="mixCount"></span>
+        <button class="ghost" id="mixNext" aria-label="Next transition">Next</button>
+      </div>
+    </div>
+    <div class="mix-body">
+      <div class="mix-pair" id="mixPair"></div>
+      <div class="mix-view">
+        <canvas id="mixCanvas"></canvas>
+        <div class="mix-playhead" id="mixPlayhead" hidden></div>
+        <div class="tip" id="mixTip" hidden></div>
+      </div>
+      <dl class="mix-stats" id="mixStats"></dl>
+      <div class="mix-actions">
+        <button class="solid" id="mixPlay">Hear this mix</button>
+        <button class="ghost" id="mixLoop" aria-pressed="false">Loop it</button>
+        <p class="mix-note" id="mixNote"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- the journey -->
+  <section class="journey" aria-label="Set journey">
+    <div class="j-wheel">
+      <h2 class="h2">Harmonic path</h2>
+      <p class="j-sub" id="wheelSub">Each dot is a track, placed on the Camelot wheel. Neighbouring keys mix cleanly.</p>
+      <svg id="wheel" viewBox="-200 -200 400 400" role="img" aria-label="Camelot wheel with the set’s key path"></svg>
+    </div>
+    <div class="j-curves">
+      <div class="j-block">
+        <div class="j-head"><h2 class="h2">Energy</h2><span class="j-sub" id="energySub"></span></div>
+        <div class="curve" id="energyBox"><canvas id="energyCanvas"></canvas><div class="c-hover" hidden></div><div class="tip" hidden></div></div>
+      </div>
+      <div class="j-block">
+        <div class="j-head"><h2 class="h2">Sound</h2><span class="j-sub">How strongly the style model hears each style over time</span></div>
+        <div class="rows" id="styleRows"></div>
+      </div>
+      <div class="j-block">
+        <div class="j-head"><h2 class="h2">Mood</h2><span class="j-sub">Model scores, 0 to 1</span></div>
+        <div class="rows" id="moodRows"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="credits" id="credits"></footer>
+
+  <!-- player -->
+  <div class="player" id="player">
+    <audio id="audio" preload="metadata" crossorigin="anonymous"></audio>
+    <button class="pp" id="playBtn" aria-label="Play">
+      <svg class="i-play" viewBox="0 0 24 24" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="i-pause" viewBox="0 0 24 24" width="22" height="22" hidden><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </button>
+    <button class="skip" id="prevTrack" aria-label="Previous track" title="Previous track (P)">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+    </button>
+    <button class="skip" id="nextTrack" aria-label="Next track" title="Next track (N)">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+    </button>
+    <div class="p-now" id="pNow"></div>
+    <div class="scrub" id="scrub">
+      <canvas id="scrubCanvas"></canvas>
+      <div class="scrub-fill" id="scrubFill"></div>
+    </div>
+    <div class="time"><span id="tCur">0:00</span><span class="time-sep">/</span><span id="tDur">0:00</span></div>
+    <button class="skip" id="helpBtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)">?</button>
+  </div>
+
+  <div class="keys" id="keysHelp" hidden>
+    <h3>Keyboard</h3>
+    <dl>
+      <dt>Space</dt><dd>Play / pause</dd>
+      <dt>← →</dt><dd>Seek 5 s (Shift: 30 s)</dd>
+      <dt>N / P</dt><dd>Next / previous track</dd>
+      <dt>M</dt><dd>Hear the next mix</dd>
+      <dt>+ / −</dt><dd>Zoom the set</dd>
+      <dt>F</dt><dd>Follow playback</dd>
+    </dl>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/color.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

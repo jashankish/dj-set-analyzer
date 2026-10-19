@@ -157,6 +157,25 @@ HEADS = {
 }
 
 
+MODEL_URLS = {
+    "discogs-effnet-bsdynamic-1": "feature-extractors/discogs-effnet",
+    **{f"{h}-discogs-effnet-1": f"classification-heads/{h}" for h in HEADS},
+}
+
+
+def ensure_models(log=print):
+    """Download the Essentia ONNX models (~19 MB, no account needed) on first run."""
+    import urllib.request
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    for name, folder in MODEL_URLS.items():
+        for ext in ("onnx", "json"):
+            dest = os.path.join(MODELS_DIR, f"{name}.{ext}")
+            if not os.path.exists(dest):
+                log(f"    downloading {name}.{ext}")
+                urllib.request.urlretrieve(f"https://essentia.upf.edu/models/{folder}/{name}.{ext}", dest + ".part")
+                os.replace(dest + ".part", dest)
+
+
 def _session(name):
     import onnxruntime as ort
     opts = ort.SessionOptions()

@@ -1,0 +1,9 @@
+# DJ Set Analyzer — all analysis runs locally on CPU.
+# Essentia: beats, tempo, key (EDM profile), mel front-end for the style model
+essentia==2.1b6.dev1389
+# Discogs-EffNet style + mood models (ONNX, downloaded on first run, ~19 MB)
+onnxruntime==1.31.0
+numpy==2.5.4
+scipy==1.18.1
+# Track names: fingerprints short clips and asks Shazam (no account or key)
+shazamio==0.8.1

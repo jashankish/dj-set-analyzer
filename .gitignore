@@ -11,11 +11,16 @@ __pycache__/
 *.m4a
 *.mp3
 *.wav
+*.aac
 *.flac
+*.aif
 *.aiff
 
-# Downloaded model weights
+# Downloaded model weights (fetched automatically on first run)
 models/
 
-# Generated analysis output
+# Generated analysis output (regenerate from the audio)
 output/
+web/data/
+
+*.log

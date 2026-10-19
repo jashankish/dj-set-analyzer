@@ -1,0 +1,1250 @@
+/* ============================================================
+   Set Replay — app
+   Loads data/sets.json (the analysed recordings) and one
+   data/sets/<slug>.json, then draws the set and keeps every view
+   in step with the audio.
+   ============================================================ */
+(function () {
+  "use strict";
+
+  const { keyRgb, keyColor } = window.KeyColor;
+  const $ = (id) => document.getElementById(id);
+  const audio = $("audio");
+
+  const S = {
+    sets: [], set: null, D: null,
+    view: { t0: 0, t1: 1 },
+    cur: -1, mix: 0, follow: true, loop: false,
+    names: {}, title: null,
+    actx: null, analyser: null, freq: null,
+    lastBeat: -1, beatAt: 0,
+  };
+
+  /* ------------------------------------------------ utils */
+  function fmt(t) {
+    if (!isFinite(t)) t = 0;
+    t = Math.max(0, t);
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60);
+    return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`;
+  }
+  function fmtDur(t) {
+    if (t < 60) return `${Math.round(t)} s`;
+    const m = Math.floor(t / 60), s = Math.round(t % 60);
+    return s ? `${m} min ${s} s` : `${m} min`;
+  }
+  const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  function fit(c) {
+    const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width * d)), h = Math.max(1, Math.round(r.height * d));
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const ctx = c.getContext("2d");
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+    return { ctx, w: r.width, h: r.height };
+  }
+  function bsearch(arr, t, key) {           // last index with arr[i][key] <= t
+    let lo = 0, hi = arr.length - 1, ans = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const v = key ? arr[mid][key] : arr[mid];
+      if (v <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return ans;
+  }
+  const mixRgb = (a, b, r) => [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * r));
+  const rgb = (c, a) => (a == null ? `rgb(${c[0]},${c[1]},${c[2]})` : `rgba(${c[0]},${c[1]},${c[2]},${a})`);
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg; el.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => (el.hidden = true), 2200);
+  }
+  function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+
+  /* ------------------------------------------------ track helpers */
+  const tracks = () => S.D.tracks;
+  /* the part of the recording that is the set (phones keep recording after) */
+  const span = () => [S.D.summary.set_start || 0, S.D.summary.set_end || S.D.duration];
+  const mixes = () => S.D.transitions;
+  const trackAt = (t) => bsearch(tracks(), t, "start");
+  const keyOf = (tr) => (tr && tr.key ? tr.key.camelot : null);
+  function nameOf(tr) {
+    const o = S.names[tr.n];
+    if (o) return o;
+    return tr.identified ? tr.title : "ID";
+  }
+  function artistOf(tr) {
+    if (S.names[tr.n] && !tr.identified) return "Named by you";
+    return tr.identified ? tr.artist : "Unidentified";
+  }
+  /* in sentences an unnamed track needs its number to be told apart: "ID 7" */
+  const shortName = (tr) => (!tr.identified && !S.names[tr.n] ? `ID ${tr.n}` : nameOf(tr).replace(/\s*\((feat|ft)\.?[^)]*\)/i, ""));
+  const possible = (tr) => tr.identified && tr.shazam_hits <= 1 && tr.id_confidence < 0.25;
+  function artHtml(tr, big) {
+    const local = tr.meta && tr.meta.art_local;
+    if (local) return `${genArt(tr, big, true)}<img class="art-img" src="${esc(local)}" alt="" onerror="this.remove()">`;
+    return genArt(tr, big, false);
+  }
+  function genArt(tr, big, under) {
+    const k = keyOf(tr);
+    const a = keyColor(k, "base"), b = keyColor(k, "deep");
+    const label = tr.identified ? (k || "") : "ID";
+    return `<div class="art-gen" style="background:linear-gradient(150deg, ${a}, ${b})"><span>${esc(label)}</span></div>`;
+  }
+
+  /* precomputed colours per track */
+  let TC = [];
+  function prepColors() {
+    TC = tracks().map((tr) => ({
+      deep: keyRgb(keyOf(tr), "deep"), base: keyRgb(keyOf(tr), "base"),
+      pale: keyRgb(keyOf(tr), "pale"), ink: keyRgb(keyOf(tr), "ink"),
+    }));
+  }
+  /* colour at time t, cross-fading through each mix */
+  function colorAt(t, tone) {
+    const i = trackAt(t);
+    const m = mixes();
+    for (let j = Math.max(0, i - 1); j <= Math.min(m.length - 1, i); j++) {
+      const x = m[j];
+      if (t >= x.mix_in && t <= x.mix_out) {
+        const r = clamp((t - x.mix_in) / Math.max(1, x.mix_out - x.mix_in), 0, 1);
+        return mixRgb(TC[x.from - 1][tone], TC[x.to - 1][tone], r);
+      }
+    }
+    return TC[i][tone];
+  }
+
+  /* ------------------------------------------------ boot */
+  async function boot() {
+    bindStatic();
+    try {
+      const r = await fetch("data/sets.json", { cache: "no-store" });
+      if (!r.ok) throw new Error();
+      S.sets = await r.json();
+    } catch (e) {
+      S.sets = [];
+    }
+    if (!S.sets.length) {
+      $("story").innerHTML = `No analysed sets yet. Put a recording in the project folder and run <b>venv/bin/python analyzer/analyze.py --all</b>, then reload.`;
+      return;
+    }
+    renderSetNav();
+    const want = decodeURIComponent(location.hash.slice(1));
+    const pick = S.sets.find((s) => s.slug === want) || S.sets[0];
+    await openSet(pick.slug);
+  }
+
+  function renderSetNav() {
+    $("sets").innerHTML = S.sets.map((s) => {
+      const sw = (s.keys || []).slice(0, 40).map((k) => `<i style="background:${keyColor(k, "base")}"></i>`).join("");
+      const t = (load(`djsa:${s.slug}`) || {}).title || s.title;
+      return `<button data-slug="${esc(s.slug)}"><span class="set-sw">${sw}</span>${esc(t)} <span class="set-dur">${fmt(s.duration)}</span></button>`;
+    }).join("");
+    $("sets").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openSet(b.dataset.slug)));
+  }
+
+  async function openSet(slug) {
+    const r = await fetch(`data/sets/${encodeURIComponent(slug)}.json`, { cache: "no-store" });
+    S.D = await r.json();
+    S.set = S.sets.find((s) => s.slug === slug);
+    history.replaceState(null, "", `#${slug}`);
+    $("sets").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.slug === slug ? "true" : "false"));
+    const saved = load(`djsa:${slug}`) || {};
+    S.names = saved.names || {};
+    S.title = saved.title || null;
+    S.cur = -1; S.mix = 0; S.lastBeat = -1;
+    S.view = { t0: span()[0], t1: span()[1] };
+    prepColors();
+    audio.src = `audio/${encodeURIComponent(S.D.file)}`;
+    $("tDur").textContent = fmt(S.D.duration);
+    renderHeader();
+    renderSetlist();
+    renderWheel();
+    renderRows();
+    renderCredits();
+    drawAll();
+    setTrack(0, true);
+    selectMix(0, false);
+    tick(true);
+  }
+
+  function saveLocal() {
+    store(`djsa:${S.D.slug}`, { title: S.title, names: S.names });
+  }
+
+  /* ------------------------------------------------ header */
+  function renderHeader() {
+    const D = S.D, s = D.summary;
+    const title = S.title || D.title;
+    $("title").textContent = title;
+    document.title = `${title} · Set Replay`;
+    const bpm = s.bpm_min === s.bpm_max || s.bpm_min == null ? (s.bpm_avg ? Math.round(s.bpm_avg) : "—")
+      : `${Math.round(s.bpm_min)}–${Math.round(s.bpm_max)}`;
+    const facts = [
+      ["Length", fmt(s.set_length || D.duration)],
+      ["Tracks", s.tracks],
+      ["BPM", bpm],
+      ["Harmonic mixes", s.harmonic_pct != null ? `${s.harmonic_pct}%` : "—"],
+    ];
+    $("facts").innerHTML = facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+    $("story").innerHTML = story();
+  }
+
+  function story() {
+    const D = S.D, s = D.summary, T = tracks(), M = mixes();
+    const parts = [];
+    const mins = Math.round((s.set_length || D.duration) / 60);
+    let tempo = "";
+    if (s.bpm_avg) {
+      tempo = s.bpm_max - s.bpm_min < 2
+        ? `, held at <b>${Math.round(s.bpm_avg)} BPM</b> the whole way`
+        : `, moving between <b>${Math.round(s.bpm_min)} and ${Math.round(s.bpm_max)} BPM</b>`;
+    }
+    parts.push(`<b>${s.tracks} tracks</b> in ${mins} minutes${tempo}.`);
+    const unknown = s.tracks - s.identified;
+    if (s.identified) parts.push(unknown ? `Shazam named ${s.identified}; ${unknown === 1 ? "one is an ID" : `${unknown} are IDs`}.` : "Shazam named every one.");
+    else parts.push("No tracks were named, so the setlist comes from the audio alone.");
+    const known = M.filter((x) => x.harmonic.compatible !== null);
+    if (known.length) {
+      const ok = known.filter((x) => x.harmonic.compatible === true).length;
+      const types = Object.entries(s.transition_types).sort((a, b) => b[1] - a[1]);
+      const lead = types.slice(0, 2).map(([k, n]) => `${k.toLowerCase()}s (${n})`).join(" and ");
+      parts.push(`<b>${ok} of ${known.length} mixes</b> stayed in compatible keys, mostly ${lead}.`);
+    }
+    if (s.longest_blend && M.length) {
+      const x = M.find((m) => m.from === s.longest_blend.from);
+      const a = T[x.from - 1], b = T[x.to - 1];
+      parts.push(`The longest blend ran <b>${x.bars ? `${x.bars} bars` : fmtDur(x.duration)}</b>, ${esc(shortName(a))} into ${esc(shortName(b))}.`);
+    }
+    const tail = D.duration - (s.set_end || D.duration);
+    if (tail > 60) parts.push(`The recording runs on for another ${fmtDur(Math.round(tail / 60) * 60)} after the music stops; that part is greyed out.`);
+    return parts.join(" ");
+  }
+
+  /* ------------------------------------------------ ribbon */
+  const X = (t, w) => ((t - S.view.t0) / (S.view.t1 - S.view.t0)) * w;
+  const T_ = (x, w) => S.view.t0 + (x / w) * (S.view.t1 - S.view.t0);
+
+  function waveMax(band, ta, tb) {
+    const fps = S.D.curves.wave_fps, arr = S.D.curves.wave[band];
+    const i0 = clamp(Math.floor(ta * fps), 0, arr.length - 1);
+    const i1 = clamp(Math.ceil(tb * fps), i0 + 1, arr.length);
+    let m = 0;
+    for (let i = i0; i < i1; i++) if (arr[i] > m) m = arr[i];
+    return m;
+  }
+
+  function drawWave(ctx, w, h, t0, t1, opt) {
+    opt = opt || {};
+    const mid = h / 2, amp = mid - 2;
+    const vspan = t1 - t0;
+    for (let x = 0; x < w; x++) {
+      const ta = t0 + (x / w) * vspan, tb = t0 + ((x + 1) / w) * vspan;
+      if (tb < 0 || ta > S.D.duration) continue;
+      const tm = (ta + tb) / 2;
+      const lo = waveMax("low", ta, tb) / 99, mi = waveMax("mid", ta, tb) / 99, hi = waveMax("high", ta, tb) / 99;
+      const dim = opt.dimBefore != null && tm < opt.dimBefore ? 0.55 : 1;
+      ctx.fillStyle = rgb(colorAt(tm, "deep"), dim);
+      ctx.fillRect(x, mid - lo * amp, 1, lo * amp * 2);
+      ctx.fillStyle = rgb(colorAt(tm, "base"), dim);
+      const mh = mi * amp * 0.78;
+      ctx.fillRect(x, mid - mh, 1, mh * 2);
+      ctx.fillStyle = rgb(colorAt(tm, "pale"), dim);
+      const hh = hi * amp * 0.5;
+      ctx.fillRect(x, mid - hh, 1, hh * 2);
+    }
+  }
+
+  let hatch = null;
+  function hatchPattern(ctx) {
+    if (hatch) return hatch;
+    const c = document.createElement("canvas");
+    c.width = c.height = 6;
+    const g = c.getContext("2d");
+    g.strokeStyle = "rgba(255,255,255,.55)";
+    g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(0, 6); g.lineTo(6, 0); g.stroke();
+    hatch = ctx.createPattern(c, "repeat");
+    return hatch;
+  }
+
+  function drawRibbon() {
+    const c = $("rCanvas");
+    const { ctx, w, h } = fit(c);
+    ctx.clearRect(0, 0, w, h);
+    const { t0, t1 } = S.view;
+    // track bands behind the wave
+    tracks().forEach((tr, i) => {
+      const x0 = X(tr.start, w), x1 = X(tr.end, w);
+      if (x1 < 0 || x0 > w) return;
+      ctx.fillStyle = rgb(TC[i].deep, i === S.cur ? 0.16 : 0.08);
+      ctx.fillRect(x0, 0, x1 - x0, h);
+    });
+    drawWave(ctx, w, h - 10, t0, t1);
+    // mix zones (hatched strip along the bottom) + swap ticks
+    mixes().forEach((m, j) => {
+      const x0 = X(m.mix_in, w), x1 = X(m.mix_out, w), xs = X(m.swap, w);
+      if (x1 < 0 || x0 > w) return;
+      ctx.fillStyle = hatchPattern(ctx);
+      ctx.fillRect(x0, h - 7, Math.max(2, x1 - x0), 7);
+      ctx.fillStyle = j === S.mix ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.5)";
+      ctx.fillRect(xs - 0.5, h - 12, 1, 12);
+      if (j === S.mix) {
+        ctx.strokeStyle = "rgba(255,255,255,.6)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x0 + 0.5, 0.5, Math.max(2, x1 - x0) - 1, h - 1);
+      }
+    });
+    // drops: small markers along the top
+    ctx.fillStyle = "rgba(239,236,245,.85)";
+    S.D.drops.forEach((d) => {
+      const x = X(d.t, w);
+      if (x < -5 || x > w + 5) return;
+      ctx.beginPath(); ctx.moveTo(x - 4, 1); ctx.lineTo(x + 4, 1); ctx.lineTo(x, 8); ctx.closePath(); ctx.fill();
+    });
+    shadeOutside(ctx, w, h, (t) => X(t, w));
+    drawLabels(w);
+    drawAxis(w);
+    syncOverviewWindow();
+  }
+
+  function shadeOutside(ctx, w, h, x) {
+    const [s0, s1] = span(), D = S.D.duration;
+    ctx.fillStyle = "rgba(22,21,30,.78)";
+    if (s1 < D - 1) ctx.fillRect(x(s1), 0, w - x(s1) + 1, h);
+    if (s0 > 1) ctx.fillRect(0, 0, x(s0), h);
+  }
+
+  function drawLabels(w) {
+    const box = $("rLabels");
+    const html = [];
+    const [s0, s1] = span();
+    if (s1 < S.D.duration - 1) {
+      const L = Math.max(0, X(s1, w)), R = w;
+      if (R - L > 60) html.push(`<div class="r-label" style="left:${L}px;width:${R - L}px">After the set · ${fmtDur(S.D.duration - s1)} of room sound</div>`);
+    }
+    if (s0 > 1) {
+      const L = 0, R = Math.min(w, X(s0, w));
+      if (R - L > 60) html.push(`<div class="r-label" style="left:${L}px;width:${R - L}px">Before the set</div>`);
+    }
+    tracks().forEach((tr, i) => {
+      const x0 = X(tr.start, w), x1 = X(Math.min(tr.end, s1), w);
+      if (x1 < 0 || x0 > w) return;
+      const L = Math.max(0, x0), R = Math.min(w, x1);
+      if (R - L < 18) return;
+      const label = R - L > 90 ? `<b>${tr.n}</b>${esc(tr.identified || S.names[tr.n] ? shortName(tr) : "ID")}` : `<b>${tr.n}</b>`;
+      html.push(`<div class="r-label${i === S.cur ? " now" : ""}" style="left:${L}px;width:${R - L}px;border-left-color:${keyColor(keyOf(tr), "base", 0.8)}">${label}</div>`);
+    });
+    box.innerHTML = html.join("");
+  }
+
+  function drawAxis(w) {
+    const vspan = S.view.t1 - S.view.t0;
+    const steps = [10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+    const step = steps.find((s) => vspan / s <= 12) || 3600;
+    const out = [];
+    for (let t = Math.ceil(S.view.t0 / step) * step; t <= S.view.t1; t += step) {
+      const x = X(t, w);
+      if (x < 16 || x > w - 16) continue;
+      out.push(`<span style="left:${x}px">${fmt(t)}</span>`);
+    }
+    $("rAxis").innerHTML = out.join("");
+  }
+
+  function drawOverview() {
+    const { ctx, w, h } = fit($("ovCanvas"));
+    ctx.clearRect(0, 0, w, h);
+    const D = S.D.duration;
+    for (let x = 0; x < w; x++) {
+      const ta = (x / w) * D, tb = ((x + 1) / w) * D;
+      const v = Math.max(waveMax("low", ta, tb), waveMax("mid", ta, tb)) / 99;
+      ctx.fillStyle = rgb(colorAt((ta + tb) / 2, "base"), 0.9);
+      const bh = Math.max(2, v * (h - 4));
+      ctx.fillRect(x, (h - bh) / 2, 1, bh);
+    }
+    shadeOutside(ctx, w, h, (t) => (t / D) * w);
+  }
+
+  function syncOverviewWindow() {
+    const ov = $("ovWindow"), D = S.D.duration;
+    const [s0, s1] = span();
+    const full = Math.abs(S.view.t0 - s0) < 0.5 && Math.abs(S.view.t1 - s1) < 0.5;
+    ov.classList.toggle("full", full);
+    const W = $("overview").clientWidth;
+    ov.style.left = `${(S.view.t0 / D) * W}px`;
+    ov.style.width = `${Math.max(6, ((S.view.t1 - S.view.t0) / D) * W)}px`;
+    const vspan = S.view.t1 - S.view.t0;
+    $("zoomLabel").textContent = full ? "Whole set" : `${fmtDur(vspan)} shown`;
+    ov.classList.toggle("full", full && s0 === 0 && s1 >= D - 0.5);
+  }
+
+  function setView(t0, vspan) {
+    const D = S.D.duration;
+    vspan = clamp(vspan, 20, D);
+    t0 = clamp(t0, 0, D - vspan);
+    S.view = { t0, t1: t0 + vspan };
+    drawRibbon();
+    tick(true);
+  }
+  function zoomAround(t, factor, frac) {
+    const vspan = (S.view.t1 - S.view.t0) * factor;
+    if (frac == null) frac = (t - S.view.t0) / (S.view.t1 - S.view.t0);
+    setView(t - frac * vspan, vspan);
+  }
+
+  /* ------------------------------------------------ ribbon + overview interaction */
+  function bindRibbon() {
+    const rb = $("ribbon"), tip = $("rTip"), hov = $("rHover");
+    let down = null;
+    rb.addEventListener("pointerdown", (e) => {
+      down = { x: e.clientX, t0: S.view.t0, moved: false };
+      rb.setPointerCapture(e.pointerId);
+    });
+    rb.addEventListener("pointermove", (e) => {
+      const r = rb.getBoundingClientRect(), x = e.clientX - r.left;
+      if (down) {
+        const dx = e.clientX - down.x;
+        if (Math.abs(dx) > 4) down.moved = true;
+        const vspan = S.view.t1 - S.view.t0;
+        if (down.moved && vspan < S.D.duration - 0.5) {
+          setView(down.t0 - (dx / r.width) * vspan, vspan);
+          return;
+        }
+      }
+      const t = T_(x, r.width);
+      hov.hidden = false; hov.style.left = `${x}px`;
+      showTip(tip, x, r.width, ribbonTip(t), 40);
+    });
+    rb.addEventListener("pointerup", (e) => {
+      const r = rb.getBoundingClientRect();
+      if (down && !down.moved) seek(T_(e.clientX - r.left, r.width), true);
+      down = null;
+    });
+    rb.addEventListener("pointerleave", () => { if (!down) { tip.hidden = true; hov.hidden = true; } });
+    rb.addEventListener("wheel", (e) => {
+      const r = rb.getBoundingClientRect();
+      const t = T_(e.clientX - r.left, r.width);
+      if (e.ctrlKey || e.metaKey) {           // pinch / ctrl-scroll zooms
+        e.preventDefault();
+        zoomAround(t, Math.exp(e.deltaY * 0.01));
+      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {   // horizontal scroll pans
+        e.preventDefault();
+        const vspan = S.view.t1 - S.view.t0;
+        setView(S.view.t0 + (e.deltaX / r.width) * vspan, vspan);
+      }
+    }, { passive: false });
+
+    const ov = $("overview");
+    let ovDown = null;
+    ov.addEventListener("pointerdown", (e) => {
+      const r = ov.getBoundingClientRect();
+      const t = ((e.clientX - r.left) / r.width) * S.D.duration;
+      const vspan = S.view.t1 - S.view.t0;
+      const zoomed = vspan < S.D.duration - 0.5;
+      ovDown = { x: e.clientX, t0: S.view.t0, onWin: zoomed && t >= S.view.t0 && t <= S.view.t1, moved: false };
+      ov.setPointerCapture(e.pointerId);
+    });
+    ov.addEventListener("pointermove", (e) => {
+      if (!ovDown) return;
+      const r = ov.getBoundingClientRect();
+      const dx = e.clientX - ovDown.x;
+      if (Math.abs(dx) > 3) ovDown.moved = true;
+      if (ovDown.onWin && ovDown.moved) {
+        setView(ovDown.t0 + (dx / r.width) * S.D.duration, S.view.t1 - S.view.t0);
+      }
+    });
+    ov.addEventListener("pointerup", (e) => {
+      const r = ov.getBoundingClientRect();
+      if (ovDown && !ovDown.moved) {
+        const t = ((e.clientX - r.left) / r.width) * S.D.duration;
+        const vspan = S.view.t1 - S.view.t0;
+        if (vspan < S.D.duration - 0.5) setView(t - vspan / 2, vspan);
+        seek(t, true);
+      }
+      ovDown = null;
+    });
+
+    $("zoomIn").addEventListener("click", () => zoomAround(focusTime(), 0.5));
+    $("zoomOut").addEventListener("click", () => zoomAround(focusTime(), 2));
+    $("zoomFit").addEventListener("click", () => setView(span()[0], span()[1] - span()[0]));
+  }
+  function focusTime() {
+    const t = audio.currentTime || 0;
+    return t >= S.view.t0 && t <= S.view.t1 ? t : (S.view.t0 + S.view.t1) / 2;
+  }
+
+  function ribbonTip(t) {
+    const [s0, s1] = span();
+    if (t > s1 || t < s0) return `<span class="t-time">${fmt(t)}</span><span class="t-title">${t > s1 ? "After the set" : "Before the set"}</span><span class="t-meta">The recording continues, but there's no music here</span>`;
+    const tr = tracks()[trackAt(t)];
+    const m = mixes().find((x) => t >= x.mix_in && t <= x.mix_out);
+    let html = `<span class="t-time">${fmt(t)}</span><span class="t-title">${esc(nameOf(tr))}</span>`;
+    html += `<span class="t-meta">${esc(artistOf(tr))}${tr.key ? ` · ${tr.key.camelot}` : ""}${tr.bpm ? ` · ${Math.round(tr.bpm)} BPM` : ""}</span>`;
+    if (m) {
+      const b = tracks()[m.to - 1];
+      html += `<br><span class="t-meta">Mixing into ${esc(shortName(b))} · ${esc(m.type.toLowerCase())}</span>`;
+    }
+    const d = S.D.drops.find((x) => Math.abs(x.t - t) < (S.view.t1 - S.view.t0) / 200 + 1.5);
+    if (d) html += `<br><span class="t-meta">Drop after a ${Math.round(d.breakdown_s)} s breakdown</span>`;
+    return html;
+  }
+
+  function showTip(tip, x, w, html, top) {
+    tip.innerHTML = html;
+    tip.hidden = false;
+    const tw = tip.offsetWidth;
+    tip.style.left = `${clamp(x + 14, 4, w - tw - 4)}px`;
+    if (x + 14 + tw > w) tip.style.left = `${clamp(x - tw - 14, 4, w - tw - 4)}px`;
+    tip.style.top = `${top}px`;
+  }
+
+  /* ------------------------------------------------ deck */
+  function setTrack(i, force) {
+    if (i === S.cur && !force) return;
+    S.cur = i;
+    const tr = tracks()[i];
+    if (!tr) return;
+    const k = keyOf(tr);
+    $("deckArt").innerHTML = artHtml(tr, true);
+    $("deckN").textContent = `Track ${tr.n} of ${tracks().length} · ${fmt(tr.start)}–${fmt(tr.end)}`;
+    $("deckTitle").textContent = nameOf(tr);
+    $("deckTitle").title = tr.identified ? "" : "Double-click to name this ID";
+    $("deckArtist").textContent = possible(tr) ? `${artistOf(tr)} · possible match` : artistOf(tr);
+    $("roKey").textContent = k || "—";
+    $("roKey").style.color = k ? keyColor(k, "ink") : "";
+    $("roKeyName").textContent = tr.key ? tr.key.name : "Key";
+    $("roEnergy").textContent = tr.energy != null ? tr.energy.toFixed(1) : "—";
+    $("deck").style.setProperty("--beat", keyColor(k, "base"));
+    $("deckStyles").innerHTML = tr.styles.slice(0, 3).map((s) => `<span class="tag"><b>${esc(s.style)}</b> ${Math.round(s.p * 100)}%</span>`).join("");
+    const L = [];
+    if (tr.meta && tr.meta.shazam_url) L.push(`<a href="${esc(tr.meta.shazam_url)}" target="_blank" rel="noopener">Shazam</a>`);
+    if (tr.meta && tr.meta.apple_url) L.push(`<a href="${esc(tr.meta.apple_url)}" target="_blank" rel="noopener">Apple Music</a>`);
+    if (tr.meta && (tr.meta.label || tr.meta.released)) L.push(`<span style="color:var(--muted)">${esc([tr.meta.label, tr.meta.released].filter(Boolean).join(", "))}</span>`);
+    $("deckLinks").innerHTML = L.join("");
+    const nx = tracks()[i + 1], m = mixes()[i];
+    $("deckNext").innerHTML = nx && m ? `Next: <b>${esc(nameOf(nx))}</b>, ${esc(m.type.toLowerCase())} at ${fmt(m.swap)}` : "Last track of the set";
+    $("pNow").innerHTML = `<b>${esc(nameOf(tr))}</b><span>${esc(artistOf(tr))}</span>`;
+    // setlist + labels + wheel
+    document.querySelectorAll(".trk").forEach((el) => el.classList.toggle("now", +el.dataset.i === i));
+    drawRibbon();
+    updateWheel();
+  }
+
+  function bindRename() {
+    const el = $("deckTitle");
+    el.addEventListener("dblclick", () => {
+      const tr = tracks()[S.cur];
+      el.contentEditable = "true";
+      el.focus();
+      document.getSelection().selectAllChildren(el);
+      const done = (save) => {
+        el.contentEditable = "false";
+        const v = el.textContent.trim();
+        if (save) {
+          if (v && v !== (tr.identified ? tr.title : "ID")) S.names[tr.n] = v; else delete S.names[tr.n];
+          saveLocal();
+          renderSetlist(); renderHeader();
+          toast(v ? "Track renamed" : "Name cleared");
+        }
+        setTrack(S.cur, true);
+      };
+      el.onkeydown = (e) => {
+        if (e.key === "Enter") { e.preventDefault(); done(true); }
+        if (e.key === "Escape") done(false);
+      };
+      el.onblur = () => done(true);
+    });
+    const t = $("title");
+    t.addEventListener("dblclick", () => {
+      t.contentEditable = "true"; t.focus();
+      document.getSelection().selectAllChildren(t);
+      const done = (save) => {
+        t.contentEditable = "false";
+        t.onblur = null;
+        const v = t.textContent.trim();
+        if (save) {
+          S.title = v && v !== S.D.title ? v : null;
+          saveLocal();
+          renderSetNav();
+          $("sets").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.slug === S.D.slug ? "true" : "false"));
+        }
+        renderHeader();
+      };
+      t.onkeydown = (e) => {
+        if (e.key === "Enter") { e.preventDefault(); done(true); }
+        if (e.key === "Escape") done(false);
+      };
+      t.onblur = () => done(true);
+    });
+  }
+
+  /* live spectrum through Web Audio (created on first play: needs a user gesture) */
+  function ensureAudioGraph() {
+    if (S.actx || !window.AudioContext) return;
+    try {
+      S.actx = new AudioContext();
+      const src = S.actx.createMediaElementSource(audio);
+      S.analyser = S.actx.createAnalyser();
+      S.analyser.fftSize = 4096;
+      S.analyser.smoothingTimeConstant = 0.72;
+      src.connect(S.analyser);
+      S.analyser.connect(S.actx.destination);
+      S.freq = new Uint8Array(S.analyser.frequencyBinCount);
+    } catch (e) {
+      S.actx = null;
+    }
+  }
+  function drawSpectrum() {
+    const { ctx, w, h } = fit($("spectrum"));
+    ctx.clearRect(0, 0, w, h);
+    const tr = tracks()[S.cur];
+    const col = TC[S.cur] || TC[0];
+    const n = 56, gap = 2, bw = (w - gap * (n - 1)) / n;
+    let data = null;
+    if (S.analyser && !audio.paused) {
+      S.analyser.getByteFrequencyData(S.freq);
+      data = S.freq;
+    }
+    const sr = S.actx ? S.actx.sampleRate : 48000, bins = S.freq ? S.freq.length : 1;
+    for (let i = 0; i < n; i++) {
+      let v = 0;
+      if (data) {
+        const f0 = 30 * Math.pow(16000 / 30, i / n), f1 = 30 * Math.pow(16000 / 30, (i + 1) / n);
+        const b0 = Math.floor((f0 / (sr / 2)) * bins), b1 = Math.max(b0 + 1, Math.floor((f1 / (sr / 2)) * bins));
+        for (let b = b0; b < b1 && b < bins; b++) v = Math.max(v, data[b]);
+        v = v / 255;
+      }
+      const bh = Math.max(2, v * h);
+      ctx.fillStyle = rgb(v > 0.72 ? col.pale : v > 0.45 ? col.base : col.deep, data ? 1 : 0.5);
+      ctx.fillRect(i * (bw + gap), h - bh, bw, bh);
+    }
+    void tr;
+  }
+
+  function updatePulse(t) {
+    const beats = S.D.beats;
+    if (beats.length) {
+      const i = bsearch(beats, t);
+      const on = beats[i] <= t && t - beats[i] < 0.12 && !audio.paused;
+      const dots = $("pulse").children;
+      for (let k = 0; k < 4; k++) dots[k].classList.toggle("on", on && k === i % 4);
+    }
+    // live tempo from the curve
+    const c = S.D.curves.bpm;
+    const j = bsearch(c.t, t);
+    const v = c.v[j];
+    $("roBpm").textContent = v ? (Math.abs(v - Math.round(v)) < 0.05 ? Math.round(v) : v.toFixed(1)) : "—";
+  }
+
+  /* ------------------------------------------------ setlist */
+  function renderSetlist() {
+    const T = tracks(), M = mixes();
+    const html = [];
+    T.forEach((tr, i) => {
+      const k = keyOf(tr);
+      const flag = possible(tr) ? `<span class="flag">possible match</span>` : "";
+      html.push(`<li class="trk${tr.identified || S.names[tr.n] ? "" : " unknown"}${i === S.cur ? " now" : ""}" data-i="${i}" tabindex="0">
+        <span class="when">${fmt(tr.start)}</span>
+        <span class="thumb">${artHtml(tr)}</span>
+        <span class="name"><span class="t">${esc(nameOf(tr))}${flag}</span><span class="a">${esc(artistOf(tr))}</span></span>
+        <span class="key-chip" style="background:${keyColor(k, "base")}" title="${esc(tr.key ? `${tr.key.name}, ${Math.round(tr.key.confidence * 100)}% of windows agree` : "Key unclear")}">${k || "?"}</span>
+        <span class="bpm">${tr.bpm ? Math.round(tr.bpm) : "—"}<small>BPM</small></span>
+        <canvas class="spark" data-i="${i}" title="Energy across the track"></canvas>
+        <span class="prog"><i style="background:${keyColor(k, "base")}"></i></span>
+      </li>`);
+      const m = M[i];
+      if (m) {
+        const a = keyColor(keyOf(tr), "base"), b = keyColor(keyOf(T[i + 1]), "base");
+        const ok = m.harmonic.compatible === true ? "ok-yes" : m.harmonic.compatible === "partial" ? "ok-part" : m.harmonic.compatible === false ? "ok-no" : "";
+        const len = m.bars ? `${m.bars} bars` : fmtDur(m.duration);
+        const bpmd = m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : "";
+        html.push(`<li class="seam${i === S.mix ? " sel" : ""}" data-m="${i}" tabindex="0" aria-label="Transition ${i + 1}: ${esc(m.type)}">
+          <span class="seam-line" style="background:linear-gradient(${a}, ${b})"></span>
+          <span class="seam-txt"><span class="seam-type">${esc(m.type)}</span><span>${len}</span><span class="${ok}">${esc(m.harmonic.label)}</span>${bpmd ? `<span>${bpmd.slice(3)}</span>` : ""}<span>${fmt(m.swap)}</span></span>
+        </li>`);
+      }
+    });
+    const ol = $("setlist");
+    ol.innerHTML = html.join("");
+    ol.querySelectorAll(".trk").forEach((el) => {
+      const go = () => { const tr = T[+el.dataset.i]; seek(tr.start + 0.05, true); };
+      el.addEventListener("click", go);
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    });
+    ol.querySelectorAll(".seam").forEach((el) => {
+      const go = () => { selectMix(+el.dataset.m, true); };
+      el.addEventListener("click", go);
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    });
+    requestAnimationFrame(drawSparks);
+  }
+
+  function drawSparks() {
+    document.querySelectorAll("canvas.spark").forEach((c) => {
+      const tr = tracks()[+c.dataset.i];
+      const { ctx, w, h } = fit(c);
+      ctx.clearRect(0, 0, w, h);
+      const v = tr.spark, n = v.length;
+      ctx.beginPath();
+      v.forEach((y, i) => {
+        const x = (i / (n - 1)) * w, yy = h - 2 - clamp(y, 0, 1) * (h - 4);
+        i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy);
+      });
+      ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      ctx.fillStyle = keyColor(keyOf(tr), "deep", 0.9);
+      ctx.fill();
+      ctx.beginPath();
+      v.forEach((y, i) => {
+        const x = (i / (n - 1)) * w, yy = h - 2 - clamp(y, 0, 1) * (h - 4);
+        i ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy);
+      });
+      ctx.strokeStyle = keyColor(keyOf(tr), "base");
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }
+
+  function copyTracklist() {
+    const lines = tracks().map((tr) => {
+      const who = tr.identified ? tr.artist : "ID";
+      const what = nameOf(tr);
+      return `${fmt(tr.start)}  ${who} – ${what}`;
+    });
+    const txt = `${S.title || S.D.title}\n\n${lines.join("\n")}\n`;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
+      .then(() => toast("Tracklist copied"))
+      .catch(() => toast("Copy isn't available in this browser"));
+  }
+
+  /* ------------------------------------------------ mix inspector */
+  function selectMix(j, scroll) {
+    const M = mixes();
+    if (!M.length) { $("mix").hidden = true; return; }
+    $("mix").hidden = false;
+    S.mix = clamp(j, 0, M.length - 1);
+    const m = M[S.mix], A = tracks()[m.from - 1], B = tracks()[m.to - 1];
+    $("mixCount").textContent = `${S.mix + 1} of ${M.length}`;
+    $("mixTitle").textContent = `Mix ${S.mix + 1}: ${shortName(A)} into ${shortName(B)}`;
+    const side = (tr, cls) => `<div class="mix-side ${cls}">
+        ${cls === "b" ? "" : `<span class="thumb">${artHtml(tr)}</span>`}
+        <div class="nm"><b>${esc(nameOf(tr))}</b><span>${esc(artistOf(tr))}</span>
+          <span class="meta"><span class="key-chip" style="background:${keyColor(keyOf(tr), "base")};padding:0 6px">${keyOf(tr) || "?"}</span> ${tr.bpm ? `${Math.round(tr.bpm)} BPM` : ""}</span></div>
+        ${cls === "b" ? `<span class="thumb">${artHtml(tr)}</span>` : ""}
+      </div>`;
+    $("mixPair").innerHTML = `${side(A, "a")}
+      <div class="mix-type"><b>${esc(m.type)}</b><span>${m.bars ? `${m.bars} bars · ` : ""}${fmtDur(m.duration)}</span></div>
+      ${side(B, "b")}`;
+    const rel = m.harmonic;
+    const stats = [
+      ["Next track comes in", fmt(m.mix_in)],
+      ["Swap", fmt(m.swap)],
+      ["Mix ends", fmt(m.mix_out)],
+      ["Key", `${m.key_from || "?"} → ${m.key_to || "?"} <small>${esc(rel.label.toLowerCase())}</small>`],
+      ["Tempo", m.bpm_from && m.bpm_to ? (Math.abs(m.bpm_delta) < 0.5 ? `${Math.round(m.bpm_from)} BPM <small>matched</small>` : `${Math.round(m.bpm_from)} → ${Math.round(m.bpm_to)} <small>${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta}</small>`) : "—"],
+      ["Energy", `${A.energy.toFixed(1)} → ${B.energy.toFixed(1)} <small>${m.energy_delta > 0 ? "+" : ""}${m.energy_delta}</small>`],
+      ["Low-end dip", `${m.low_dip_db > 0 ? Math.round(m.low_dip_db) : 0} dB`],
+      ["Shared sound", `${Math.round(m.style_continuity * 100)}%`],
+    ];
+    $("mixStats").innerHTML = stats.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("mixNote").textContent = mixSentence(m, A, B);
+    document.querySelectorAll(".seam").forEach((el) => el.classList.toggle("sel", +el.dataset.m === S.mix));
+    drawMix();
+    drawRibbon();
+    if (scroll) $("mix").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  function mixSentence(m, A, B) {
+    const a = shortName(A), b = shortName(B);
+    const len = m.bars ? `${m.bars} bars` : fmtDur(m.duration);
+    const how = {
+      "Cut": `A hard cut from ${a} straight into ${b}.`,
+      "Bass swap": `${b} ran under ${a} for ${len}; the low end dropped out for a moment at ${fmt(m.swap)} as the basslines swapped.`,
+      "Breakdown drop": `${a} fell into a ${Math.round(m.breakdown_s)} s breakdown and ${b} dropped in on the other side.`,
+      "Into breakdown": `The mix landed in ${b}'s stripped-back section, pulling the low end out after ${a}.`,
+      "Drop swap": `${b} came in quietly, then its drop hit right at the swap.`,
+      "Double drop": `Both tracks hit together around ${fmt(m.swap)}, louder than either side alone.`,
+      "Long blend": `A long blend: ${a} and ${b} played together for ${len}.`,
+      "Blend": `${a} blended into ${b} over ${len}.`,
+    }[m.type] || "";
+    const key = m.harmonic.compatible === true ? " The keys sit next to each other on the wheel." :
+      m.harmonic.compatible === false ? " The keys clash on paper, so the DJ likely leaned on the drums here." : "";
+    return how + key;
+  }
+
+  function mixWindow(m) {
+    const pad = Math.max(14, (m.mix_out - m.mix_in) * 0.45);
+    return [Math.max(0, m.mix_in - pad), Math.min(S.D.duration, m.mix_out + pad)];
+  }
+
+  function drawMix() {
+    const m = mixes()[S.mix];
+    if (!m) return;
+    const { ctx, w, h } = fit($("mixCanvas"));
+    ctx.clearRect(0, 0, w, h);
+    const [w0, w1] = mixWindow(m);
+    const x = (t) => ((t - w0) / (w1 - w0)) * w;
+    const waveH = h * 0.6, top = 22;
+    // overlap shading
+    ctx.fillStyle = "rgba(255,255,255,.04)";
+    ctx.fillRect(x(m.mix_in), 0, x(m.mix_out) - x(m.mix_in), h);
+    ctx.save();
+    ctx.translate(0, top);
+    drawWave(ctx, w, waveH - top, w0, w1);
+    ctx.restore();
+    // low-end line underneath
+    const fps = S.D.curves.wave_fps, low = S.D.curves.wave.low;
+    const ly0 = waveH + 10, ly1 = h - 22;
+    ctx.beginPath();
+    for (let px = 0; px <= w; px += 2) {
+      const t = w0 + (px / w) * (w1 - w0);
+      let s = 0, n = 0;
+      for (let i = Math.floor((t - 0.5) * fps); i <= Math.floor((t + 0.5) * fps); i++) { if (low[i] != null) { s += low[i]; n++; } }
+      const v = n ? s / n / 99 : 0;
+      const y = ly1 - v * (ly1 - ly0);
+      px ? ctx.lineTo(px, y) : ctx.moveTo(px, y);
+    }
+    ctx.strokeStyle = "rgba(239,236,245,.7)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "#9792AB";
+    ctx.font = "500 11px Archivo, sans-serif";
+    ctx.fillText("Low end", 6, ly0 + 2);
+    // beat grid, counted in bars from the swap
+    const beats = S.D.beats;
+    if (beats.length) {
+      const k0 = bsearch(beats, m.swap);
+      ctx.fillStyle = "rgba(239,236,245,.28)";
+      for (let k = bsearch(beats, w0); k < beats.length && beats[k] <= w1; k++) {
+        const rel = k - k0, bx = x(beats[k]);
+        const bar = rel % 4 === 0;
+        ctx.fillRect(bx, h - (bar ? 9 : 5), 1, bar ? 9 : 5);
+        if (rel % 32 === 0) {
+          ctx.fillStyle = "#9792AB";
+          const lbl = rel === 0 ? "0" : `${rel > 0 ? "+" : "−"}${Math.abs(rel / 4)}`;
+          ctx.fillText(lbl, bx + 3, h - 11);
+          ctx.fillStyle = "rgba(239,236,245,.28)";
+        }
+      }
+    }
+    // markers
+    const mark = (t, label, solid) => {
+      const mx = x(t);
+      ctx.strokeStyle = solid ? "rgba(255,255,255,.95)" : "rgba(255,255,255,.55)";
+      ctx.lineWidth = solid ? 1.5 : 1;
+      ctx.setLineDash(solid ? [] : [3, 3]);
+      ctx.beginPath(); ctx.moveTo(mx, 16); ctx.lineTo(mx, h - 14); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#EFECF5";
+      ctx.font = "600 11px Archivo, sans-serif";
+      const tw = ctx.measureText(label).width;
+      ctx.fillText(label, clamp(mx - tw / 2, 4, w - tw - 4), 11);
+    };
+    mark(m.mix_in, "Next track in", false);
+    mark(m.swap, "Swap", true);
+    mark(m.mix_out, "Mix ends", false);
+  }
+
+  function bindMix() {
+    const view = document.querySelector(".mix-view"), tip = $("mixTip");
+    const tAt = (e) => {
+      const r = view.getBoundingClientRect(), m = mixes()[S.mix], [w0, w1] = mixWindow(m);
+      return w0 + ((e.clientX - r.left) / r.width) * (w1 - w0);
+    };
+    view.addEventListener("click", (e) => seek(tAt(e), true));
+    view.addEventListener("pointermove", (e) => {
+      const r = view.getBoundingClientRect(), t = tAt(e), m = mixes()[S.mix];
+      const beats = S.D.beats;
+      let bars = "";
+      if (beats.length) {
+        const rel = bsearch(beats, t) - bsearch(beats, m.swap);
+        bars = ` · ${rel === 0 ? "at the swap" : `${Math.abs(rel / 4).toFixed(rel % 4 ? 1 : 0)} bars ${rel < 0 ? "before" : "after"} the swap`}`;
+      }
+      showTip(tip, e.clientX - r.left, r.width, `<span class="t-time">${fmt(t)}${bars}</span>`, 26);
+    });
+    view.addEventListener("pointerleave", () => (tip.hidden = true));
+    $("mixPrev").addEventListener("click", () => selectMix(S.mix - 1));
+    $("mixNext").addEventListener("click", () => selectMix(S.mix + 1));
+    $("mixPlay").addEventListener("click", () => playMix());
+    $("mixLoop").addEventListener("click", () => {
+      S.loop = !S.loop;
+      $("mixLoop").setAttribute("aria-pressed", String(S.loop));
+      if (S.loop) playMix();
+    });
+  }
+  function playMix(j) {
+    if (j != null) selectMix(j);
+    const m = mixes()[S.mix];
+    seek(Math.max(0, m.mix_in - 6), true);
+  }
+
+  /* ------------------------------------------------ wheel */
+  const WHEEL = { rB: [150, 190], rA: [106, 146] };
+  function wheelPos(code, ring) {
+    const k = window.KeyColor.parse(code);
+    const ang = ((k.n % 12) * 30 - 90) * (Math.PI / 180);   // 12 at the top, clockwise
+    const r = ring != null ? ring : k.mode === "B" ? (WHEEL.rB[0] + WHEEL.rB[1]) / 2 : (WHEEL.rA[0] + WHEEL.rA[1]) / 2;
+    return [Math.cos(ang) * r, Math.sin(ang) * r, ang];
+  }
+  function arc(r0, r1, a0, a1) {
+    const p = (r, a) => `${(Math.cos(a) * r).toFixed(2)} ${(Math.sin(a) * r).toFixed(2)}`;
+    return `M${p(r1, a0)} A${r1} ${r1} 0 0 1 ${p(r1, a1)} L${p(r0, a1)} A${r0} ${r0} 0 0 0 ${p(r0, a0)} Z`;
+  }
+  function renderWheel() {
+    const svg = $("wheel");
+    const used = new Set(tracks().map(keyOf).filter(Boolean));
+    const parts = [];
+    for (let n = 1; n <= 12; n++) {
+      for (const mode of ["B", "A"]) {
+        const code = `${n}${mode}`;
+        const [r0, r1] = mode === "B" ? WHEEL.rB : WHEEL.rA;
+        const c = ((n % 12) * 30 - 90) * (Math.PI / 180);
+        const a0 = c - (Math.PI / 12) + 0.01, a1 = c + (Math.PI / 12) - 0.01;
+        const on = used.has(code);
+        parts.push(`<path class="wheel-seg" d="${arc(r0, r1, a0, a1)}" fill="${keyColor(code, "base")}" opacity="${on ? 1 : 0.2}"><title>${code}</title></path>`);
+        const [lx, ly] = wheelPos(code, (r0 + r1) / 2 + (mode === "B" ? 9 : 9));
+        parts.push(`<text class="wheel-lbl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" opacity="${on ? 1 : 0.5}">${code}</text>`);
+      }
+    }
+    parts.push(`<g id="wheelPath"></g><g id="wheelDots"></g>`);
+    parts.push(`<text class="wheel-center" id="wcKey" y="-4" font-size="38" font-weight="700" style="font-stretch:75%"></text>`);
+    parts.push(`<text class="wheel-center" id="wcSub" y="22" font-size="12" fill="#9792AB"></text>`);
+    svg.innerHTML = parts.join("");
+    // dots: tracks sharing a key fan out inside the segment
+    const counts = {};
+    const pts = tracks().map((tr) => {
+      const k = keyOf(tr);
+      if (!k) return null;
+      counts[k] = (counts[k] || 0) + 1;
+      return { tr, k, idx: counts[k] - 1 };
+    });
+    S.wheelPts = pts.map((p) => {
+      if (!p) return null;
+      const total = counts[p.k];
+      const [, , ang] = wheelPos(p.k);
+      const kk = window.KeyColor.parse(p.k);
+      const base = kk.mode === "B" ? WHEEL.rB : WHEEL.rA;
+      const spread = Math.min(0.42, 0.11 * (total - 1));
+      const a = ang + (total > 1 ? -spread / 2 + (spread * p.idx) / (total - 1) : 0);
+      const r = base[0] + 12 + ((p.idx % 2) * 10);
+      return { ...p, x: Math.cos(a) * r, y: Math.sin(a) * r };
+    });
+    const dots = S.wheelPts.map((p, i) => p ? `<circle class="wheel-dot" data-i="${i}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="6.5" fill="${keyColor(p.k, "pale")}"><title>${p.tr.n}. ${esc(nameOf(p.tr))} (${p.k})</title></circle>` : "").join("");
+    $("wheelDots").innerHTML = dots;
+    $("wheelDots").querySelectorAll("circle").forEach((c) => c.addEventListener("click", () => seek(tracks()[+c.dataset.i].start + 0.05, true)));
+    const harmonic = S.D.summary.harmonic_pct;
+    $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighbouring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
+    updateWheel();
+  }
+  function updateWheel() {
+    if (!S.wheelPts) return;
+    const pts = S.wheelPts.filter(Boolean);
+    const curve = (a, b) => {
+      // bow long jumps toward the centre so the path reads as a journey
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      const pull = clamp(d / 340, 0, 0.8);
+      return `Q${(mx * (1 - pull)).toFixed(1)} ${(my * (1 - pull)).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+    };
+    let done = "", rest = "";
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const seg = `M${a.x.toFixed(1)} ${a.y.toFixed(1)} ${curve(a, b)}`;
+      if (b.tr.n - 1 <= S.cur) done += seg; else rest += seg;
+    }
+    $("wheelPath").innerHTML = `<path class="wheel-path-dim" d="${rest}"/><path class="wheel-path" d="${done}"/>`;
+    $("wheelDots").querySelectorAll("circle").forEach((c) => {
+      const i = +c.dataset.i;
+      c.classList.toggle("now", i === S.cur);
+      c.setAttribute("r", i === S.cur ? 9 : 6.5);
+      c.setAttribute("opacity", i <= S.cur ? 1 : 0.55);
+    });
+    const tr = tracks()[Math.max(0, S.cur)];
+    $("wcKey").textContent = keyOf(tr) || "?";
+    $("wcKey").setAttribute("fill", keyColor(keyOf(tr), "ink"));
+    $("wcSub").textContent = tr.key ? tr.key.name : "key unclear";
+  }
+
+  /* ------------------------------------------------ energy + rows */
+  function drawEnergy() {
+    const box = $("energyBox"), c = $("energyCanvas");
+    const { ctx, w, h } = fit(c);
+    ctx.clearRect(0, 0, w, h);
+    const e = S.D.curves.energy.v;
+    const [s0, s1] = span(), L = s1 - s0;
+    const xt = (t) => ((t - s0) / L) * w, tx = (px) => s0 + (px / w) * L;
+    const y = (v) => h - 14 - clamp(v || 0, 0, 1.05) * (h - 26);
+    // gridlines
+    ctx.strokeStyle = "rgba(255,255,255,.06)";
+    ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach((g) => { ctx.beginPath(); ctx.moveTo(0, y(g)); ctx.lineTo(w, y(g)); ctx.stroke(); });
+    // per-track fill
+    tracks().forEach((tr, i) => {
+      const x0 = xt(tr.start), x1 = xt(Math.min(tr.end, s1));
+      ctx.beginPath();
+      ctx.moveTo(x0, h - 14);
+      for (let px = Math.floor(x0); px <= Math.ceil(x1); px++) {
+        const t = clamp(Math.round(tx(px)), 0, e.length - 1);
+        ctx.lineTo(px, y(e[t]));
+      }
+      ctx.lineTo(x1, h - 14);
+      ctx.closePath();
+      ctx.fillStyle = rgb(TC[i].deep, 0.85);
+      ctx.fill();
+    });
+    ctx.beginPath();
+    for (let px = 0; px <= w; px++) {
+      const t = clamp(Math.round(tx(px)), 0, e.length - 1);
+      px ? ctx.lineTo(px, y(e[t])) : ctx.moveTo(px, y(e[t]));
+    }
+    ctx.strokeStyle = "rgba(239,236,245,.9)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // drops along the baseline
+    ctx.fillStyle = "rgba(239,236,245,.85)";
+    S.D.drops.forEach((d) => {
+      const x = xt(d.t);
+      ctx.beginPath(); ctx.moveTo(x - 4, h - 1); ctx.lineTo(x + 4, h - 1); ctx.lineTo(x, h - 8); ctx.closePath(); ctx.fill();
+    });
+    // peak marker
+    const pk = S.D.summary.peak_t, px = xt(pk);
+    ctx.fillStyle = "#EFECF5";
+    ctx.beginPath(); ctx.arc(px, y(e[pk]), 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.font = "600 11px Archivo, sans-serif";
+    const lbl = "Peak";
+    ctx.fillText(lbl, clamp(px + 6, 2, w - 30), y(e[pk]) - 6);
+    $("energySub").textContent = `Loudness, brightness and intensity combined · peak at ${fmt(pk)} · ${S.D.drops.length} drops`;
+    void box;
+  }
+
+  const MOODS = [["danceability", "Danceable"], ["mood_party", "Party"], ["mood_aggressive", "Aggressive"], ["mood_happy", "Happy"], ["voice_instrumental", "Vocals"]];
+  function renderRows() {
+    const st = S.D.curves.styles;
+    const [s0, s1] = span();
+    const inSet = (i, step) => i * step + step / 2 >= s0 && i * step + step / 2 <= s1;
+    const sv = st.v.filter((_, i) => inSet(i, st.step));
+    const avg = st.names.map((_, i) => sv.reduce((s, r) => s + r[i], 0) / Math.max(1, sv.length));
+    $("styleRows").innerHTML = st.names.slice(0, -1).map((n, i) =>
+      `<div class="row" data-kind="style" data-i="${i}"><span class="rl" title="${esc(n)}">${esc(n)}</span><canvas></canvas><span class="rv">${Math.round(avg[i] * 100)}%</span></div>`).join("");
+    const mv = S.D.curves.moods.v;
+    $("moodRows").innerHTML = MOODS.filter(([k]) => mv[k]).map(([k, label]) => {
+      const vals = mv[k].filter((_, i) => inSet(i, S.D.curves.moods.step));
+      const a = vals.reduce((s, x) => s + (x || 0), 0) / Math.max(1, vals.length);
+      return `<div class="row" data-kind="mood" data-k="${k}"><span class="rl">${label}</span><canvas></canvas><span class="rv">${a.toFixed(2)}</span></div>`;
+    }).join("");
+    document.querySelectorAll(".row").forEach((row) => {
+      const c = row.querySelector("canvas");
+      c.addEventListener("click", (e) => {
+        const r = c.getBoundingClientRect();
+        seek(span()[0] + ((e.clientX - r.left) / r.width) * (span()[1] - span()[0]), true);
+      });
+    });
+  }
+  function drawRows(t) {
+    const st = S.D.curves.styles;
+    const [s0, s1] = span(), L = s1 - s0;
+    const gmax = Math.max(...st.v.map((r) => Math.max(...r.slice(0, -1))));
+    document.querySelectorAll(".row").forEach((row) => {
+      const c = row.querySelector("canvas");
+      const { ctx, w, h } = fit(c);
+      ctx.clearRect(0, 0, w, h);
+      let vals, step, max;
+      if (row.dataset.kind === "style") { vals = st.v.map((r) => r[+row.dataset.i]); step = st.step; max = gmax; }
+      else { vals = S.D.curves.moods.v[row.dataset.k]; step = S.D.curves.moods.step; max = 1; }
+      ctx.fillStyle = "rgba(255,255,255,.04)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      vals.forEach((v, i) => {
+        const x = ((i * step + step / 2 - s0) / L) * w;
+        ctx.lineTo(x, h - clamp((v || 0) / max, 0, 1) * (h - 2));
+      });
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(239,236,245,.5)";
+      ctx.fill();
+      if (t != null) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(((t - s0) / L) * w - 1, 0, 2, h);
+      }
+    });
+  }
+
+  function bindEnergy() {
+    const box = $("energyBox"), tip = box.querySelector(".tip"), hov = box.querySelector(".c-hover");
+    box.addEventListener("pointermove", (e) => {
+      const r = box.getBoundingClientRect(), x = e.clientX - r.left;
+      const t = span()[0] + (x / r.width) * (span()[1] - span()[0]), tr = tracks()[trackAt(t)];
+      const v = S.D.curves.energy.v[clamp(Math.round(t), 0, S.D.curves.energy.v.length - 1)] || 0;
+      hov.hidden = false; hov.style.left = `${x}px`;
+      showTip(tip, x, r.width, `<span class="t-time">${fmt(t)}</span><span class="t-title">${esc(nameOf(tr))}</span><span class="t-meta">Energy ${(1 + 9 * clamp(v, 0, 1)).toFixed(1)} of 10</span>`, 6);
+    });
+    box.addEventListener("pointerleave", () => { tip.hidden = true; hov.hidden = true; });
+    box.addEventListener("click", (e) => {
+      const r = box.getBoundingClientRect();
+      seek(span()[0] + ((e.clientX - r.left) / r.width) * (span()[1] - span()[0]), true);
+    });
+  }
+
+  function renderCredits() {
+    const D = S.D, c = D.credits;
+    const when = new Date(D.analyzed_at);
+    $("credits").innerHTML = `Analysed ${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} from <b>${esc(D.file)}</b>.
+      Beats, tempo and key: ${esc(c.beats_key_tempo)}. Styles and moods: ${esc(c.styles_moods)}. Track names: ${esc(c.identification)}.
+      Mix points, types and energy are estimated from the audio, so treat them as a close read rather than ground truth.`;
+  }
+
+  /* ------------------------------------------------ scrub bar */
+  function drawScrub() {
+    const { ctx, w, h } = fit($("scrubCanvas"));
+    ctx.clearRect(0, 0, w, h);
+    const D = S.D.duration;
+    for (let x = 0; x < w; x++) {
+      const ta = (x / w) * D, tb = ((x + 1) / w) * D;
+      const v = Math.max(waveMax("low", ta, tb), waveMax("mid", ta, tb)) / 99;
+      const bh = Math.max(2, v * (h - 6));
+      ctx.fillStyle = rgb(colorAt((ta + tb) / 2, "base"));
+      ctx.fillRect(x, (h - bh) / 2, 1, bh);
+    }
+  }
+
+  /* ------------------------------------------------ playback */
+  function seek(t, play) {
+    audio.currentTime = clamp(t, 0, S.D.duration - 0.1);
+    if (play) startPlay();
+    tick(true);
+  }
+  function startPlay() {
+    ensureAudioGraph();
+    if (S.actx && S.actx.state === "suspended") S.actx.resume();
+    const p = audio.play();
+    if (p && p.catch) p.catch(() => toast("Press play to start the audio"));
+  }
+  function togglePlay() { audio.paused ? startPlay() : audio.pause(); }
+
+  function tick(force) {
+    if (!S.D) return;
+    const t = audio.currentTime || 0, D = S.D.duration;
+    // current track + live mix selection
+    const i = trackAt(t);
+    if (i !== S.cur) setTrack(i);
+    const live = mixes().findIndex((m) => t >= m.mix_in - 4 && t <= m.mix_out);
+    if (live >= 0 && live !== S.mix && !audio.paused && !S.loop) selectMix(live, false);
+    // loop the selected mix
+    if (S.loop && !audio.paused) {
+      const m = mixes()[S.mix];
+      if (t > m.mix_out + 6 || t < m.mix_in - 12) audio.currentTime = Math.max(0, m.mix_in - 6);
+    }
+    // follow
+    const vspan = S.view.t1 - S.view.t0;
+    if (S.follow && !audio.paused && vspan < D - 0.5 && (t > S.view.t1 - vspan * 0.04 || t < S.view.t0)) {
+      setView(t - vspan * 0.1, vspan);
+      return;
+    }
+    // ribbon playhead
+    const rw = $("ribbon").clientWidth;
+    const rx = X(t, rw);
+    $("rPlayhead").style.left = `${rx}px`;
+    $("rPlayhead").hidden = rx < 0 || rx > rw;
+    $("ovPlayhead").style.left = `${(t / D) * $("overview").clientWidth}px`;
+    // scrub
+    $("scrubFill").style.left = `${(t / D) * 100}%`;
+    $("tCur").textContent = fmt(t);
+    // setlist progress
+    const tr = tracks()[S.cur];
+    const li = document.querySelector(`.trk[data-i="${S.cur}"] .prog i`);
+    if (li) li.style.width = `${clamp((t - tr.start) / (tr.end - tr.start), 0, 1) * 100}%`;
+    // mix playhead
+    const m = mixes()[S.mix];
+    if (m) {
+      const [w0, w1] = mixWindow(m), ph = $("mixPlayhead");
+      ph.hidden = t < w0 || t > w1;
+      ph.style.left = `${((t - w0) / (w1 - w0)) * 100}%`;
+    }
+    updatePulse(t);
+    drawSpectrum();
+    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); tick._rows = t; }
+  }
+  function loop() {
+    if (!audio.paused) tick();
+    requestAnimationFrame(loop);
+  }
+
+  function setPlayIcon() {
+    const p = audio.paused;
+    document.querySelector(".i-play").hidden = !p;
+    document.querySelector(".i-pause").hidden = p;
+    $("playBtn").setAttribute("aria-label", p ? "Play" : "Pause");
+  }
+
+  function bindStatic() {
+    bindRibbon();
+    bindMix();
+    bindEnergy();
+    bindRename();
+    $("playBtn").addEventListener("click", togglePlay);
+    $("nextTrack").addEventListener("click", () => { const n = tracks()[S.cur + 1]; if (n) seek(n.start + 0.05, !audio.paused); });
+    $("prevTrack").addEventListener("click", () => {
+      const tr = tracks()[S.cur];
+      const target = audio.currentTime - tr.start > 4 || S.cur === 0 ? tr : tracks()[S.cur - 1];
+      seek(target.start + 0.05, !audio.paused);
+    });
+    $("followBtn").addEventListener("click", () => {
+      S.follow = !S.follow;
+      $("followBtn").setAttribute("aria-pressed", String(S.follow));
+    });
+    $("copyBtn").addEventListener("click", copyTracklist);
+    $("helpBtn").addEventListener("click", () => ($("keysHelp").hidden = !$("keysHelp").hidden));
+    const scrub = $("scrub");
+    const scrubTo = (e) => { const r = scrub.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * S.D.duration, false); };
+    let scrubbing = false;
+    scrub.addEventListener("pointerdown", (e) => { scrubbing = true; scrub.setPointerCapture(e.pointerId); scrubTo(e); });
+    scrub.addEventListener("pointermove", (e) => { if (scrubbing) scrubTo(e); });
+    scrub.addEventListener("pointerup", () => (scrubbing = false));
+    ["play", "pause"].forEach((ev) => audio.addEventListener(ev, () => { setPlayIcon(); tick(true); }));
+    audio.addEventListener("seeked", () => tick(true));
+    audio.addEventListener("loadedmetadata", () => tick(true));
+    window.addEventListener("resize", () => { if (S.D) { hatch = null; drawAll(); tick(true); } });
+    window.addEventListener("hashchange", () => {
+      const slug = decodeURIComponent(location.hash.slice(1));
+      if (S.D && slug !== S.D.slug && S.sets.find((s) => s.slug === slug)) openSet(slug);
+    });
+    document.addEventListener("keydown", onKey);
+    requestAnimationFrame(loop);
+  }
+
+  function onKey(e) {
+    if (!S.D) return;
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (k === " ") { e.preventDefault(); togglePlay(); }
+    else if (k === "ArrowRight" || k === "ArrowLeft") {
+      e.preventDefault();
+      const d = (e.shiftKey ? 30 : 5) * (k === "ArrowRight" ? 1 : -1);
+      seek(audio.currentTime + d, false);
+    } else if (k === "n" || k === "N") $("nextTrack").click();
+    else if (k === "p" || k === "P") $("prevTrack").click();
+    else if (k === "m" || k === "M") {
+      const t = audio.currentTime;
+      const j = mixes().findIndex((m) => m.mix_in > t);
+      playMix(j >= 0 ? j : 0);
+    } else if (k === "+" || k === "=") zoomAround(focusTime(), 0.5);
+    else if (k === "-" || k === "_") zoomAround(focusTime(), 2);
+    else if (k === "f" || k === "F") $("followBtn").click();
+    else if (k === "?") $("helpBtn").click();
+  }
+
+  function drawAll() {
+    drawOverview();
+    drawRibbon();
+    drawScrub();
+    drawEnergy();
+    drawSparks();
+    drawMix();
+    drawRows(audio.currentTime || 0);
+  }
+
+  boot();
+})();

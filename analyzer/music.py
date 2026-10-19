@@ -81,7 +81,7 @@ STYLE_TEMPO = {
     "Trip Hop": (70, 100), "Downtempo": (80, 110), "Reggaeton": (88, 100),
     "Dancehall": (90, 110), "Dub": (70, 90), "Afrobeat": (100, 120),
 }
-NEUTRAL = 0.35   # likelihood for a style with no tempo prior (Ambient, Experimental...)
+NEUTRAL = 0.15   # likelihood for a style with no tempo prior (Ambient, Experimental...)
 
 
 def tempo_likelihood(style, bpm):
@@ -108,24 +108,29 @@ def fuse_styles(acts, classes, bpm, top=4):
 
 
 # ---------------------------------------------------------------- BPM octave resolution
-def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=3.0):
+# Styles a reverberant room recording drifts toward; they get a weaker tempo vote.
+SOFT_VOTE = {"Downtempo": 0.3, "Dub": 0.3, "Trip Hop": 0.3}
+
+
+def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=2.0, hold_cost=60.0):
     """Choose x0.5 / x1 / x2 per window with a Viterbi pass.
 
     Emission: how well each tempo candidate agrees with the window's style
-    activations (only styles with a tempo prior vote). Transition: penalty for
-    switching tempo octave between neighbouring windows, so a whole set stays
-    on one consistent grid unless the music really changes.
+    activations (only styles with a tempo prior vote). Transition: switching
+    octave is cheap only where the raw tempo itself changes; while the raw
+    estimate holds steady the music hasn't changed speed, so the octave stays.
     """
     mult = np.array([0.5, 1.0, 2.0])
     prior_idx = [i for i, c in enumerate(classes) if c.split("---")[-1] in STYLE_TEMPO]
     pc = [classes[i] for i in prior_idx]
+    vote = np.array([SOFT_VOTE.get(c.split("---")[-1], 1.0) for c in pc])
     n = len(raw_bpm)
     E = np.full((n, 3), -1e3)
     for t in range(n):
         if not np.isfinite(raw_bpm[t]):
             E[t] = 0
             continue
-        a = style_acts[t][prior_idx]
+        a = style_acts[t][prior_idx] * vote
         for k, m in enumerate(mult):
             b = raw_bpm[t] * m
             if b < 60 or b > 210:
@@ -133,12 +138,14 @@ def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=3.0):
             like = np.array([tempo_likelihood(c, b) for c in pc])
             E[t, k] = np.log((a * like).sum() / (a.sum() + 1e-9) + 1e-6)
     # Viterbi
-    T = -jump_cost * np.abs(np.log2(mult[:, None] / mult[None, :]))
+    octs = np.abs(np.log2(mult[:, None] / mult[None, :]))
     D = np.zeros((n, 3))
     P = np.zeros((n, 3), int)
     D[0] = E[0]
     for t in range(1, n):
-        s = D[t - 1][:, None] + T
+        r0, r1 = raw_bpm[t - 1], raw_bpm[t]
+        steady = np.isfinite(r0) and np.isfinite(r1) and abs(np.log(r1 / r0)) < 0.04
+        s = D[t - 1][:, None] - (hold_cost if steady else jump_cost) * octs
         P[t] = s.argmax(0)
         D[t] = s.max(0) + E[t]
     path = np.zeros(n, int)
