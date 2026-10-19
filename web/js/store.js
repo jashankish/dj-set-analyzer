@@ -28,25 +28,53 @@ async function tx(mode, fn) {
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
 /** Save an analysed set with its audio. Returns the new id. */
+/* Put a record, storing its recording the best way this browser allows:
+   as a File/Blob; else as raw bytes (WebKit refuses Blobs in IndexedDB in
+   private/ephemeral sessions but takes ArrayBuffers); else without the audio
+   ("Add the recording" can attach it later). A full quota still throws. */
+async function putWithAudio(rec, audio) {
+  const isQuota = (e) => /quota/i.test(String(e && (e.name || e.message || e)));
+  try {
+    return await tx("readwrite", (s) => s.put({ ...rec, audio }));
+  } catch (e) {
+    if (!audio || isQuota(e)) throw e;
+  }
+  try {
+    const bytes = await audio.arrayBuffer();
+    return await tx("readwrite", (s) => s.put({ ...rec, audio: null, audioBytes: bytes, audioName: audio.name || "set", audioType: audio.type || "" }));
+  } catch (e) {
+    if (isQuota(e)) throw e;
+  }
+  return tx("readwrite", (s) => s.put({ ...rec, audio: null }));
+}
+
+/* the recording as a File, whichever way it was stored */
+function withAudio(rec) {
+  if (rec && !rec.audio && rec.audioBytes) {
+    rec.audio = new File([rec.audioBytes], rec.audioName || "set", { type: rec.audioType || "" });
+  }
+  return rec;
+}
+
 export async function saveSet(payload, audio) {
   const id = newId();
   payload.slug = id;
-  await tx("readwrite", (s) => s.put({ id, created: Date.now(), title: payload.title, payload, audio }));
+  await putWithAudio({ id, created: Date.now(), title: payload.title, payload }, audio);
   // ask the browser not to evict the library; best effort. Catch the promise
   // too: Firefox rejects it when the page navigates on before it settles.
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* optional */ }
   return id;
 }
 
-export const getSet = (id) => tx("readonly", (s) => s.get(id));
+export const getSet = async (id) => withAudio(await tx("readonly", (s) => s.get(id)));
 export const deleteSet = (id) => tx("readwrite", (s) => s.delete(id));
 
 /** Attach (or replace) the recording for a saved set. */
 export async function attachAudio(id, file) {
-  const rec = await getSet(id);
+  const rec = await tx("readonly", (s) => s.get(id));
   if (!rec) return;
-  rec.audio = file;
-  await tx("readwrite", (s) => s.put(rec));
+  const { audio, audioBytes, audioName, audioType, ...rest } = rec;
+  await putWithAudio(rest, file);
 }
 
 /** Import a downloaded .setreplay.json (no audio). Returns the new id. */
@@ -64,7 +92,7 @@ export async function importSet(json) {
 
 /** Replace a set's analysis (e.g. after naming its tracks), keeping its id and audio. */
 export async function replacePayload(id, payload) {
-  const rec = await getSet(id);
+  const rec = await tx("readonly", (s) => s.get(id));   // raw: keep the audio as stored
   if (!rec) return;
   payload.slug = id;
   rec.payload = payload;
@@ -72,7 +100,7 @@ export async function replacePayload(id, payload) {
 }
 
 export async function updatePayload(id, patch) {
-  const rec = await getSet(id);
+  const rec = await tx("readonly", (s) => s.get(id));   // raw: keep the audio as stored
   if (!rec) return;
   Object.assign(rec.payload, patch);
   if (patch.title) rec.title = patch.title;
@@ -88,7 +116,7 @@ export async function listSets() {
     tracks: r.payload.summary.tracks, bpm_avg: r.payload.summary.bpm_avg,
     keys: r.payload.tracks.map((t) => (t.key ? t.key.camelot : null)),
     segs: r.payload.tracks.map((t) => [t.start, t.end, t.key ? t.key.camelot : null]),
-    hasAudio: !!r.audio,
+    hasAudio: !!(r.audio || r.audioBytes),
   }));
 }
 
