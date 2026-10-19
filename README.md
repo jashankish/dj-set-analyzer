@@ -786,6 +786,7 @@ pipeline:
 | "too long for this browser's memory" | Decoding needs about 64 KB of memory per second of audio, plus working space. Use a desktop browser, close other tabs, or split very long recordings |
 | The naming pop-up never says “Connected” | Check the helper window shows *running on http://127.0.0.1:8789*. Use Chrome, Edge or Firefox (Safari may block it). If you started it with `--origin`, the site's address must match exactly |
 | Helper: “needs Python 3.9 to 3.13” | Install Python 3.12 from python.org and run the helper again. It finds `python3.12` by itself |
+| “Analysed, but this browser won't store it” | The analysis finished but IndexedDB refused it (private browsing, blocked site data, or a full disk). Press **Download the analysis**. The page warns before you leave while that result is unsaved. Drop the file back in later, or in another browser, to reopen it, then use *Add the recording* |
 | A set from the website is missing on another computer | Sets live in the browser that analysed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
 
 ---

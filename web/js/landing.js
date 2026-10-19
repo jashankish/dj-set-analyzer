@@ -184,14 +184,16 @@ function renderQueue() {
     if (q.state === "running") state = `${q.stage} · ${Math.round(q.f * 100)}%`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
     if (q.state === "error") state = esc(q.error);
+    if (q.state === "unsaved") state = `Analysed, but ${esc(q.error)}. <button class="ghost dl" data-i="${i}">Download the analysis</button>`;
     return `<li class="q-item">
       <div class="q-name"><b>${esc(q.file.name)}</b><span>${mb(q.file.size)}</span></div>
-      <div class="q-state${q.state === "error" ? " err" : ""}">${state}</div>
+      <div class="q-state${q.state === "error" || q.state === "unsaved" ? " err" : ""}">${state}</div>
       ${q.state === "ready" && !running ? `<button class="q-x" data-i="${i}" aria-label="Remove ${esc(q.file.name)}">✕</button>` : "<span></span>"}
-      <div class="q-bar" style="width:${q.state === "running" || q.state === "done" ? q.f * 100 : 0}%"></div>
+      <div class="q-bar" style="width:${["running", "done", "unsaved"].includes(q.state) ? q.f * 100 : 0}%"></div>
     </li>`;
   }).join("");
   $("qList").querySelectorAll(".q-x").forEach((b) => b.addEventListener("click", () => { queue.splice(+b.dataset.i, 1); renderQueue(); }));
+  $("qList").querySelectorAll(".dl").forEach((b) => b.addEventListener("click", () => downloadPayload(queue[+b.dataset.i].payload)));
   const ready = queue.filter((q) => q.state === "ready").length;
   $("analyseBtn").disabled = running || !ready;
   $("analyseBtn").textContent = running ? "Analysing…" : ready > 1 ? `Analyse ${ready} sets` : "Analyse";
@@ -226,15 +228,25 @@ async function analyseAll() {
         identify: helperOn && nameTracks && !!(await helperStatus()),
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
       });
-      q.id = await saveSet(payload, q.file);
+      try {
+        q.id = await saveSet(payload, q.file);
+      } catch (e) {
+        // the analysis worked; don't throw it away because the browser won't store it
+        q.state = "unsaved"; q.payload = payload; q.f = 1;
+        q.error = /quota/i.test(String(e)) ? "this browser is out of storage space"
+          : "this browser won't store it (private browsing, or storage is blocked)";
+        console.error(e);
+        announce(`${q.file.name} was analysed but couldn't be saved. Download the analysis to keep it.`);
+        renderQueue();
+        continue;
+      }
       q.state = "done"; q.f = 1;
       finished.push(q);
       announce(`${q.file.name} is ready: ${payload.summary.tracks} tracks.`);
     } catch (e) {
       if (e && e.name === "AbortError") { q.state = "ready"; q.f = 0; renderQueue(); announce("Analysis stopped."); break; }
       q.state = "error";
-      q.error = /quota|storage/i.test(String(e)) ? "Analysed, but this browser is out of storage space for it. Free some space and try again."
-        : (e && e.message) || "Analysis failed";
+      q.error = (e && e.message) || "Analysis failed";
       console.error(e);
       announce(`${q.file.name} couldn't be analysed. ${q.error}`);
     }
@@ -246,6 +258,16 @@ async function analyseAll() {
   loadLibrary();
   if (finished.length === 1 && queue.length === 1) location.href = `set.html?id=${encodeURIComponent(finished[0].id)}`;
   else if (finished.length) toast(`${finished.length} set${finished.length > 1 ? "s" : ""} ready`);
+}
+
+/* same format as the viewer's "Download the analysis"; drop it back in to import */
+function downloadPayload(payload) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify({ ...payload, user_names: {} })], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `${(payload.title || "set").replace(/[^\w\- ]+/g, "")}.setreplay.json` });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /* ------------------------------------------------ drag and drop */
@@ -271,7 +293,9 @@ function bindDrop() {
     if (running) { controller && controller.abort(); toast("Stopping…"); return; }
     queue.splice(0, queue.length); renderQueue();
   });
-  window.addEventListener("beforeunload", (e) => { if (running) { e.preventDefault(); e.returnValue = ""; } });
+  window.addEventListener("beforeunload", (e) => {
+    if (running || queue.some((q) => q.state === "unsaved")) { e.preventDefault(); e.returnValue = ""; }
+  });
   window.addEventListener("resize", () => {
     if (demo) { drawWheel($("teaseWheel"), demo); if (reduced) startTeaser(); }
     drawCards(document);
