@@ -727,6 +727,12 @@ pipeline:
   styles as "this track sounds harder than the last", not as definitive genre
   tags. Shazam's own genre (often just "Dance" or "Electronic") is kept in
   `meta.genre`.
+- **Without names, track boundaries are rougher.** Audio-only segmentation
+  finds about 60% of real track changes (F1 ≈ 0.6 within 20 s on the bundled
+  sets). Wider or narrower novelty kernels, style activations and key-change
+  signals didn't reliably beat it. `tools/tune_segmentation.py` re-runs that
+  comparison against any Shazam-labelled sets, so the defaults can be revisited
+  as more labelled sets come in. The naming helper anchors tracks properly.
 - **Timing precision varies.** Swap points (±a few seconds) and BPM are the
   most reliable numbers. Mix-in and mix-out are estimates, and transition
   types are heuristics built from the low end and loudness.
@@ -814,7 +820,8 @@ dj-set-analyzer/
 │   └── data/          # Python output for the local server (git-ignored)
 ├── tools/
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
-│   └── make_demos.py     # Python output → web/demo/
+│   ├── make_demos.py     # Python output → web/demo/
+│   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labelled sets
 ├── requirements.txt
 └── run.sh             # starts the server (default port 8778)
 ```
