@@ -266,7 +266,8 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   matching the Python pipeline.
 
 Browsers: Chrome, Edge and Firefox work. Safari may refuse to let an https
-page talk to `127.0.0.1`, and the pop-up says so.
+page talk to `127.0.0.1`, and the pop-up says so. The rest of the site runs
+in all three engines, checked on every push.
 
 ---
 
@@ -644,7 +645,13 @@ Chrome with `--chrome` (always a fresh temporary profile), and takes about
 
 **GitHub Actions** (`.github/workflows/selftest.yml`) runs both on every push
 to `main`, together with a JS syntax check, a Python compile check and the
-site build. It uses a couple of minutes of the free monthly Actions
+site build. The browser test runs in **Chromium, Firefox and WebKit**
+(Safari's engine) in parallel. All three pass the full flow, except that the
+clipboard check runs only in Chromium, where a test can grant clipboard
+access. That matrix found and fixed three real issues:
+- Firefox: an unhandled `storage.persist()` promise
+- Firefox: an unhandled `AudioContext.resume()` promise
+- WebKit: no Blob storage in private sessions It uses a couple of minutes of the free monthly Actions
 allowance. Results on Recording 9 with identification off: the browser
 engine and Python both give 18 tracks with identical start times.
 
@@ -850,6 +857,7 @@ pipeline:
 | The naming pop-up never says “Connected” | Check the helper window shows *running on http://127.0.0.1:8789*. Use Chrome, Edge or Firefox (Safari may block it). If you started it with `--origin`, the site's address must match exactly |
 | Helper: “needs Python 3.9 to 3.13” | Install Python 3.12 from python.org and run the helper again. It finds `python3.12` by itself |
 | “The analysis stopped responding” or “The analysis crashed” | A worker died, usually from running out of memory on a long set. Close other tabs and try again, or split the recording |
+| Safari private browsing | WebKit won't store files in IndexedDB in private sessions, so Set Replay stores the recording as raw bytes instead, transparently. If even that fails, it saves the analysis without the recording and offers *Add the recording* |
 | “Analysed, but this browser won't store it” | The analysis finished but IndexedDB refused it (private browsing, blocked site data, or a full disk). Press **Download the analysis**. The page warns before you leave while that result is unsaved. Drop the file back in later, or in another browser, to reopen it, then use *Add the recording* |
 | A set from the website is missing on another computer | Sets live in the browser that analysed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
 
