@@ -1295,8 +1295,9 @@ import { openNamingDialog } from "./naming-ui.js";
 
   function setPlayIcon() {
     const p = isPaused();
-    document.querySelector(".i-play").hidden = !p;
-    document.querySelector(".i-pause").hidden = p;
+    // the icons are <svg>: SVG elements have no .hidden property, so set the attribute
+    document.querySelector(".i-play").toggleAttribute("hidden", !p);
+    document.querySelector(".i-pause").toggleAttribute("hidden", p);
     $("playBtn").setAttribute("aria-label", p ? "Play" : "Pause");
   }
 
