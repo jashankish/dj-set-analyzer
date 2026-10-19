@@ -6,7 +6,8 @@
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
    presses Analyse, waits for the result page and checks it, then exercises
-   play/pause, Space, the mix inspector, download + import and two-click delete. Uses Playwright's
+   play/pause, Space, the mix inspector, download + import and two-click delete,
+   and finally naming through a stand-in naming helper with known answers. Uses Playwright's
    Chromium (npx playwright install chromium), or with --chrome your installed
    Chrome. Always a fresh temporary profile. Exits non-zero on failure. */
 import fs from "node:fs";
@@ -119,9 +120,56 @@ try {
   check("no page errors", errors, (e) => e.length === 0);
 } catch (e) {
   checks.push(["flow completed", String(e).split("\n")[0], false]);
+}
+
+/* ---------------- naming through the helper, with a stand-in helper that
+   knows the answer: clips before 90 s are "Track A", later ones "Track B" */
+const probeTimes = [];
+for (let t = 4; t <= SYNTH.duration - 12; t += 24) probeTimes.push(t);
+let asked = 0;
+const mock = http.createServer((req, res) => {
+  const cors = { "Access-Control-Allow-Origin": req.headers.origin || "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Private-Network": "true" };
+  if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
+  const json = (o) => { res.writeHead(200, { ...cors, "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
+  if (req.url.startsWith("/health")) return json({ ok: true, name: "set-replay-helper", version: 1 });
+  req.resume();
+  req.on("end", () => {
+    const t = probeTimes[Math.min(asked, probeTimes.length - 1)];
+    asked++;
+    const first = t + 6 < SYNTH.change;
+    json({ track: { id: first ? "A" : "B", title: first ? "Track A" : "Track B", artist: "Test Artist" }, offset: first ? t : t - SYNTH.change });
+  });
+});
+await new Promise((r) => mock.listen(0, "127.0.0.1", r));
+const helperUrl = `http://127.0.0.1:${mock.address().port}`;
+try {
+  const ctx2 = await browser.newContext();
+  await ctx2.addInitScript((url) => {
+    localStorage.setItem("djsa:helper-url", url);
+    localStorage.setItem("djsa:naming-helper", "1");    // as if the visitor had opened the pop-up
+  }, helperUrl);
+  const p2 = await ctx2.newPage();
+  const errs2 = [];
+  p2.on("pageerror", (e) => errs2.push(String(e)));
+  await p2.goto(BASE);
+  await p2.waitForSelector("#nameTracks", { timeout: 10000 });
+  check("naming bar finds the helper", await p2.locator("#naming").textContent(), (t) => /connected/i.test(t));
+  await p2.setInputFiles("#fileInput", wav);
+  await p2.click("#analyseBtn");
+  await p2.waitForURL(/set\.html\?id=/, { timeout: 240000 });
+  await p2.waitForSelector(".trk");
+  check("the helper was asked once per probe", asked, (n) => n === probeTimes.length);
+  check("story credits the names", (await p2.locator("#story").textContent()).slice(0, 120), (t) => /Shazam named (2|every one)/.test(t));
+  check("tracks carry the helper's names", await p2.locator(".trk .name .t").allTextContents(), (v) => v.length === 2 && v[0].startsWith("Track A") && v[1].startsWith("Track B"));
+  check("named swap lands near 90 s", await p2.locator(".trk .when").nth(1).textContent(), (t) => { const [m, sec] = t.split(":").map(Number); return Math.abs(m * 60 + sec - SYNTH.change) <= 20; });
+  check("no page errors while naming", errs2, (e) => e.length === 0);
+} catch (e) {
+  checks.push(["naming flow completed", String(e).split("\n")[0], false]);
 } finally {
   await browser.close();
   server.close();
+  mock.close();
   fs.rmSync(wav, { force: true });
 }
 let failed = 0;

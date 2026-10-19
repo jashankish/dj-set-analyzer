@@ -250,6 +250,9 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   preflight (`Access-Control-Allow-Private-Network: true`), so a public https
   page can reach it. To only accept your own site, run it with
   `--origin https://your-site.example`.
+- **Another port:** if the helper runs with `--port 9000`, point the page at
+  it with `localStorage.setItem("djsa:helper-url", "http://127.0.0.1:9000")`
+  in that browser. A site owner can set `window.SET_REPLAY_HELPER_URL` instead.
 - **Python version:** shazamio's compiled core crashes on Python 3.14, so the
   helper builds its environment with Python 3.9–3.13. It uses the running
   interpreter if that one qualifies, otherwise `python3.12`/`3.13`/`3.11`/…
@@ -623,7 +626,7 @@ of the output is present. It takes about 6 s and is deterministic.
 **Whole-site test in a real browser.** `bash tools/build-site.sh && node
 tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
 the landing page's file input the same synthetic set, presses Analyse and
-waits for the result page. Its 16 checks cover:
+waits for the result page. Its 22 checks cover:
 - the story, the track change, the 127–139 BPM tempo range and keys 8A → 7A
 - *Copy tracklist* lists each ID with its key and tempo
 - Play really plays and shows the pause icon, and Space pauses
@@ -631,7 +634,11 @@ waits for the result page. Its 16 checks cover:
 - *Download the analysis* gives a `.setreplay.json` that imports back into
   the library
 - Delete needs two clicks
-- no page errors It uses Playwright's Chromium, or your installed
+- no page errors
+- **naming through the helper**, using a stand-in helper with known answers
+  (clips before 90 s are "Track A", later ones "Track B"): the naming bar
+  connects, the helper is asked once per probe, the tracks carry those
+  names, the swap lands near 90 s, and there are no errors It uses Playwright's Chromium, or your installed
 Chrome with `--chrome` (always a fresh temporary profile), and takes about
 7 s.
 

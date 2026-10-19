@@ -8,7 +8,18 @@
    music span, stopping after 3 failures in a row (Shazam rate-limiting). */
 import { SR } from "./config.js";   // not extract.js: keeps pages that only show the pop-up light
 
-export const HELPER_URL = "http://127.0.0.1:8789";
+/* Default helper address; a site can set window.SET_REPLAY_HELPER_URL, and a
+   visitor running the helper on another port (--port) can store theirs in
+   localStorage["djsa:helper-url"]. */
+export const HELPER_URL = (() => {
+  const fallback = "http://127.0.0.1:8789";
+  try {
+    if (typeof window === "undefined") return fallback;
+    return (window.SET_REPLAY_HELPER_URL || localStorage.getItem("djsa:helper-url") || fallback).replace(/\/$/, "");
+  } catch (e) {
+    return fallback;
+  }
+})();
 export const PROBE_STEP = 24, PROBE_CLIP = 12;
 
 /* Pages only look for the helper once the visitor has shown interest (opened
