@@ -32,7 +32,9 @@ export async function saveSet(payload, audio) {
   const id = newId();
   payload.slug = id;
   await tx("readwrite", (s) => s.put({ id, created: Date.now(), title: payload.title, payload, audio }));
-  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* optional */ }
+  // ask the browser not to evict the library; best effort. Catch the promise
+  // too: Firefox rejects it when the page navigates on before it settles.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* optional */ }
   return id;
 }
 

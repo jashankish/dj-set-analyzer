@@ -55,7 +55,8 @@ const browser = await pw[engine].launch(useChrome && engine === "chromium" ? { c
 console.log(`browser: ${engine} ${browser.version()}`);
 const context = await browser.newContext({ acceptDownloads: true });
 // only Chromium lets a test grant clipboard access; elsewhere that check is skipped
-const canClip = await context.grantPermissions(["clipboard-read", "clipboard-write"]).then(() => true, () => false);
+const canClip = engine === "chromium";
+if (canClip) await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
