@@ -9,14 +9,17 @@ ask after a night out:
 - Did the mixes stay in key?
 - Where were the drops, and where did the energy peak?
 
-It's a sibling of [`../audio-analyzer`](../audio-analyzer) (the conversation
-analyzer) and uses the same architecture: a checkpointed Python pipeline writes
-plain JSON, and a dependency-free web page reads it and keeps every view in
-step with the audio.
+There are two ways to run it, and both produce the same JSON:
 
-**Everything runs offline on your machine except track names.** Those come from
-Shazam, which needs no account or API key. Pass `--offline` to skip it
-entirely.
+- **The website (`web/`): a static site where analysis runs in the visitor's
+  browser.** Essentia.js (WebAssembly) and ONNX Runtime Web do all the work on
+  the visitor's own machine; nothing is uploaded. Hosting it is free on any
+  static host, with no server compute at all. Visitors drop recordings onto
+  the landing page, and their sets stay in their browser.
+- **The Python pipeline (`analyzer/`)** runs on your own machine. It adds
+  track names from Shazam (no account or API key) and is the reference the
+  browser engine is checked against. Its output can also become demos on the
+  website.
 
 ---
 
@@ -24,22 +27,38 @@ entirely.
 
 1. [What you get](#what-you-get)
 2. [Quick start](#quick-start)
-3. [Command-line options](#command-line-options)
-4. [Architecture](#architecture)
-5. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
-6. [The data format](#the-data-format)
-7. [The web app](#the-web-app)
-8. [Accuracy and limits](#accuracy-and-limits)
-9. [Troubleshooting](#troubleshooting)
-10. [Project layout](#project-layout)
-11. [Credits](#credits)
+3. [Hosting it on your site](#hosting-it-on-your-site)
+4. [Command-line options](#command-line-options)
+5. [Architecture](#architecture)
+6. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
+7. [The browser engine](#the-browser-engine)
+8. [The data format](#the-data-format)
+9. [The web app](#the-web-app)
+10. [Accuracy and limits](#accuracy-and-limits)
+11. [Costs and licences](#costs-and-licences)
+12. [Troubleshooting](#troubleshooting)
+13. [Project layout](#project-layout)
+14. [Credits](#credits)
 
 ---
 
 ## What you get
 
-Open `http://localhost:8778` and pick a set from the row at the top. Its
-colour swatches are the set's track keys in order. Then:
+**The landing page** (`index.html`) has these parts:
+
+- **Drop zone:** a large panel that is itself a waveform of a demo set. Drop
+  one or more recordings (or click to choose them) and press **Analyse**.
+  Each file shows its progress, and **Stop** cancels the run. When a single
+  set finishes, it opens automatically. Dropping a saved `.setreplay.json`
+  imports that analysis instead.
+- **Your sets:** everything analysed in this browser, with key-coloured
+  strips. Hover a card to delete it.
+- **Teaser:** a preview built from real demo output: the ribbon, cycling mix
+  cards and the Camelot path. Below it are the demo sets, *How it works* and a
+  short FAQ.
+
+**The set page** (`set.html`) is the replay. Pick a set from the row at the
+top; its colour swatches are the set's track keys in order. Then:
 
 | Part of the page | What it shows | What you can do |
 | --- | --- | --- |
@@ -69,8 +88,19 @@ colour swatches are the set's track keys in order. Then:
 
 ## Quick start
 
-Requirements: macOS or Linux, **Python 3.12**, and **ffmpeg** on your `PATH`
-(`brew install ffmpeg python@3.12`).
+**The website, locally:** any static server works. For example:
+
+```bash
+cd dj-set-analyzer
+./run.sh            # → http://localhost:8778 (also serves the Python output)
+# or: python3 -m http.server 8000 --directory web
+```
+
+Open the page, drop a recording in, and press **Analyse**. A 34-minute set
+takes about a minute on an Apple M4.
+
+**The Python pipeline** needs macOS or Linux, **Python 3.12**, and **ffmpeg**
+on your `PATH` (`brew install ffmpeg python@3.12`).
 
 ```bash
 cd dj-set-analyzer
@@ -91,11 +121,63 @@ To add a set, drop the recording (`.m4a`, `.mp3`, `.wav`, `.aac`, `.ogg`,
 venv/bin/python analyzer/analyze.py "My Set.m4a" --title "Warehouse, 3am"
 ```
 
-Then reload the page. Timings on an Apple M4:
+Then open `http://localhost:8778/set.html`. Timings on an Apple M4:
 
 - **Audio analysis:** about 15 s for 34 minutes of audio, about 35 s for 94 minutes.
 - **Shazam lookups:** about 1.5 s each, one clip every 24 s of music, so about
   10 minutes per hour of set. They're cached for good.
+
+---
+
+## Hosting it on your site
+
+`web/` is the entire website: plain files, with no build step, no backend and
+no environment variables. Copy the folder anywhere. It works at a domain root
+or in a sub-folder (e.g. `yoursite.com/set-replay/`), because every path is
+relative.
+
+1. **Copy `web/`** to your host, minus the local-only `web/data/` folder
+   (git-ignored), which holds the Python pipeline's output. The parts are:
+
+   | Path | Size |
+   | --- | --- |
+   | `models/` | ~20 MB (the ONNX models, served to browsers) |
+   | `demo/` | ~0.8 MB |
+   | Code and pages | ~0.2 MB |
+
+2. **Hosts that work:** any static host: GitHub Pages, Netlify, Cloudflare
+   Pages, Vercel, an S3 bucket, or your existing web server. No special
+   headers are required. The engine runs single-threaded WebAssembly inside
+   several workers, so it doesn't need `SharedArrayBuffer` or cross-origin
+   isolation.
+3. **Cache rules.** `web/_headers` sets them for Netlify and Cloudflare Pages:
+   - HTML, JS and CSS revalidate on every load (`no-cache`), so visitors pick
+     up a new version straight away and never mix old and new modules
+   - `models/` caches for a year
+
+   On other hosts, set the equivalent headers. Without them, browsers can keep
+   stale JavaScript for a while after a deploy.
+4. **Third-party assets** (all free, with no keys):
+   - Essentia.js and ONNX Runtime Web load from jsDelivr, pinned in
+     `web/js/engine/config.js`.
+   - The Archivo font loads from Google Fonts.
+   - Demo cover art is hotlinked from Shazam's image CDN.
+
+   To serve the libraries yourself, copy them and set
+   `window.SET_REPLAY_ASSETS = { essentiaWasm, essentiaCore, ort, ortWasmPath, models }`
+   in a script before `js/landing.js` runs.
+5. **Demos.** Analyse sets with the Python pipeline, then run:
+
+   ```bash
+   venv/bin/python tools/make_demos.py recording-9:worship-part-1 recording-10:worship-part-2
+   ```
+
+   That writes `web/demo/`. Demos ship without audio unless you add
+   `--audio worship-part-1=https://…/part1.m4a` (a file on your own host or
+   CDN). Without audio, a demo is fully explorable but silent.
+
+There's nothing to run or pay for on the server side. Visitors' computers do
+the analysis, and their sets live in their browser's IndexedDB.
 
 ---
 
@@ -134,19 +216,31 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
              web/data/sets/<set>.json, web/data/sets.json, web/data/art/*.jpg  (app data, git-ignored)
                                         │ reads
                          ┌──────────────▼──────────── web/ (static) ──────────────────────────────┐
-                         │ serve.py      static files + /audio/<file> with HTTP Range              │
-                         │ index.html    page structure                                            │
-                         │ css/styles.css design tokens, layout, responsive rules                  │
-                         │ js/color.js   Camelot key → OKLCH hue wheel → sRGB                      │
-                         │ js/app.js     loading, canvases, SVG wheel, playback sync, shortcuts    │
+                         │ index.html     landing: drop zone, queue, library, demos, teaser        │
+                         │ set.html       the replay (viewer)                                      │
+                         │ js/engine/     the browser engine (Web Workers, Essentia.js, ORT Web)    │
+                         │ js/store.js    the visitor's library in IndexedDB                       │
+                         │ js/app.js      viewer: canvases, SVG wheel, playback sync, shortcuts    │
+                         │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
+                         │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
                          └─────────────────────────────────────────────────────────────────────────┘
+```
+
+In the browser, the same steps run without Python:
+
+```
+dropped file ─► decodeAudioData (16 kHz mono) ─► 2-minute ranges ─► worker pool
+     (each worker: 3-band FFT · Percival · KeyExtractor · RhythmExtractor2013 · JS mel → EffNet)
+  ─► merge ─► payload.js (port of setlist.py + build_payload) ─► IndexedDB ─► set.html?id=…
 ```
 
 Design principles:
 
-- **Analysis and display are fully decoupled.** The page knows nothing about
-  audio analysis. It reads one JSON file per set, so you can re-run the analyzer
-  and just reload.
+- **Analysis and display are fully decoupled.** The viewer only reads the set
+  JSON. The browser engine and the Python pipeline both write that same
+  schema, so either can feed it.
+- **Visitors pay the compute.** Analysis runs on the visitor's machine, so
+  hosting is free and their audio stays private.
 - **Every expensive step is checkpointed.** Audio features land in
   `features.npz`, and each Shazam probe is written to `shazam.json` as it
   arrives. Re-running only redoes the cheap setlist stage (a few seconds), so
@@ -192,7 +286,7 @@ Full-band RMS in dB comes from the same frames. This 8 fps data drives:
 - **Beats:** `RhythmExtractor2013` (degara method), run in 60 s chunks that
   overlap by 6 s so it follows tempo changes between tracks. At each seam, the
   beats come from whichever chunk holds them further from its edge.
-- **Tempo:** `PercivalBpmEstimator` on 20 s windows every 5 s. This is the most
+- **Tempo:** `PercivalBpmEstimator` on 20 s windows every 10 s. This is the most
   stable estimator on room recordings. Raw values can be an octave off; see the
   next section.
 - **Key:** `KeyExtractor` with the **`edma` profile** (built for electronic
@@ -203,16 +297,17 @@ Full-band RMS in dB comes from the same frames. This 8 fps data drives:
 
 Beat trackers often lock onto half-time: 175 BPM drum & bass reads as 87.5 BPM.
 `music.resolve_octaves` settles this with a **Viterbi pass** over the tempo
-windows. Each window's candidates are ×½, ×1 and ×2.
+windows. First the raw tempo is median-filtered over 5 windows, removing
+one-off misreadings. Each window's candidates are then ×½, ×1 and ×2.
 
 - **Scoring a candidate:** how well that tempo fits the styles the model hears
   in that window. `music.STYLE_TEMPO` gives about 80 Discogs styles a typical
   BPM range (Drum n Bass 165–180, Techno 125–140, Hip Hop 80–100, …). Styles
   that reverb tends to be mistaken for (Downtempo, Dub, Trip Hop) get a 0.3
   vote.
-- **Switching octave:** costs 2 per octave where the raw tempo itself changes,
-  but **60** while the raw tempo stays within 4%. A steady stretch therefore
-  gets one consistent octave unless the music really changes speed.
+- **Tempo jumps:** cost 12 per octave of change in the *resolved* tempo.
+  Because 87.5 × 2 and 175 × 1 are the same tempo, only a real change of speed
+  costs anything, so a steady set gets one consistent octave.
 
 The resolved curve is median-filtered, and the beat grid is filled in at the
 midpoints where it was tracked at half-time. Pass `--bpm-range lo-hi` to
@@ -300,8 +395,11 @@ character, which is usually a track change.
    - **Before the first and after the last named track:** unnamed tracks only
      on clear novelty peaks. If the first named track started more than 45 s
      in, whatever played before it becomes an ID track ending at that start.
-3. **No Shazam at all** (`--offline` with an empty cache): tracks are simply
-   the novelty segments.
+3. **No identification at all** (the browser, or `--offline` with an empty
+   cache): tracks split only on novelty peaks with prominence ≥ 0.4, each at
+   least 75 s long. These values were tuned against the Shazam-anchored
+   setlists of the bundled sets. Recording 9 gives 18 tracks against the 13
+   Shazam names, with most swap points within a few seconds.
 
 ### 10. Per-track measurements
 
@@ -387,6 +485,44 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 
 ---
 
+## The browser engine
+
+`web/js/engine/` reproduces the Python pipeline in the browser:
+
+| File | Role |
+| --- | --- |
+| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz); plans 2-minute ranges; runs a pool of module Web Workers (cores − 1, at most 6); merges; builds the payload. It supports cancelling (`AbortSignal`) and turns out-of-memory decode failures into readable errors |
+| `worker.js` | Loads Essentia.js, ONNX Runtime Web and the models once per worker, then extracts features for ranges |
+| `extract.js` | The per-range features. Each lives on a fixed global grid (band frames, tempo windows, key windows, 54 s beat chunks, EffNet patches), and a worker only computes grid items that start inside its range, so the parallel ranges join exactly. The beat tracker assumes 44.1 kHz, so its 60 s chunks are upsampled on the fly |
+| `mel.js` | A pure-JS twin of Essentia's `TensorflowInputMusiCNN` (Hann → FFT → 96 Slaney mel bands, unit-area triangles, on the power spectrum → `log10(1 + 10000·x)`). It matches Essentia.js to a max error of 6e-5 and is about 30× faster than one WASM call per frame |
+| `music.js`, `setlist.js`, `payload.js` | Line-for-line ports of `music.py`, `setlist.py` and `analyze.build_payload` |
+| `dsp.js` | FFT, percentiles, smoothing, median filter and interpolation |
+| `config.js` | Asset URLs (jsDelivr libraries, self-hosted models) |
+
+The engine works at 16 kHz rather than the Python pipeline's 44.1 kHz. That
+keeps a 2-hour set to about 450 MB of decoded audio, and the high band tops
+out at 8 kHz. Every threshold downstream is relative, so the two engines
+agree.
+
+**Verifying it.** `tools/engine-check.mjs` runs the exact browser engine under
+Node and prints its setlist next to the Python output:
+
+```bash
+mkdir -p .engine-deps && cd .engine-deps \
+  && npm pack essentia.js@0.1.3 onnxruntime-web@1.30.0 \
+  && mkdir ess ort && tar xzf essentia.js-0.1.3.tgz -C ess && tar xzf onnxruntime-web-1.30.0.tgz -C ort && cd ..
+node tools/engine-check.mjs "Recording 9.m4a" --cache /tmp/r9.v8
+```
+
+`--cache` saves the extracted features, so you can iterate on the setlist
+logic in seconds. Results on Recording 9 with identification off: the browser
+engine and Python both give 18 tracks with identical start times.
+
+**Speed** (Chrome, Apple M4, 6 workers): a 34-minute set takes about 55 s from
+drop to result, of which decoding is about 9 s. Long sets scale linearly.
+
+---
+
 ## The data format
 
 `web/data/sets.json`: one entry per analysed set, naturally sorted (9 before 10):
@@ -401,7 +537,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 
 | Key | Contents |
 | --- | --- |
-| `slug`, `title`, `file`, `duration`, `analyzed_at` | Identity. `file` is the recording served at `/audio/<file>` |
+| `slug`, `title`, `file`, `duration`, `analyzed_at`, `source` | Identity. `source` is `browser`, `demo` or absent (Python). In local-server mode, `file` is the recording served at `/audio/<file>`; in the browser, `slug` is the IndexedDB id |
 | `summary` | Set-level numbers (step 13), including `set_start`, `set_end` and `set_length` |
 | `tracks[]` | `n, start, end, title, artist, identified, meta{id, album, label, released, isrc, art, art_local, shazam_url, apple_url, genre}, id_confidence, shazam_hits, start_est, played_linear, bpm, key{camelot, name, confidence}, styles[{style, genre, p}], moods{…}, energy, loudness_db, spark[]` |
 | `transitions[]` | `from, to, mix_in, swap, mix_out, duration, bars, type, bpm_from, bpm_to, bpm_delta, key_from, key_to, harmonic{label, compatible}, energy_delta, loudness_delta_db, low_dip_db, low_before_db, low_after_db, breakdown_s, style_continuity, sharpness` |
@@ -409,12 +545,12 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 | `beats[]` | Resolved beat times (s) |
 | `curves.wave` | `low`, `mid`, `high` as 0–99 integers at `wave_fps` (8): per-band normalised over the set, with a 1.4 contrast curve |
 | `curves.energy` | 1 Hz, 0–1 |
-| `curves.bpm` | `t`, resolved `v`, `raw` (every 5 s) |
+| `curves.bpm` | `t`, resolved `v`, `raw` (every 10 s) |
 | `curves.novelty` | Every 2 s |
 | `curves.moods` | Every 10 s, one array per head |
 | `curves.styles` | Every 30 s; `names` = the set's top 6 styles + `Other`, and `v` = tempo-weighted shares |
 | `curves.keys` | Windowed Camelot codes and strengths |
-| `probes[]` | Every Shazam probe: `t, dur, id`, or `null` for no match |
+| `probes[]` | Every Shazam probe: `t, dur, id`, or `null` for no match (empty from the browser engine) |
 | `credits` | Which tools produced which fields |
 
 Checkpoints in `output/<slug>/`:
@@ -429,9 +565,23 @@ Checkpoints in `output/<slug>/`:
 
 ## The web app
 
-### Server (`web/serve.py`)
+### Pages and data sources
 
-A threaded `http.server` on `127.0.0.1` only:
+| URL | Loads |
+| --- | --- |
+| `index.html` | The landing page. Analyses dropped files in place and saves them to IndexedDB (`js/store.js`: one record per set, holding the payload and the original `File` as a Blob) |
+| `set.html?id=<id>` | A set from this browser's library, played from its stored Blob |
+| `set.html?demo=<slug>` | A bundled demo from `demo/<slug>.json`. Without audio it runs on a virtual clock, so clicking still moves the playhead |
+| `set.html#<slug>` | The local Python server's output (`data/sets.json` + `/audio/<file>`) |
+
+Local sets offer three extra actions: **Download the analysis (JSON)**,
+which includes your track names; **Add the recording**, for imported
+analyses; and **Delete from this browser**.
+
+### Local server (`web/serve.py`)
+
+A threaded `http.server` on `127.0.0.1` only, for development and the Python
+pipeline:
 
 - serves `web/` with `Cache-Control: no-store`, so re-analysed data shows up on
   reload
@@ -441,14 +591,15 @@ A threaded `http.server` on `127.0.0.1` only:
 - accepts only plain names of audio files in the project root; there's no path
   traversal
 
-### Front end (`web/js/app.js`, about 1,200 lines of vanilla JS)
+### Viewer (`web/js/app.js`, about 1,300 lines of vanilla JS, an ES module)
 
 - **State:** one `S` object holds the loaded set, the ribbon view window
   `{t0, t1}`, the current track, the selected mix, and the follow and loop
   flags.
-- **Loading:** `boot()` reads `sets.json` and opens the set named in the URL
-  hash (or the first one). `openSet()` fetches the set's JSON, points the
-  `<audio>` at `/audio/<file>`, and renders every view.
+- **Loading:** `boot()` picks the source from the URL (`?id=`, `?demo=` or the
+  local server). `openPayload()` renders every view and points the `<audio>`
+  at the stored Blob, the demo audio, or `/audio/<file>`. `now()` reads either
+  the audio clock or the virtual clock.
 - **Drawing:**
   - The ribbon, overview, scrub bar, mix inspector, energy chart, sparklines
     and style and mood rows are `<canvas>`, drawn at device pixel ratio.
@@ -517,6 +668,30 @@ A threaded `http.server` on `127.0.0.1` only:
 
 ---
 
+## Costs and licences
+
+- **Hosting:** free on any static host. There's no server compute: visitors'
+  browsers do the analysis.
+- **Bandwidth:** each visitor downloads about 20 MB of models (cached for a
+  year) and about 16 MB of engine WebAssembly from jsDelivr (free CDN).
+- **Licences:**
+  - The Python and JS code here is yours.
+  - **Essentia.js is AGPL-3.0**, so publishing the site means keeping its
+    source available (this repo).
+  - **The Discogs-EffNet models are CC BY-NC-SA 4.0**: attribution,
+    non-commercial use only, and share-alike. For a commercial site, get a
+    licence from the MTG (`web/models/LICENSE.md`).
+  - ONNX Runtime Web is MIT.
+- **Track names:** song names need a fingerprint database, and none runs
+  inside a browser. Shazam has no CORS-enabled or official public API, so
+  the hosted site leaves tracks as nameable **ID**s. The Python pipeline
+  still names them, and its output can be shown as demos. A hosted option
+  would need a small proxy (for example, a free-tier Cloudflare Worker) in
+  front of an identification service whose terms allow it. Weigh the terms
+  and the cost before adding one.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
@@ -527,6 +702,9 @@ A threaded `http.server` on `127.0.0.1` only:
 | Old data after re-analysing | Hard-reload. The server already sends `no-store`, but an open page keeps its set list until it's reloaded |
 | A set's title won't change | A name set by double-clicking in the browser overrides the analyzer's title. Clear it by double-clicking and deleting the text |
 | Wrong tempo octave | Re-run with `--bpm-range` (e.g. `160-190` for drum & bass, `118-135` for house) |
+| The website behaves like an older version after a deploy | Stale cached JS. Serve HTML/JS/CSS with `Cache-Control: no-cache` (see `web/_headers`), then hard-reload |
+| "too long for this browser's memory" | Decoding needs about 64 KB of memory per second of audio, plus working space. Use a desktop browser, close other tabs, or split very long recordings |
+| A set from the website is missing on another computer | Sets live in the browser that analysed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
 
 ---
 
@@ -543,13 +721,24 @@ dj-set-analyzer/
 │   └── setlist.py     # set span, novelty, segmentation, per-track metrics, transitions, drops
 ├── models/            # Essentia ONNX models + metadata (auto-downloaded, git-ignored)
 ├── output/<slug>/     # features.npz, shazam.json, meta.json (git-ignored)
-├── web/
-│   ├── index.html
-│   ├── css/styles.css
+├── web/               # the website: deploy this folder
+│   ├── index.html     # landing: drop zone, queue, library, demos
+│   ├── set.html       # the replay
+│   ├── css/styles.css, css/landing.css
+│   ├── js/app.js      # viewer
+│   ├── js/landing.js  # drop, queue, library, teaser
+│   ├── js/store.js    # IndexedDB library
+│   ├── js/mini.js     # small renderers for the landing page
 │   ├── js/color.js    # Camelot → OKLCH colour
-│   ├── js/app.js      # the app
-│   ├── serve.py       # static + ranged audio server
-│   └── data/          # generated: sets.json, sets/<slug>.json, art/ (git-ignored)
+│   ├── js/engine/     # the browser engine (see "The browser engine")
+│   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
+│   ├── demo/          # bundled demo sets (tools/make_demos.py)
+│   ├── _headers       # cache rules for Netlify / Cloudflare Pages
+│   ├── serve.py       # local dev server with ranged audio
+│   └── data/          # Python output for the local server (git-ignored)
+├── tools/
+│   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
+│   └── make_demos.py     # Python output → web/demo/
 ├── requirements.txt
 └── run.sh             # starts the server (default port 8778)
 ```
@@ -558,7 +747,8 @@ dj-set-analyzer/
 
 ## Credits
 
-- [Essentia](https://essentia.upf.edu) and the
+- [Essentia](https://essentia.upf.edu) and
+  [Essentia.js](https://mtg.github.io/essentia.js/), and the
   [Discogs-EffNet models](https://essentia.upf.edu/models.html) by the Music
   Technology Group, Universitat Pompeu Fabra (Alonso-Jiménez, Serra & Bogdanov,
   ISMIR 2022)

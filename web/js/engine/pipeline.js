@@ -67,6 +67,7 @@ class Pool {
     let next = 0;
     return new Promise((resolve, reject) => {
       let active = 0, failed = false;
+      this.abort = () => { failed = true; reject(Object.assign(new Error("Analysis stopped"), { name: "AbortError" })); };
       const feed = (w) => {
         if (failed) return;
         if (next >= jobs.length) { if (active === 0) resolve(results); return; }
@@ -84,7 +85,11 @@ class Pool {
       this.workers.forEach(feed);
     });
   }
-  stop() { this.workers.forEach((w) => w.terminate()); this.workers = []; }
+  stop() {
+    this.workers.forEach((w) => w.terminate());
+    this.workers = [];
+    if (this.abort) this.abort();
+  }
 }
 
 export function poolSize() {
@@ -126,15 +131,28 @@ export function merge(parts, duration) {
 
 /* ------------------------------------------------ the whole thing */
 let pool = null;
-export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange } = {}) {
+export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange, signal } = {}) {
   const say = (stage, f) => onProgress({ stage, f });
+  const check = () => { if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" }); };
   say("Decoding audio", 0);
-  const y = await decode(file);
+  let y;
+  try {
+    y = await decode(file);
+  } catch (e) {
+    if (e instanceof RangeError || /memory|allocation/i.test(String(e))) {
+      throw new Error(`“${file.name}” is too long for this browser's memory. Try a shorter recording or a desktop browser.`);
+    }
+    throw e;
+  }
+  check();
   const total = y.length, duration = total / SR;
   if (duration < 60) throw new Error(`“${file.name}” is under a minute long — drop in a full set.`);
   say("Loading the analysis engine", 0.04);
   if (!pool) { pool = new Pool(poolSize()); await pool.start(); }
   const classes = await styleClasses();
+  check();
+  const onAbort = () => releaseEngine();
+  if (signal) signal.addEventListener("abort", onAbort, { once: true });
 
   const jobs = planJobs(y);
   const prog = new Array(jobs.length).fill(0);
@@ -142,6 +160,7 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
     prog[id] = f;
     say("Listening to the set", 0.06 + 0.88 * (prog.reduce((s, x) => s + x, 0) / jobs.length));
   });
+  if (signal) signal.removeEventListener("abort", onAbort);
   say("Building the setlist", 0.95);
   const F = merge(parts, duration);
   await new Promise((r) => setTimeout(r, 0));

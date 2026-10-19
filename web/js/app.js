@@ -6,7 +6,7 @@
      set.html#<slug>       the local Python server (data/sets.json + /audio/<file>)
    Draws the set and keeps every view in step with the audio.
    ============================================================ */
-import { getSet, listSets, deleteSet } from "./store.js";
+import { getSet, listSets, deleteSet, attachAudio } from "./store.js";
 
 (function () {
   "use strict";
@@ -1153,8 +1153,20 @@ import { getSet, listSets, deleteSet } from "./store.js";
     $("credits").innerHTML = `Analysed ${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} from <b>${esc(D.file)}</b>.
       Beats, tempo and key: ${esc(c.beats_key_tempo)}. Styles and moods: ${esc(c.styles_moods)}. Track names: ${esc(c.identification)}.
       Mix points, types and energy are estimated from the audio, so treat them as a close read rather than ground truth.
-      ${S.mode === "local" ? `<span class="c-actions"><button class="ghost" id="exportBtn">Download the analysis (JSON)</button> <button class="ghost" id="deleteBtn">Delete from this browser</button></span>` : ""}`;
+      ${S.mode === "local" ? `<span class="c-actions">${S.noAudio ? `<button class="ghost" id="attachBtn">Add the recording</button>` : ""}<button class="ghost" id="exportBtn">Download the analysis (JSON)</button> <button class="ghost" id="deleteBtn">Delete from this browser</button></span>` : ""}`;
     if (S.mode !== "local") return;
+    if (S.noAudio) {
+      $("attachBtn").addEventListener("click", () => {
+        const input = Object.assign(document.createElement("input"), { type: "file", accept: "audio/*,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff" });
+        input.onchange = async () => {
+          const f = input.files[0];
+          if (!f) return;
+          await attachAudio(S.D.slug, f);
+          location.reload();
+        };
+        input.click();
+      });
+    }
     $("exportBtn").addEventListener("click", () => {
       const out = { ...S.D, title: S.title || S.D.title, user_names: S.names };
       const url = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: "application/json" }));
@@ -1193,7 +1205,7 @@ import { getSet, listSets, deleteSet } from "./store.js";
   }
   function startPlay() {
     if (S.noAudio) {
-      if (!S.toldNoAudio) toast(S.mode === "demo" ? "This demo comes without its audio. Click around to explore, or drop in your own set." : "This set's audio isn't available.");
+      if (!S.toldNoAudio) toast(S.mode === "demo" ? "This demo comes without its audio. Click around to explore, or drop in your own set." : "This set was imported without its audio. Use “Add the recording” at the bottom of the page.");
       S.toldNoAudio = true;
       return;
     }

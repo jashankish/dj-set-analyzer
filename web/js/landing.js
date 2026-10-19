@@ -1,7 +1,7 @@
 /* Landing page: drop zone, analysis queue, the visitor's library, demos and
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
 import { drawRibbon, drawStrip, drawWheel } from "./mini.js";
-import { listSets, deleteSet, saveSet } from "./store.js";
+import { listSets, deleteSet, saveSet, importSet } from "./store.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -103,12 +103,25 @@ async function loadLibrary() {
 
 /* ------------------------------------------------ the queue */
 const AUDIO_EXT = /\.(m4a|mp3|wav|flac|aac|ogg|oga|opus|aif|aiff|webm|mp4)$/i;
-const queue = [];        // {file, state: "ready"|"running"|"done"|"error", f, stage, id, error, duration}
+const queue = [];
+let controller = null;        // {file, state: "ready"|"running"|"done"|"error", f, stage, id, error, duration}
 let running = false;
+
+async function importJson(f) {
+  try {
+    const id = await importSet(await f.text());
+    toast(`Imported “${f.name.replace(/\.setreplay\.json$|\.json$/i, "")}”`);
+    await loadLibrary();
+    return id;
+  } catch (e) {
+    toast(e.message || "That file couldn't be imported");
+  }
+}
 
 function addFiles(list) {
   let skipped = 0;
   for (const f of list) {
+    if (/\.json$/i.test(f.name) || f.type === "application/json") { importJson(f); continue; }
     if (!(f.type.startsWith("audio/") || AUDIO_EXT.test(f.name))) { skipped++; continue; }
     if (queue.some((q) => q.file.name === f.name && q.file.size === f.size)) continue;
     const item = { file: f, state: "ready", f: 0, stage: "" };
@@ -131,7 +144,10 @@ function renderQueue() {
   $("queue").hidden = !queue.length;
   $("qList").innerHTML = queue.map((q, i) => {
     let state = "";
-    if (q.state === "ready") state = q.duration ? `${fmt(q.duration)} of audio` : "Ready";
+    if (q.state === "ready") {
+      state = q.duration ? `${fmt(q.duration)} of audio` : "Ready";
+      if (q.duration > 3 * 3600) state += ` · long set, needs about ${Math.ceil((q.duration * 16000 * 4 * 3) / 1e9)} GB of free memory`;
+    }
     if (q.state === "running") state = `${q.stage} · ${Math.round(q.f * 100)}%`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
     if (q.state === "error") state = esc(q.error);
@@ -146,7 +162,7 @@ function renderQueue() {
   const ready = queue.filter((q) => q.state === "ready").length;
   $("analyseBtn").disabled = running || !ready;
   $("analyseBtn").textContent = running ? "Analysing…" : ready > 1 ? `Analyse ${ready} sets` : "Analyse";
-  $("clearBtn").hidden = running;
+  $("clearBtn").textContent = running ? "Stop" : "Clear";
   const total = queue.filter((q) => q.state === "ready").reduce((s, q) => s + (q.duration || 0), 0);
   $("qNote").textContent = running
     ? "Keep this tab open while it works. Everything stays on this computer."
@@ -165,17 +181,21 @@ async function analyseAll() {
     running = false; renderQueue(); return;
   }
   const finished = [];
+  controller = new AbortController();
   for (const q of queue) {
     if (q.state !== "ready") continue;
+    if (controller.signal.aborted) break;
     q.state = "running"; q.stage = "Starting"; q.f = 0; renderQueue();
     try {
       const payload = await engine.analyzeFile(q.file, {
+        signal: controller.signal,
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
       });
       q.id = await saveSet(payload, q.file);
       q.state = "done"; q.f = 1;
       finished.push(q);
     } catch (e) {
+      if (e && e.name === "AbortError") { q.state = "ready"; q.f = 0; renderQueue(); break; }
       q.state = "error";
       q.error = /quota|storage/i.test(String(e)) ? "Analysed, but this browser is out of storage space for it. Free some space and try again."
         : (e && e.message) || "Analysis failed";
@@ -210,7 +230,10 @@ function bindDrop() {
   drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
   input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
   $("analyseBtn").addEventListener("click", analyseAll);
-  $("clearBtn").addEventListener("click", () => { queue.splice(0, queue.length); renderQueue(); });
+  $("clearBtn").addEventListener("click", () => {
+    if (running) { controller && controller.abort(); toast("Stopping…"); return; }
+    queue.splice(0, queue.length); renderQueue();
+  });
   window.addEventListener("beforeunload", (e) => { if (running) { e.preventDefault(); e.returnValue = ""; } });
   window.addEventListener("resize", () => {
     if (demo) { drawWheel($("teaseWheel"), demo); if (reduced) startTeaser(); }

@@ -39,6 +39,27 @@ export async function saveSet(payload, audio) {
 export const getSet = (id) => tx("readonly", (s) => s.get(id));
 export const deleteSet = (id) => tx("readwrite", (s) => s.delete(id));
 
+/** Attach (or replace) the recording for a saved set. */
+export async function attachAudio(id, file) {
+  const rec = await getSet(id);
+  if (!rec) return;
+  rec.audio = file;
+  await tx("readwrite", (s) => s.put(rec));
+}
+
+/** Import a downloaded .setreplay.json (no audio). Returns the new id. */
+export async function importSet(json) {
+  const payload = typeof json === "string" ? JSON.parse(json) : json;
+  if (!payload || !Array.isArray(payload.tracks) || !payload.curves || !payload.summary) {
+    throw new Error("That file isn't a Set Replay analysis.");
+  }
+  const names = payload.user_names || {};
+  delete payload.user_names;
+  const id = await saveSet(payload, null);
+  try { localStorage.setItem(`djsa:${id}`, JSON.stringify({ title: payload.title, names })); } catch (e) { /* private mode */ }
+  return id;
+}
+
 export async function updatePayload(id, patch) {
   const rec = await getSet(id);
   if (!rec) return;
