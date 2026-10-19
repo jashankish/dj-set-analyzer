@@ -66,22 +66,64 @@ export function loadModels(onProgress = () => {}) {
 }
 
 /* ------------------------------------------------ decoding */
-export async function decode(file) {
-  const buf = await file.arrayBuffer();
-  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-  const ctx = new Ctx(1, 1, SR);
-  let audio;
-  try {
-    audio = await ctx.decodeAudioData(buf);
-  } catch (e) {
-    throw new Error(`This browser can't decode “${file.name}”. Try an MP3, M4A/AAC, WAV or FLAC file.`);
+/* Band-limited resampling for browsers that won't decode straight to 16 kHz:
+   16-tap windowed-sinc with a 512-phase lookup table, cutoff just under the
+   new Nyquist (anti-aliasing). Fast enough for long sets on the main thread. */
+export function resample(x, from, to) {
+  if (from === to) return x;
+  const TAPS = 16, PHASES = 512, ratio = from / to;
+  const fc = Math.min(1, to / from) * 0.92;                 // cutoff relative to the input rate
+  const table = new Float32Array(PHASES * TAPS);
+  for (let p = 0; p < PHASES; p++) {
+    let sum = 0;
+    for (let k = 0; k < TAPS; k++) {
+      const d = k - TAPS / 2 + 1 - p / PHASES;               // distance from the output point
+      const sinc = d === 0 ? 1 : Math.sin(Math.PI * fc * d) / (Math.PI * fc * d);
+      const w = 0.5 + 0.5 * Math.cos((Math.PI * d) / (TAPS / 2));   // Hann over the kernel width
+      table[p * TAPS + k] = sinc * w;
+      sum += sinc * w;
+    }
+    for (let k = 0; k < TAPS; k++) table[p * TAPS + k] /= sum;    // unity gain
   }
+  const n = Math.floor(x.length / ratio), out = new Float32Array(n), last = x.length - 1;
+  for (let i = 0; i < n; i++) {
+    const t = i * ratio, j = Math.floor(t), row = Math.floor((t - j) * PHASES) * TAPS;
+    let acc = 0;
+    for (let k = 0; k < TAPS; k++) {
+      const idx = j + k - TAPS / 2 + 1;
+      acc += table[row + k] * x[idx < 0 ? 0 : idx > last ? last : idx];
+    }
+    out[i] = acc;
+  }
+  return out;
+}
+
+function toMono(audio) {
   const n = audio.length, ch = audio.numberOfChannels, mono = new Float32Array(n);
   for (let c = 0; c < ch; c++) {
     const d = audio.getChannelData(c);
     for (let i = 0; i < n; i++) mono[i] += d[i] / ch;
   }
   return mono;
+}
+
+export async function decode(file) {
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  // Most browsers decode straight to the engine's 16 kHz. Some (older Safari)
+  // only allow 22.05 kHz and up; then decode at 44.1 kHz and resample here.
+  let direct = null;
+  if (!window.SET_REPLAY_FORCE_RESAMPLE) { try { direct = new Ctx(1, 1, SR); } catch (e) { direct = null; } }
+  try {
+    if (direct) {
+      try { return toMono(await direct.decodeAudioData(await file.arrayBuffer())); } catch (e) { if (e instanceof RangeError) throw e; }
+    }
+    const ctx = new Ctx(1, 1, 44100);
+    const audio = await ctx.decodeAudioData(await file.arrayBuffer());   // a fresh buffer: decoding detaches it
+    return resample(toMono(audio), audio.sampleRate, SR);
+  } catch (e) {
+    if (e instanceof RangeError || /memory|allocation/i.test(String(e))) throw e;
+    throw new Error(`This browser can't decode “${file.name}”. Try an MP3, M4A/AAC, WAV or FLAC file.`);
+  }
 }
 
 /* ------------------------------------------------ worker pool */
