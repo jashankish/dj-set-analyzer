@@ -25,27 +25,9 @@ const { buildPayload } = await eng("payload.js");
 const { planJobs, merge } = await eng("pipeline.js");
 const { HEADS } = await eng("config.js");
 
-/* ---------------- synthetic set */
-const DUR = 180, N = DUR * SR, y = new Float32Array(N);
-let seed = 7;
-const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
-const chord = (t, notes, w) => notes.reduce((s, f) => s + Math.sin(2 * Math.PI * f * t) * w, 0);
-function part(t0, t1, bpm, notes, square) {
-  const beat = 60 / bpm;
-  for (let i = Math.floor(t0 * SR); i < t1 * SR; i++) {
-    const t = i / SR, tb = (t - t0) % beat, phase = Math.floor((t - t0) / beat);
-    let v = 0;
-    if (tb < 0.12) v += Math.sin(2 * Math.PI * (55 + 120 * Math.exp(-tb * 40)) * tb) * Math.exp(-tb * 18) * 0.9;   // kick
-    const off = (t - t0 + beat / 2) % beat;
-    if (off < 0.04) v += rnd() * Math.exp(-off * 90) * 0.25;                                                         // hat
-    if (square && phase % 2 === 1 && tb < 0.15) v += rnd() * Math.exp(-tb * 25) * 0.35;                              // snare
-    const pad = chord(t, notes, 0.07);
-    v += square ? Math.sign(pad) * 0.05 + pad * 0.5 : pad;
-    y[i] = Math.max(-1, Math.min(1, v));
-  }
-}
-part(0, 90, 128, [220, 261.63, 329.63, 110], false);        // A minor (A C E + A2 bass)
-part(90, DUR, 140, [293.66, 349.23, 440, 146.83], true);    // D minor (D F A + D3 bass)
+/* ---------------- synthetic set (tools/synth.mjs) */
+const { makeSet } = await import(pathToFileURL(path.join(ROOT, "tools/synth.mjs")));
+const DUR = 180, y = makeSet(SR);
 
 /* ---------------- engine */
 const require = createRequire(import.meta.url);

@@ -32,3 +32,6 @@ web/data/
 
 # Packaged site (tools/build-site.sh)
 dist/
+
+# Test tooling (CI installs Playwright here)
+node_modules/

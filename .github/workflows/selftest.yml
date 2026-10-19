@@ -40,3 +40,9 @@ jobs:
 
       - name: Site build
         run: bash tools/build-site.sh
+
+      - name: Browser end-to-end (headless Chromium, drop → analyse → result page)
+        run: |
+          npm i --no-save --silent playwright@1.55.0
+          npx playwright install --with-deps chromium
+          node tools/e2e.mjs

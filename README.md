@@ -614,9 +614,19 @@ house at 128 BPM over A minor, then 140 BPM over D minor with a different
 timbre. It runs the exact browser engine and checks tempo (127.1 / 138.9),
 key (8A / 7A), that a track change is found near 90 s, and that every part
 of the output is present. It takes about 6 s and is deterministic.
-**GitHub Actions** (`.github/workflows/selftest.yml`) runs it on every push
+**Whole-site test in a real browser.** `bash tools/build-site.sh && node
+tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
+the landing page's file input the same synthetic set, presses Analyse and
+waits for the result page. It then checks the story, the track change, the
+127–139 BPM tempo range, the keys 8A → 7A, the saved library card, and that
+there were no page errors. It uses Playwright's Chromium, or your installed
+Chrome with `--chrome` (always a fresh temporary profile), and takes about
+6 s.
+
+**GitHub Actions** (`.github/workflows/selftest.yml`) runs both on every push
 to `main`, together with a JS syntax check, a Python compile check and the
-site build. It uses about a minute of the free monthly Actions allowance. Results on Recording 9 with identification off: the browser
+site build. It uses a couple of minutes of the free monthly Actions
+allowance. Results on Recording 9 with identification off: the browser
 engine and Python both give 18 tracks with identical start times.
 
 **Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
@@ -860,7 +870,9 @@ dj-set-analyzer/
 ├── netlify.toml       # one-click Netlify deploy (runs tools/build-site.sh)
 ├── .github/workflows/selftest.yml  # CI: self-test, syntax, compile, build on every push
 ├── tools/
+│   ├── synth.mjs         # the synthetic test set (128 BPM 8A, then 140 BPM 7A)
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
+│   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
