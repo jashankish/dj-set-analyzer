@@ -15,6 +15,12 @@ const fmt = (t) => {
 const mins = (t) => `${Math.round((t || 0) / 60)} min`;
 const mb = (n) => `${(n / 1048576).toFixed(n > 1e8 ? 0 : 1)} MB`;
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* key moments for screen readers (not every percentage tick) */
+function announce(msg) {
+  const el = $("announce");
+  el.textContent = "";
+  setTimeout(() => (el.textContent = msg), 50);
+}
 function toast(msg) {
   const el = $("toast");
   el.textContent = msg; el.hidden = false;
@@ -213,6 +219,7 @@ async function analyseAll() {
     if (q.state !== "ready") continue;
     if (controller.signal.aborted) break;
     q.state = "running"; q.stage = "Starting"; q.f = 0; renderQueue();
+    announce(`Analysing ${q.file.name}. This takes a minute or two.`);
     try {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
@@ -222,12 +229,14 @@ async function analyseAll() {
       q.id = await saveSet(payload, q.file);
       q.state = "done"; q.f = 1;
       finished.push(q);
+      announce(`${q.file.name} is ready: ${payload.summary.tracks} tracks.`);
     } catch (e) {
-      if (e && e.name === "AbortError") { q.state = "ready"; q.f = 0; renderQueue(); break; }
+      if (e && e.name === "AbortError") { q.state = "ready"; q.f = 0; renderQueue(); announce("Analysis stopped."); break; }
       q.state = "error";
       q.error = /quota|storage/i.test(String(e)) ? "Analysed, but this browser is out of storage space for it. Free some space and try again."
         : (e && e.message) || "Analysis failed";
       console.error(e);
+      announce(`${q.file.name} couldn't be analysed. ${q.error}`);
     }
     renderQueue();
   }

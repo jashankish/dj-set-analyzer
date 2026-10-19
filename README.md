@@ -713,6 +713,9 @@ pipeline:
   - below 720 px the gutter shrinks to 16 px and secondary columns hide
   - reduced-motion settings are respected
   - focus outlines are visible on every control
+  - every control has an accessible name (the drop zone included), and a
+    polite live region announces when an analysis starts, finishes, stops or
+    fails, without reading out each progress tick
 
 ---
 

@@ -31,7 +31,7 @@
       <h1 class="hero-title" id="heroTitle">Drop a DJ set.<br>Get the whole night back.</h1>
       <p class="hero-sub">Set Replay listens to a recording of a set and hands you the setlist, every transition, the keys, tempo and energy, then lets you replay any moment. It all runs in your browser. Your audio never leaves this computer.</p>
 
-      <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="dropHint">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add set recordings: drop files here or press Enter to choose them" aria-describedby="dropHint">
         <canvas class="drop-ribbon" id="dropRibbon" aria-hidden="true"></canvas>
         <div class="drop-body">
           <svg class="drop-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6v24m0 0-9-9m9 9 9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 32v6a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4v-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
@@ -130,6 +130,7 @@
   </footer>
 
   <div class="toast" id="toast" hidden></div>
+  <div class="sr-only" id="announce" role="status" aria-live="polite"></div>
   <script src="js/color.js"></script>
   <script type="module" src="js/landing.js"></script>
 </body>
