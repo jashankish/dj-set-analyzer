@@ -8,7 +8,7 @@
      4. build the same JSON the Python pipeline writes (payload.js)
 
    Nothing leaves the visitor's machine. */
-import { assets } from "./config.js";
+import { assets, HEADS } from "./config.js";
 import { buildPayload } from "./payload.js";
 import { SR, FPS } from "./extract.js";
 import { musicSpan } from "./setlist.js";
@@ -17,14 +17,47 @@ import { identifyClips } from "./naming.js";
 const RANGE = 120;          // seconds per job (a multiple of 10)
 const LOOKAHEAD = 72;       // longest window any feature reads past its start (beats: 60 s)
 
-let classesP = null;
-function styleClasses() {
-  classesP = classesP || fetch(assets().models + "discogs-effnet-bsdynamic-1.json").then((r) => r.json()).then((j) => j.classes);
-  return classesP;
-}
+const styleClasses = (models) => JSON.parse(new TextDecoder().decode(models["discogs-effnet-bsdynamic-1.json"])).classes;
 
 export const slugify = (name) =>
   name.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "set";
+
+/* ------------------------------------------------ models: downloaded once, shared by every worker */
+const MODEL_FILES = ["discogs-effnet-bsdynamic-1.onnx", "discogs-effnet-bsdynamic-1.json",
+  ...Object.keys(HEADS).flatMap((h) => [`${h}-discogs-effnet-1.onnx`, `${h}-discogs-effnet-1.json`])];
+let modelsP = null;
+
+/** Fetch every model file once (with byte progress); later calls reuse it. */
+export function loadModels(onProgress = () => {}) {
+  if (modelsP) return modelsP;
+  modelsP = (async () => {
+    const base = assets().models, got = new Map(), sizes = new Map();
+    const report = () => {
+      const done = [...got.values()].reduce((a, b) => a + b, 0), total = [...sizes.values()].reduce((a, b) => a + b, 0);
+      if (total) onProgress(done, total);
+    };
+    const files = await Promise.all(MODEL_FILES.map(async (name) => {
+      const r = await fetch(base + name);
+      if (!r.ok) throw new Error(`Couldn't download the analysis model ${name} (HTTP ${r.status}).`);
+      sizes.set(name, +r.headers.get("content-length") || 0);
+      if (!r.body || !sizes.get(name)) return [name, new Uint8Array(await r.arrayBuffer())];
+      const reader = r.body.getReader(), chunks = [];
+      let n = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value); n += value.length; got.set(name, n); report();
+      }
+      const out = new Uint8Array(n);
+      let o = 0;
+      for (const c of chunks) { out.set(c, o); o += c.length; }
+      return [name, out];
+    }));
+    return Object.fromEntries(files);
+  })();
+  modelsP.catch(() => { modelsP = null; });   // let a later attempt retry
+  return modelsP;
+}
 
 /* ------------------------------------------------ decoding */
 export async function decode(file) {
@@ -51,18 +84,22 @@ class Pool {
     this.size = size;
     this.workers = [];
   }
-  async start() {
+  async start(models) {
     const a = assets();
     const url = new URL("./worker.js", import.meta.url);
-    this.workers = await Promise.all(Array.from({ length: this.size }, () => new Promise((res, rej) => {
+    const spawn = () => new Promise((res, rej) => {
       const w = new Worker(url, { type: "module" });
       w.onmessage = (e) => {
         if (e.data.type === "ready") res(w);
         else if (e.data.type === "error") rej(new Error(e.data.message));
       };
       w.onerror = (e) => rej(new Error(e.message || "The analysis worker failed to start"));
-      w.postMessage({ type: "init", assets: a });
-    })));
+      w.postMessage({ type: "init", assets: a, models });
+    });
+    // the first worker fills the browser cache with the WASM libraries, so the
+    // others don't all download them at once on a first visit
+    const first = await spawn();
+    this.workers = [first, ...(await Promise.all(Array.from({ length: this.size - 1 }, spawn)))];
   }
   run(jobs, onJobProgress) {
     const results = new Array(jobs.length);
@@ -149,9 +186,13 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
   check();
   const total = y.length, duration = total / SR;
   if (duration < 60) throw new Error(`“${file.name}” is under a minute long — drop in a full set.`);
-  say("Loading the analysis engine", 0.04);
-  if (!pool) { pool = new Pool(poolSize()); await pool.start(); }
-  const classes = await styleClasses();
+  say("Loading the analysis engine", 0.03);
+  const models = await loadModels((done, total) =>
+    say(`Downloading the analysis models · ${Math.round(done / 1e6)} of ${Math.round(total / 1e6)} MB`, 0.03 + 0.02 * (done / total)));
+  check();
+  say("Starting the analysis engine", 0.05);
+  if (!pool) { pool = new Pool(poolSize()); await pool.start(models); }
+  const classes = styleClasses(models);
   check();
   const onAbort = () => releaseEngine();
   if (signal) signal.addEventListener("abort", onAbort, { once: true });

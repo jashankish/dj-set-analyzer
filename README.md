@@ -559,7 +559,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 
 | File | Role |
 | --- | --- |
-| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz); plans 2-minute ranges; runs a pool of module Web Workers (cores − 1, at most 6); merges; builds the payload. It supports cancelling (`AbortSignal`) and turns out-of-memory decode failures into readable errors |
+| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz) and plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports cancelling (`AbortSignal`), and turns out-of-memory decode failures into readable errors |
 | `worker.js` | Loads Essentia.js, ONNX Runtime Web and the models once per worker, then extracts features for ranges |
 | `extract.js` | The per-range features. Each lives on a fixed global grid (band frames, tempo windows, key windows, 54 s beat chunks, EffNet patches), and a worker only computes grid items that start inside its range, so the parallel ranges join exactly. The beat tracker assumes 44.1 kHz, so its 60 s chunks are upsampled on the fly |
 | `mel.js` | A pure-JS twin of Essentia's `TensorflowInputMusiCNN` (Hann → FFT → 96 Slaney mel bands, unit-area triangles, on the power spectrum → `log10(1 + 10000·x)`). It matches Essentia.js to a max error of 6e-5 and is about 30× faster than one WASM call per frame |
@@ -741,8 +741,9 @@ pipeline:
 
 - **Hosting:** free on any static host. There's no server compute: visitors'
   browsers do the analysis.
-- **Bandwidth:** each visitor downloads about 20 MB of models (cached for a
-  year) and about 16 MB of engine WebAssembly from jsDelivr (free CDN).
+- **Bandwidth:** each visitor downloads about 21 MB of models from your host
+  (once per visit, then cached for a year) and about 16 MB of engine
+  WebAssembly from jsDelivr (a free CDN). Workers share one copy of each.
 - **Licences:**
   - The Python and JS code here is yours.
   - **Essentia.js is AGPL-3.0**, so publishing the site means keeping its
@@ -807,6 +808,7 @@ dj-set-analyzer/
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
 │   ├── demo/          # bundled demo sets (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages
+│   ├── favicon.svg    # site icon (key-coloured waveform)
 │   ├── serve.py       # local dev server with ranged audio
 │   └── data/          # Python output for the local server (git-ignored)
 ├── tools/
