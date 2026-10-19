@@ -1,17 +1,18 @@
 /* Analysis worker: loads Essentia (WASM) and ONNX Runtime once, then
    extracts features for whatever time ranges the main thread sends. */
 import { extractRange } from "./extract.js";
-import { HEADS } from "./config.js";
+import { HEADS, importFirst } from "./config.js";
 
 let ctx = null;
 
 async function init(assets, models) {
-  const [{ EssentiaWASM }, { default: Essentia }, ort] = await Promise.all([
-    import(assets.essentiaWasm), import(assets.essentiaCore), import(assets.ort),
+  // each library: jsDelivr first, unpkg if that fails (see config.js)
+  const [[{ EssentiaWASM }], [{ default: Essentia }], [ort, ortFrom]] = await Promise.all([
+    importFirst(assets.essentiaWasm), importFirst(assets.essentiaCore), importFirst(assets.ort),
   ]);
   if (!EssentiaWASM.calledRun) await new Promise((r) => { EssentiaWASM.onRuntimeInitialized = r; });
   const essentia = new Essentia(EssentiaWASM);
-  ort.env.wasm.wasmPaths = assets.ortWasmPath;
+  ort.env.wasm.wasmPaths = assets.ortWasmPath[Math.min(ortFrom, assets.ortWasmPath.length - 1)];
   ort.env.wasm.numThreads = 1;            // parallelism comes from running several workers
   const load = async (name) => {
     if (models && models[name]) return models[name];          // shared by the main thread
