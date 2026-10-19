@@ -134,6 +134,31 @@ try {
   console.log(`  page errors: ${JSON.stringify(errors).slice(0, 600)}`);
 }
 
+/* ---------------- on a phone: 390 x 844 with touch */
+try {
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const p3 = await phone.newPage();
+  const errs3 = [];
+  p3.on("pageerror", (e) => errs3.push(String(e)));
+  const overflow = () => p3.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  await p3.goto(BASE);
+  await p3.waitForSelector("#demoList .card");
+  check("phone: landing has no sideways scroll", await overflow(), (px) => px <= 0);
+  await p3.goto(BASE + "set.html?demo=worship-part-2");
+  await p3.waitForSelector(".trk");
+  check("phone: replay page has no sideways scroll", await overflow(), (px) => px <= 0);
+  check("phone: ribbon track numbers aren't cut off", await p3.evaluate(() =>
+    [...document.querySelectorAll(".r-label")].filter((l) => l.scrollWidth > l.clientWidth + 1).map((l) => l.textContent)), (v) => v.length === 0);
+  const box = await p3.locator("#ribbon").boundingBox();
+  await p3.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.6);
+  await p3.waitForTimeout(300);
+  check("phone: tapping the ribbon moves the playhead", await p3.locator("#tCur").textContent(), (t) => t !== "0:00");
+  check("phone: no page errors", errs3, (e) => e.length === 0);
+  await phone.close();
+} catch (e) {
+  checks.push(["phone checks completed", String(e).split("\n")[0], false]);
+}
+
 /* ---------------- naming through the helper, with a stand-in helper that
    knows the answer: clips before 90 s are "Track A", later ones "Track B" */
 const probeTimes = [];
