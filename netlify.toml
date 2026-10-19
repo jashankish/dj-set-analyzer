@@ -1,0 +1,6 @@
+# Netlify: connect the repo and it deploys the site with no further settings.
+# (Cloudflare Pages: build command "bash tools/build-site.sh", output "dist/set-replay".)
+# Cache headers come from web/_headers, which the build copies along.
+[build]
+  command = "bash tools/build-site.sh"
+  publish = "dist/set-replay"

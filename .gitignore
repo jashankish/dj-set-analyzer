@@ -29,3 +29,6 @@ web/data/
 
 # Local copies of essentia.js / onnxruntime-web for tools/engine-check.mjs
 .engine-deps/
+
+# Packaged site (tools/build-site.sh)
+dist/

@@ -141,8 +141,10 @@ no environment variables. Copy the folder anywhere. It works at a domain root
 or in a sub-folder (e.g. `yoursite.com/set-replay/`), because every path is
 relative.
 
-1. **Copy `web/`** to your host, minus the local-only `web/data/` folder
-   (git-ignored), which holds the Python pipeline's output. The parts are:
+1. **Build it:** `bash tools/build-site.sh` (add `--zip` for an upload-ready
+   zip). This writes `dist/set-replay/`: the contents of `web/` without the
+   dev-only files (`web/data/`, the Python output for the local server, and
+   `serve.py`). Copy that folder to your host. The parts are:
 
    | Path | Size |
    | --- | --- |
@@ -150,8 +152,13 @@ relative.
    | `demo/` | ~0.8 MB |
    | Code and pages | ~0.2 MB |
 
-2. **Hosts that work:** any static host: GitHub Pages, Netlify, Cloudflare
-   Pages, Vercel, an S3 bucket, or your existing web server. No special
+2. **Hosts that work:** any static host: your existing web server, Netlify,
+   Cloudflare Pages, Vercel or an S3 bucket.
+   - **Netlify:** connect the repo; `netlify.toml` runs the build, with no
+     other settings needed.
+   - **Cloudflare Pages:** build command `bash tools/build-site.sh`, output
+     directory `dist/set-replay`.
+   - **GitHub Pages:** needs a paid plan while this repo is private. No special
    headers are required. The engine runs single-threaded WebAssembly inside
    several workers, so it doesn't need `SharedArrayBuffer` or cross-origin
    isolation.
@@ -823,7 +830,9 @@ dj-set-analyzer/
 │   ├── favicon.svg    # site icon (key-coloured waveform)
 │   ├── serve.py       # local dev server with ranged audio
 │   └── data/          # Python output for the local server (git-ignored)
+├── netlify.toml       # one-click Netlify deploy (runs tools/build-site.sh)
 ├── tools/
+│   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
 │   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labelled sets
