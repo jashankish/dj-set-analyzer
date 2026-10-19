@@ -800,7 +800,9 @@ import { openNamingDialog } from "./naming-ui.js";
     const lines = tracks().map((tr) => {
       const who = tr.identified ? tr.artist : "ID";
       const what = nameOf(tr);
-      return `${fmt(tr.start)}  ${who} – ${what}`;
+      // an unnamed track keeps the clues a DJ would use to track it down
+      const clues = !tr.identified && !S.names[tr.n] ? [keyOf(tr), tr.bpm ? `${Math.round(tr.bpm)} BPM` : null].filter(Boolean) : [];
+      return `${fmt(tr.start)}  ${who} – ${what}${clues.length ? ` (${clues.join(", ")})` : ""}`;
     });
     const txt = `${S.title || S.D.title}\n\n${lines.join("\n")}\n`;
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())

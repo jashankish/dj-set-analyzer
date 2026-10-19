@@ -49,7 +49,9 @@ const wav = path.join(os.tmpdir(), "set-replay-e2e.wav");
 fs.writeFileSync(wav, wavBytes(makeSet(16000), 16000));
 
 const browser = await pw.chromium.launch(useChrome ? { channel: "chrome", headless: true } : { headless: true });
-const page = await (await browser.newContext({ acceptDownloads: true })).newPage();
+const context = await browser.newContext({ acceptDownloads: true });
+await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -87,6 +89,9 @@ try {
   await page.keyboard.press("Space");
   await page.waitForTimeout(300);
   check("Space pauses (nothing focused)", await page.evaluate(() => [document.getElementById("audio").paused, !document.querySelector(".i-play").hasAttribute("hidden")]), (v) => v[0] && v[1]);
+  await page.click("#copyBtn");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  check("Copy tracklist lists each ID with its key and tempo", copied.split("\n").slice(2, 4), (l) => /^0:00  ID – ID \(8A, 12\d BPM\)$/.test(l[0]) && /ID – ID \(7A, 1[34]\d BPM\)$/.test(l[1]));
   await page.locator(".seam").first().click();
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
 

@@ -76,7 +76,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set | Double-click the title to rename the set (saved in this browser) |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's colour on the Camelot wheel**. Colours cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterwards) is greyed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music links, and what comes next | Double-click an **ID** track's title to name it yourself |
-| **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard |
+| **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, and a one-sentence description | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead) | Click a dot to play that track |
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops and the peak marked | Hover for values; click to seek |
@@ -623,8 +623,9 @@ of the output is present. It takes about 6 s and is deterministic.
 **Whole-site test in a real browser.** `bash tools/build-site.sh && node
 tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
 the landing page's file input the same synthetic set, presses Analyse and
-waits for the result page. Its 15 checks cover:
+waits for the result page. Its 16 checks cover:
 - the story, the track change, the 127–139 BPM tempo range and keys 8A → 7A
+- *Copy tracklist* lists each ID with its key and tempo
 - Play really plays and shows the pause icon, and Space pauses
 - a transition row opens the mix inspector
 - *Download the analysis* gives a `.setreplay.json` that imports back into
