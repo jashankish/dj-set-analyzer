@@ -58,7 +58,10 @@ There are two ways to run it, and both produce the same JSON:
   With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
 - **Your sets:** everything analysed in this browser, with key-coloured
   strips. Hover a card to delete it. Deleting also removes the saved
-  recording, so it takes a second click ("Click again to delete").
+  recording, so it takes a second click ("Click again to delete"). The
+  heading shows how much browser storage the library uses (each set keeps
+  its recording, so typically 40–150 MB), and it suggests deleting old sets
+  once usage passes 80% of what the browser allows.
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. The animated ribbons are drawn once and cached,
   so each frame only moves the playhead (~0.01 ms rather than ~6 ms). They

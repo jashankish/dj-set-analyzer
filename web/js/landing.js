@@ -1,7 +1,7 @@
 /* Landing page: drop zone, analysis queue, the visitor's library, demos and
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
 import { drawRibbonFast, drawStrip, drawWheel } from "./mini.js";
-import { listSets, deleteSet, saveSet, importSet } from "./store.js";
+import { listSets, deleteSet, saveSet, importSet, storageEstimate } from "./store.js";
 import { helperStatus } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
 
@@ -112,6 +112,7 @@ async function loadLibrary() {
       <button class="del" data-id="${esc(s.id)}" aria-label="Delete ${esc(s.title)}">Delete</button>
     </a></li>`).join("");
   drawCards($("libList"));
+  showStorage(sets.length);
   $("libList").querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
     e.preventDefault(); e.stopPropagation();
     // deleting also removes the saved recording, so it takes a second click
@@ -149,6 +150,18 @@ function showNaming() {
 async function checkHelper() {
   const on = !!(await helperStatus());
   if (on !== helperOn) { helperOn = on; renderNaming(); renderQueue(); }
+}
+
+/* how much room the saved sets (and their recordings) take in this browser */
+async function showStorage(count) {
+  const sub = $("libSub");
+  if (!count) return;
+  const est = await storageEstimate();
+  if (!est || !est.usage) { sub.textContent = "Saved in this browser only."; return; }
+  const size = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
+  let text = `Saved in this browser only, using ${size(est.usage)}`;
+  if (est.quota && est.usage / est.quota > 0.8) text += ` of the ${size(est.quota)} it allows. Delete sets you no longer need to make room`;
+  sub.textContent = `${text}.`;
 }
 
 /* ------------------------------------------------ the queue */
