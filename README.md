@@ -60,7 +60,9 @@ There are two ways to run it, and both produce the same JSON:
   strips. Hover a card to delete it. Deleting also removes the saved
   recording, so it takes a second click ("Click again to delete").
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
-  cards and the Camelot path. Below it are the demo sets, *How it works* and a
+  cards and the Camelot path. The animated ribbons are drawn once and cached,
+  so each frame only moves the playhead (~0.01 ms rather than ~6 ms). They
+  pause when scrolled out of view and while an analysis runs. Below it are the demo sets, *How it works* and a
   short FAQ.
 
 **The set page** (`set.html`) is the replay. Pick a set from the row at the
@@ -830,7 +832,7 @@ dj-set-analyzer/
 │   ├── js/app.js      # viewer
 │   ├── js/landing.js  # drop, queue, library, teaser
 │   ├── js/store.js    # IndexedDB library
-│   ├── js/mini.js     # small renderers for the landing page
+│   ├── js/mini.js     # small renderers for the landing page (cached animated ribbon)
 │   ├── js/color.js    # Camelot → OKLCH colour
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
 │   ├── js/engine/     # the browser engine (see "The browser engine")

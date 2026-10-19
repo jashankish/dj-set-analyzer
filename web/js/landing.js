@@ -1,6 +1,6 @@
 /* Landing page: drop zone, analysis queue, the visitor's library, demos and
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
-import { drawRibbon, drawStrip, drawWheel } from "./mini.js";
+import { drawRibbonFast, drawStrip, drawWheel } from "./mini.js";
 import { listSets, deleteSet, saveSet, importSet } from "./store.js";
 import { helperStatus } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
@@ -50,18 +50,29 @@ function drawCards(root) {
 }
 
 let sweep = 0, raf = 0;
+const onScreen = new Set();
+const watch = "IntersectionObserver" in window
+  ? new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? onScreen.add(e.target) : onScreen.delete(e.target))))
+  : null;
 function startTeaser() {
   drawWheel($("teaseWheel"), demo);
   const end = demo.summary.set_end || demo.duration;
+  const canvases = [$("dropRibbon"), $("teaseRibbon")];
+  if (watch) canvases.forEach((c) => watch.observe(c)); else canvases.forEach((c) => onScreen.add(c));
+  const draw = (c, ph) => drawRibbonFast(c, demo, { playhead: ph });
   const frame = (ts) => {
-    // one slow sweep across the set behind the drop zone; static when motion is reduced
-    sweep = reduced ? end * 0.42 : ((ts / 1000) * 14) % end;
-    drawRibbon($("dropRibbon"), demo, { playhead: reduced ? null : sweep });
-    drawRibbon($("teaseRibbon"), demo, { playhead: sweep });
-    if (!reduced) raf = requestAnimationFrame(frame);
+    // one slow sweep across the set; only on-screen canvases are redrawn, and
+    // the animation rests while an analysis runs so it never competes with it
+    if (!running) {
+      sweep = ((ts / 1000) * 14) % end;
+      if (onScreen.has(canvases[0])) draw(canvases[0], sweep);
+      if (onScreen.has(canvases[1])) draw(canvases[1], sweep);
+    }
+    raf = requestAnimationFrame(frame);
   };
   cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(frame);
+  if (reduced) { draw(canvases[0], null); draw(canvases[1], end * 0.42); }
+  else raf = requestAnimationFrame(frame);
   showMixCard(0);
 }
 
