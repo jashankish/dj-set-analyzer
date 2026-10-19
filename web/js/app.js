@@ -1,9 +1,13 @@
 /* ============================================================
    Set Replay — app
-   Loads data/sets.json (the analysed recordings) and one
-   data/sets/<slug>.json, then draws the set and keeps every view
-   in step with the audio.
+   Three sources, one viewer:
+     set.html?id=<id>      a set analysed in this browser (IndexedDB, with its audio)
+     set.html?demo=<slug>  a bundled demo (demo/<slug>.json; audio optional)
+     set.html#<slug>       the local Python server (data/sets.json + /audio/<file>)
+   Draws the set and keeps every view in step with the audio.
    ============================================================ */
+import { getSet, listSets, deleteSet } from "./store.js";
+
 (function () {
   "use strict";
 
@@ -19,6 +23,10 @@
     actx: null, analyser: null, freq: null,
     lastBeat: -1, beatAt: 0,
   };
+
+  /* time source: the audio element, or a virtual clock when there's no audio */
+  const now = () => (S.noAudio ? S.vt || 0 : audio.currentTime || 0);
+  const isPaused = () => S.noAudio || audio.paused;
 
   /* ------------------------------------------------ utils */
   function fmt(t) {
@@ -82,7 +90,7 @@
   const shortName = (tr) => (!tr.identified && !S.names[tr.n] ? `ID ${tr.n}` : nameOf(tr).replace(/\s*\((feat|ft)\.?[^)]*\)/i, ""));
   const possible = (tr) => tr.identified && tr.shazam_hits <= 1 && tr.id_confidence < 0.25;
   function artHtml(tr, big) {
-    const local = tr.meta && tr.meta.art_local;
+    const local = tr.meta && (tr.meta.art_local || tr.meta.art);
     if (local) return `${genArt(tr, big, true)}<img class="art-img" src="${esc(local)}" alt="" onerror="this.remove()">`;
     return genArt(tr, big, false);
   }
@@ -118,6 +126,50 @@
   /* ------------------------------------------------ boot */
   async function boot() {
     bindStatic();
+    const q = new URLSearchParams(location.search);
+    try {
+      if (q.get("id")) await bootLocal(q.get("id"));
+      else if (q.get("demo")) await bootDemo(q.get("demo"));
+      else await bootServer();
+    } catch (e) {
+      console.error(e);
+      showMissing("This set couldn't be loaded.", e && e.message);
+    }
+  }
+
+  function showMissing(msg, detail) {
+    $("title").textContent = "Set not found";
+    $("story").innerHTML = `${esc(msg)} ${detail ? `<span style="color:var(--muted)">(${esc(detail)})</span>` : ""} <a href="./" style="color:var(--ink)">Back to Set Replay</a>`;
+    document.querySelectorAll(".ribbon-wrap, .desk, .mix, .journey, .player").forEach((el) => (el.hidden = true));
+  }
+
+  /* a set analysed in this browser */
+  async function bootLocal(id) {
+    S.mode = "local";
+    const rec = await getSet(id);
+    if (!rec) return showMissing("This set isn't saved in this browser. Sets live in the browser that analysed them.");
+    S.sets = (await listSets()).map((x) => ({ slug: x.id, title: x.title, keys: x.keys, duration: x.set_length || x.duration, href: `set.html?id=${encodeURIComponent(x.id)}` }));
+    S.record = rec;
+    renderSetNav();
+    openPayload(rec.payload, rec.audio ? URL.createObjectURL(rec.audio) : null);
+  }
+
+  /* a bundled demo */
+  async function bootDemo(slug) {
+    S.mode = "demo";
+    let idx = [];
+    try { idx = await (await fetch("demo/index.json")).json(); } catch (e) { /* listing is optional */ }
+    S.sets = idx.map((x) => ({ slug: x.slug, title: x.title, keys: x.keys, duration: x.set_length || x.duration, href: `set.html?demo=${encodeURIComponent(x.slug)}` }));
+    const r = await fetch(`demo/${encodeURIComponent(slug)}.json`);
+    if (!r.ok) return showMissing("That demo doesn't exist.");
+    renderSetNav();
+    const entry = idx.find((x) => x.slug === slug);
+    openPayload(await r.json(), entry && entry.audio ? entry.audio : null);
+  }
+
+  /* the local Python server */
+  async function bootServer() {
+    S.mode = "server";
     try {
       const r = await fetch("data/sets.json", { cache: "no-store" });
       if (!r.ok) throw new Error();
@@ -125,10 +177,7 @@
     } catch (e) {
       S.sets = [];
     }
-    if (!S.sets.length) {
-      $("story").innerHTML = `No analysed sets yet. Put a recording in the project folder and run <b>venv/bin/python analyzer/analyze.py --all</b>, then reload.`;
-      return;
-    }
+    if (!S.sets.length) { location.replace("./"); return; }
     renderSetNav();
     const want = decodeURIComponent(location.hash.slice(1));
     const pick = S.sets.find((s) => s.slug === want) || S.sets[0];
@@ -136,19 +185,28 @@
   }
 
   function renderSetNav() {
-    $("sets").innerHTML = S.sets.map((s) => {
+    const home = `<a class="home" href="./">Set Replay</a>`;
+    $("sets").innerHTML = home + S.sets.map((s) => {
       const sw = (s.keys || []).slice(0, 40).map((k) => `<i style="background:${keyColor(k, "base")}"></i>`).join("");
       const t = (load(`djsa:${s.slug}`) || {}).title || s.title;
-      return `<button data-slug="${esc(s.slug)}"><span class="set-sw">${sw}</span>${esc(t)} <span class="set-dur">${fmt(s.duration)}</span></button>`;
+      return `<button data-slug="${esc(s.slug)}"${s.href ? ` data-href="${esc(s.href)}"` : ""}><span class="set-sw">${sw}</span>${esc(t)} <span class="set-dur">${fmt(s.duration)}</span></button>`;
     }).join("");
-    $("sets").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => openSet(b.dataset.slug)));
+    $("sets").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      if (b.dataset.href) location.href = b.dataset.href; else openSet(b.dataset.slug);
+    }));
   }
 
   async function openSet(slug) {
     const r = await fetch(`data/sets/${encodeURIComponent(slug)}.json`, { cache: "no-store" });
-    S.D = await r.json();
-    S.set = S.sets.find((s) => s.slug === slug);
+    const D = await r.json();
     history.replaceState(null, "", `#${slug}`);
+    openPayload(D, `audio/${encodeURIComponent(D.file)}`);
+  }
+
+  function openPayload(D, audioUrl) {
+    S.D = D;
+    const slug = D.slug;
+    S.set = S.sets.find((s) => s.slug === slug);
     $("sets").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.slug === slug ? "true" : "false"));
     const saved = load(`djsa:${slug}`) || {};
     S.names = saved.names || {};
@@ -156,7 +214,10 @@
     S.cur = -1; S.mix = 0; S.lastBeat = -1;
     S.view = { t0: span()[0], t1: span()[1] };
     prepColors();
-    audio.src = `audio/${encodeURIComponent(S.D.file)}`;
+    S.noAudio = !audioUrl;
+    S.vt = span()[0];
+    if (audioUrl) audio.src = audioUrl; else audio.removeAttribute("src");
+    document.body.classList.toggle("no-audio", S.noAudio);
     $("tDur").textContent = fmt(S.D.duration);
     renderHeader();
     renderSetlist();
@@ -470,7 +531,7 @@
     $("zoomFit").addEventListener("click", () => setView(span()[0], span()[1] - span()[0]));
   }
   function focusTime() {
-    const t = audio.currentTime || 0;
+    const t = now();
     return t >= S.view.t0 && t <= S.view.t1 ? t : (S.view.t0 + S.view.t1) / 2;
   }
 
@@ -602,7 +663,7 @@
     const col = TC[S.cur] || TC[0];
     const n = 56, gap = 2, bw = (w - gap * (n - 1)) / n;
     let data = null;
-    if (S.analyser && !audio.paused) {
+    if (S.analyser && !isPaused()) {
       S.analyser.getByteFrequencyData(S.freq);
       data = S.freq;
     }
@@ -626,7 +687,7 @@
     const beats = S.D.beats;
     if (beats.length) {
       const i = bsearch(beats, t);
-      const on = beats[i] <= t && t - beats[i] < 0.12 && !audio.paused;
+      const on = beats[i] <= t && t - beats[i] < 0.12 && !isPaused();
       const dots = $("pulse").children;
       for (let k = 0; k < 4; k++) dots[k].classList.toggle("on", on && k === i % 4);
     }
@@ -1091,7 +1152,22 @@
     const when = new Date(D.analyzed_at);
     $("credits").innerHTML = `Analysed ${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} from <b>${esc(D.file)}</b>.
       Beats, tempo and key: ${esc(c.beats_key_tempo)}. Styles and moods: ${esc(c.styles_moods)}. Track names: ${esc(c.identification)}.
-      Mix points, types and energy are estimated from the audio, so treat them as a close read rather than ground truth.`;
+      Mix points, types and energy are estimated from the audio, so treat them as a close read rather than ground truth.
+      ${S.mode === "local" ? `<span class="c-actions"><button class="ghost" id="exportBtn">Download the analysis (JSON)</button> <button class="ghost" id="deleteBtn">Delete from this browser</button></span>` : ""}`;
+    if (S.mode !== "local") return;
+    $("exportBtn").addEventListener("click", () => {
+      const out = { ...S.D, title: S.title || S.D.title, user_names: S.names };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(out)], { type: "application/json" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${(S.title || S.D.title).replace(/[^\w\- ]+/g, "")}.setreplay.json` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    });
+    $("deleteBtn").addEventListener("click", async () => {
+      const btn = $("deleteBtn");
+      if (btn.dataset.armed !== "1") { btn.dataset.armed = "1"; btn.textContent = "Click again to delete"; return; }
+      await deleteSet(S.D.slug);
+      location.href = "./";
+    });
   }
 
   /* ------------------------------------------------ scrub bar */
@@ -1110,34 +1186,40 @@
 
   /* ------------------------------------------------ playback */
   function seek(t, play) {
-    audio.currentTime = clamp(t, 0, S.D.duration - 0.1);
+    t = clamp(t, 0, S.D.duration - 0.1);
+    if (S.noAudio) S.vt = t; else audio.currentTime = t;
     if (play) startPlay();
     tick(true);
   }
   function startPlay() {
+    if (S.noAudio) {
+      if (!S.toldNoAudio) toast(S.mode === "demo" ? "This demo comes without its audio. Click around to explore, or drop in your own set." : "This set's audio isn't available.");
+      S.toldNoAudio = true;
+      return;
+    }
     ensureAudioGraph();
     if (S.actx && S.actx.state === "suspended") S.actx.resume();
     const p = audio.play();
     if (p && p.catch) p.catch(() => toast("Press play to start the audio"));
   }
-  function togglePlay() { audio.paused ? startPlay() : audio.pause(); }
+  function togglePlay() { isPaused() ? startPlay() : audio.pause(); }
 
   function tick(force) {
     if (!S.D) return;
-    const t = audio.currentTime || 0, D = S.D.duration;
+    const t = now(), D = S.D.duration;
     // current track + live mix selection
     const i = trackAt(t);
     if (i !== S.cur) setTrack(i);
     const live = mixes().findIndex((m) => t >= m.mix_in - 4 && t <= m.mix_out);
-    if (live >= 0 && live !== S.mix && !audio.paused && !S.loop) selectMix(live, false);
+    if (live >= 0 && live !== S.mix && !isPaused() && !S.loop) selectMix(live, false);
     // loop the selected mix
-    if (S.loop && !audio.paused) {
+    if (S.loop && !isPaused()) {
       const m = mixes()[S.mix];
       if (t > m.mix_out + 6 || t < m.mix_in - 12) audio.currentTime = Math.max(0, m.mix_in - 6);
     }
     // follow
     const vspan = S.view.t1 - S.view.t0;
-    if (S.follow && !audio.paused && vspan < D - 0.5 && (t > S.view.t1 - vspan * 0.04 || t < S.view.t0)) {
+    if (S.follow && !isPaused() && vspan < D - 0.5 && (t > S.view.t1 - vspan * 0.04 || t < S.view.t0)) {
       setView(t - vspan * 0.1, vspan);
       return;
     }
@@ -1166,12 +1248,12 @@
     if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); tick._rows = t; }
   }
   function loop() {
-    if (!audio.paused) tick();
+    if (!isPaused()) tick();
     requestAnimationFrame(loop);
   }
 
   function setPlayIcon() {
-    const p = audio.paused;
+    const p = isPaused();
     document.querySelector(".i-play").hidden = !p;
     document.querySelector(".i-pause").hidden = p;
     $("playBtn").setAttribute("aria-label", p ? "Play" : "Pause");
@@ -1183,11 +1265,11 @@
     bindEnergy();
     bindRename();
     $("playBtn").addEventListener("click", togglePlay);
-    $("nextTrack").addEventListener("click", () => { const n = tracks()[S.cur + 1]; if (n) seek(n.start + 0.05, !audio.paused); });
+    $("nextTrack").addEventListener("click", () => { const n = tracks()[S.cur + 1]; if (n) seek(n.start + 0.05, !isPaused()); });
     $("prevTrack").addEventListener("click", () => {
       const tr = tracks()[S.cur];
-      const target = audio.currentTime - tr.start > 4 || S.cur === 0 ? tr : tracks()[S.cur - 1];
-      seek(target.start + 0.05, !audio.paused);
+      const target = now() - tr.start > 4 || S.cur === 0 ? tr : tracks()[S.cur - 1];
+      seek(target.start + 0.05, !isPaused());
     });
     $("followBtn").addEventListener("click", () => {
       S.follow = !S.follow;
@@ -1223,11 +1305,11 @@
     else if (k === "ArrowRight" || k === "ArrowLeft") {
       e.preventDefault();
       const d = (e.shiftKey ? 30 : 5) * (k === "ArrowRight" ? 1 : -1);
-      seek(audio.currentTime + d, false);
+      seek(now() + d, false);
     } else if (k === "n" || k === "N") $("nextTrack").click();
     else if (k === "p" || k === "P") $("prevTrack").click();
     else if (k === "m" || k === "M") {
-      const t = audio.currentTime;
+      const t = now();
       const j = mixes().findIndex((m) => m.mix_in > t);
       playMix(j >= 0 ? j : 0);
     } else if (k === "+" || k === "=") zoomAround(focusTime(), 0.5);
@@ -1243,7 +1325,7 @@
     drawEnergy();
     drawSparks();
     drawMix();
-    drawRows(audio.currentTime || 0);
+    drawRows(now());
   }
 
   boot();

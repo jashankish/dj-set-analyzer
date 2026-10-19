@@ -1,0 +1,143 @@
+/* ============================================================
+   Set Replay — landing page
+   Shares tokens with styles.css. The drop zone is itself a set
+   ribbon: real data from a demo set plays faintly behind it.
+   ============================================================ */
+
+body.landing { padding-bottom: 0; }
+
+.l-top {
+  max-width: var(--maxw); margin: 0 auto; padding: 22px var(--gut);
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+}
+.brand {
+  color: var(--ink); text-decoration: none;
+  font-stretch: 125%; font-weight: 850; font-size: 1.15rem; letter-spacing: -.01em;
+}
+.l-nav { display: flex; gap: 22px; }
+.l-nav a { color: var(--ink-2); text-decoration: none; font-size: .9rem; font-stretch: 90%; }
+.l-nav a:hover { color: var(--ink); }
+
+/* ---------------------------------------------------------------- hero */
+.hero { max-width: var(--maxw); margin: 0 auto; padding: 40px var(--gut) 0; }
+.hero-title {
+  margin: 0; font-stretch: 125%; font-weight: 850; letter-spacing: -.03em;
+  font-size: clamp(2.6rem, 7.6vw, 6.4rem); line-height: .9; max-width: 13ch;
+}
+.hero-sub { margin: 22px 0 0; max-width: 62ch; color: var(--ink-2); font-size: 1.12rem; line-height: 1.6; }
+
+.drop {
+  position: relative; margin-top: 38px; height: 300px; border-radius: 18px;
+  background: var(--bg-2); overflow: hidden; cursor: pointer;
+  outline: 1.5px solid var(--line); outline-offset: -1.5px;
+  transition: outline-color .15s, transform .15s;
+}
+.drop:hover { outline-color: var(--muted); }
+.drop.over { outline: 2px solid var(--ink); transform: scale(1.005); }
+.drop-ribbon { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .32; transition: opacity .25s; }
+.drop:hover .drop-ribbon { opacity: .42; }
+.drop.over .drop-ribbon { opacity: .75; }
+.drop-body {
+  position: relative; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; padding: 20px;
+  background: radial-gradient(closest-side, rgba(22,21,30,.82), rgba(22,21,30,.25) 70%, transparent);
+}
+.drop-icon { width: 46px; height: 46px; color: var(--ink); margin-bottom: 12px; }
+.drop-title { margin: 0; font-stretch: 118%; font-weight: 800; font-size: clamp(1.4rem, 3vw, 2rem); }
+.drop-hint { margin: 8px 0 0; color: var(--ink-2); font-size: .98rem; }
+.link-like { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------------------------------------------------------------- queue */
+.queue { margin-top: 18px; }
+.q-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.q-item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 16px; align-items: center;
+  background: var(--panel); border-radius: var(--r-m); padding: 12px 14px; position: relative; overflow: hidden;
+}
+.q-name { min-width: 0; }
+.q-name b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.q-name span { color: var(--muted); font-size: .84rem; font-stretch: 85%; }
+.q-state { color: var(--ink-2); font-size: .86rem; font-stretch: 88%; white-space: nowrap; }
+.q-state.err { color: #FFB4A8; white-space: normal; max-width: 42ch; }
+.q-item .open { white-space: nowrap; }
+.q-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--ink); transition: width .3s; }
+.q-x { background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; }
+.q-x:hover { color: var(--ink); }
+.q-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.solid.big { padding: 12px 22px; font-size: 1rem; }
+.solid:disabled { opacity: .5; cursor: progress; }
+.q-note { margin: 0 0 0 6px; color: var(--muted); font-size: .88rem; max-width: 70ch; }
+
+/* ---------------------------------------------------------------- sections */
+.library, .tease, .demos, .how, .faq { max-width: var(--maxw); margin: 84px auto 0; padding: 0 var(--gut); }
+.sec-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.sec-sub { margin: 0; color: var(--muted); font-size: .9rem; font-stretch: 90%; }
+.how .h2, .faq .h2 { margin-bottom: 18px; }
+
+/* cards (library + demos) */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card {
+  display: block; background: var(--panel); border-radius: 14px; padding: 16px 16px 14px;
+  color: inherit; text-decoration: none; position: relative;
+  outline: 1px solid transparent; outline-offset: -1px; transition: outline-color .15s;
+}
+.card:hover { outline-color: var(--line); }
+.card canvas { width: 100%; height: 62px; display: block; border-radius: 8px; background: var(--bg-2); }
+.card h3 { margin: 12px 0 2px; font-size: 1.12rem; font-stretch: 108%; font-weight: 750; }
+.card p { margin: 0; color: var(--ink-2); font-size: .88rem; font-stretch: 90%; }
+.card .del {
+  position: absolute; top: 10px; right: 10px; background: rgba(22,21,30,.75); border: 0; color: var(--muted);
+  border-radius: 6px; padding: 3px 8px; font-size: .78rem; cursor: pointer; opacity: 0; transition: opacity .15s;
+}
+.card:hover .del, .card .del:focus-visible { opacity: 1; }
+.card .del:hover { color: var(--ink); }
+
+/* teaser */
+.tease-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; }
+.t-card { margin: 0; background: var(--bg-2); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.t-card figcaption { color: var(--ink-2); font-size: .9rem; line-height: 1.55; }
+.t-card figcaption b { color: var(--ink); font-weight: 650; }
+.t-ribbon canvas { width: 100%; height: 190px; display: block; border-radius: 8px; }
+.t-wheel svg { width: 100%; max-width: 230px; height: auto; display: block; margin: 0 auto; }
+
+.mix-card { min-height: 190px; background: var(--panel); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.mc-pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
+.mc-side { min-width: 0; font-size: .86rem; }
+.mc-side b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 650; }
+.mc-side.b { text-align: right; }
+.mc-arrow { color: var(--muted); }
+.mc-type { font-stretch: 118%; font-weight: 800; font-size: 1.45rem; line-height: 1.1; }
+.mc-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--ink-2); font-size: .84rem; font-stretch: 88%; }
+.mc-fade { animation: mcIn .5s ease both; }
+@keyframes mcIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* how it works */
+.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.steps li { counter-increment: s; border-top: 1px solid var(--line); padding-top: 16px; }
+.steps li::before { content: counter(s); display: block; font-stretch: 70%; font-weight: 600; font-size: 2.2rem; line-height: 1; color: var(--muted); margin-bottom: 10px; }
+.steps h3 { margin: 0 0 6px; font-size: 1.08rem; font-stretch: 108%; font-weight: 750; }
+.steps p { margin: 0; color: var(--ink-2); line-height: 1.6; max-width: 46ch; }
+
+/* faq */
+.faq dl { margin: 0; display: grid; grid-template-columns: minmax(200px, 320px) 1fr; gap: 18px 36px; max-width: 1100px; }
+.faq dt { font-weight: 650; }
+.faq dd { margin: 0; color: var(--ink-2); line-height: 1.6; max-width: 70ch; }
+
+.l-foot { margin-top: 90px; padding-bottom: 40px; }
+
+@media (max-width: 960px) {
+  .tease-grid { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr; gap: 22px; }
+}
+@media (max-width: 720px) {
+  .l-nav { gap: 14px; }
+  .l-nav a { font-size: .84rem; }
+  .drop { height: 240px; }
+  .q-item { grid-template-columns: minmax(0, 1fr) auto; }
+  .q-item .q-state { grid-column: 1 / -1; }
+  .faq dl { grid-template-columns: 1fr; gap: 6px; }
+  .faq dd { margin-bottom: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-fade { animation: none; }
+}

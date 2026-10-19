@@ -22,6 +22,8 @@ NOV_BIN = 2.0         # seconds per novelty bin
 NOV_HALF = 12         # kernel half-width in bins (24 s each side)
 MIN_TRACK = 60.0      # shortest stretch we will call a separate track
 FPS = 8               # band-energy frames per second
+AUDIO_ONLY_MIN = 75.0  # shortest track when there's no identification at all
+AUDIO_ONLY_PROM = 0.4  # novelty prominence needed to call a track change then
 
 
 # ---------------------------------------------------------------- novelty
@@ -117,6 +119,15 @@ def segment(duration, probes, nov, step):
     so the track count is always len(boundaries) + 1.
     """
     runs = shazam_runs(probes)
+    if not runs:
+        # audio only: split on clear changes in sound, tracks at least 75 s
+        # (tuned against the Shazam-anchored setlists of the bundled sets)
+        chosen = []
+        for t, prom in _peaks_in(nov, AUDIO_ONLY_MIN, duration - AUDIO_ONLY_MIN, min_dist=AUDIO_ONLY_MIN, prominence=0.05):
+            if prom >= AUDIO_ONLY_PROM and all(abs(t - c) >= AUDIO_ONLY_MIN for c in chosen):
+                chosen.append(t)
+        edges = [0.0] + sorted(chosen) + [duration]
+        return [{"s": edges[k], "e": edges[k + 1], "run": None} for k in range(len(edges) - 1)]
     anchors = [None] + runs + [None]           # None = set edge
     boundaries, order = [], []
     for i in range(len(anchors) - 1):

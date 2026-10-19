@@ -410,3 +410,13 @@ button { font-family: inherit; color: inherit; }
 }
 .mix-side .nm .key-chip { display: inline-block; color: #16151E; font-size: .78rem; }
 .mix-side .nm .meta { color: var(--ink-2); font-size: .84rem; margin-top: 2px; }
+
+/* ---------------------------------------------------------------- hosted-site additions */
+.sets .home {
+  color: var(--ink); text-decoration: none; font-stretch: 125%; font-weight: 850; font-size: .98rem;
+  padding: 6px 14px 6px 4px; margin-right: 6px; border-right: 1px solid var(--line); align-self: center;
+}
+.sets .home:hover { color: #fff; }
+.c-actions { display: inline-flex; gap: 8px; margin-left: 6px; vertical-align: middle; }
+body.no-audio .pp { opacity: .45; }
+body.no-audio .p-now::after { content: "Demo without audio"; display: block; color: var(--muted); font-size: .78rem; }

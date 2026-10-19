@@ -18,9 +18,14 @@ __pycache__/
 
 # Downloaded model weights (fetched automatically on first run)
 models/
+# ...except the copy the hosted site serves to browsers
+!web/models/
 
 # Generated analysis output (regenerate from the audio)
 output/
 web/data/
 
 *.log
+
+# Local copies of essentia.js / onnxruntime-web for tools/engine-check.mjs
+.engine-deps/

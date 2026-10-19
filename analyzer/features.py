@@ -91,7 +91,7 @@ def rhythm(y44, chunk_s=60.0, overlap_s=6.0, log=print):
     return beats
 
 
-def bpm_windows(y44, win_s=20.0, hop_s=5.0):
+def bpm_windows(y44, win_s=20.0, hop_s=10.0):
     """Percival tempo estimate on sliding windows -> (center_times, bpm).
 
     Raw estimates may sit an octave off (e.g. 87.5 for 175 BPM drum & bass);

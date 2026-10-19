@@ -112,44 +112,51 @@ def fuse_styles(acts, classes, bpm, top=4):
 SOFT_VOTE = {"Downtempo": 0.3, "Dub": 0.3, "Trip Hop": 0.3}
 
 
-def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=2.0, hold_cost=60.0):
+def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=12.0):
     """Choose x0.5 / x1 / x2 per window with a Viterbi pass.
 
     Emission: how well each tempo candidate agrees with the window's style
-    activations (only styles with a tempo prior vote). Transition: switching
-    octave is cheap only where the raw tempo itself changes; while the raw
-    estimate holds steady the music hasn't changed speed, so the octave stays.
+    activations (only styles with a tempo prior vote). Transition: a cost
+    proportional to how far the *resolved* tempo jumps (in octaves), so
+    87.5 x 2 and 175 x 1 count as the same tempo and only real speed changes
+    cost anything. One-window outliers are median-filtered away first.
     """
+    from scipy.ndimage import median_filter
+    raw_bpm = np.asarray(raw_bpm, float)
+    ok = np.isfinite(raw_bpm)
+    clean = raw_bpm.copy()
+    if ok.any():
+        clean[ok] = median_filter(raw_bpm[ok], size=5, mode="nearest")
     mult = np.array([0.5, 1.0, 2.0])
     prior_idx = [i for i, c in enumerate(classes) if c.split("---")[-1] in STYLE_TEMPO]
     pc = [classes[i] for i in prior_idx]
     vote = np.array([SOFT_VOTE.get(c.split("---")[-1], 1.0) for c in pc])
-    n = len(raw_bpm)
+    n = len(clean)
     E = np.full((n, 3), -1e3)
     for t in range(n):
-        if not np.isfinite(raw_bpm[t]):
+        if not np.isfinite(clean[t]):
             E[t] = 0
             continue
         a = style_acts[t][prior_idx] * vote
         for k, m in enumerate(mult):
-            b = raw_bpm[t] * m
+            b = clean[t] * m
             if b < 60 or b > 210:
                 continue
             like = np.array([tempo_likelihood(c, b) for c in pc])
             E[t, k] = np.log((a * like).sum() / (a.sum() + 1e-9) + 1e-6)
-    # Viterbi
-    octs = np.abs(np.log2(mult[:, None] / mult[None, :]))
     D = np.zeros((n, 3))
     P = np.zeros((n, 3), int)
     D[0] = E[0]
+    last = clean[0] if np.isfinite(clean[0]) else 120.0
     for t in range(1, n):
-        r0, r1 = raw_bpm[t - 1], raw_bpm[t]
-        steady = np.isfinite(r0) and np.isfinite(r1) and abs(np.log(r1 / r0)) < 0.04
-        s = D[t - 1][:, None] - (hold_cost if steady else jump_cost) * octs
+        cur = clean[t] if np.isfinite(clean[t]) else last
+        jump = np.abs(np.log2((cur * mult[None, :]) / (last * mult[:, None])))
+        s = D[t - 1][:, None] - jump_cost * jump
         P[t] = s.argmax(0)
         D[t] = s.max(0) + E[t]
+        last = cur
     path = np.zeros(n, int)
     path[-1] = D[-1].argmax()
     for t in range(n - 1, 0, -1):
         path[t - 1] = P[t, path[t]]
-    return raw_bpm * mult[path], mult[path]
+    return clean * mult[path], mult[path]
