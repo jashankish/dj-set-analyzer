@@ -57,7 +57,8 @@ There are two ways to run it, and both produce the same JSON:
   *Tracks will show as IDs. Want them named?* and opens the setup pop-up.
   With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
 - **Your sets:** everything analysed in this browser, with key-coloured
-  strips. Hover a card to delete it.
+  strips. Hover a card to delete it. Deleting also removes the saved
+  recording, so it takes a second click ("Click again to delete").
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. Below it are the demo sets, *How it works* and a
   short FAQ.

@@ -91,6 +91,7 @@ body.landing { padding-bottom: 0; }
 }
 .card:hover .del, .card .del:focus-visible { opacity: 1; }
 .card .del:hover { color: var(--ink); }
+.card .del.armed { opacity: 1; background: var(--ink); color: var(--bg); }
 
 /* teaser */
 .tease-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; }

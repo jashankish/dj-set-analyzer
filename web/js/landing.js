@@ -103,8 +103,19 @@ async function loadLibrary() {
   drawCards($("libList"));
   $("libList").querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
     e.preventDefault(); e.stopPropagation();
+    // deleting also removes the saved recording, so it takes a second click
+    if (b.dataset.armed !== "1") {
+      b.dataset.armed = "1";
+      b.textContent = "Click again to delete";
+      b.classList.add("armed");
+      clearTimeout(b._t);
+      b._t = setTimeout(() => { b.dataset.armed = ""; b.textContent = "Delete"; b.classList.remove("armed"); }, 4000);
+      return;
+    }
     await deleteSet(b.dataset.id);
+    try { localStorage.removeItem(`djsa:${b.dataset.id}`); } catch (err) { /* private mode */ }
     toast("Set deleted from this browser");
+    announce("Set deleted.");
     loadLibrary();
   }));
 }
