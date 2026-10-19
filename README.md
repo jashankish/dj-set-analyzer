@@ -623,11 +623,16 @@ of the output is present. It takes about 6 s and is deterministic.
 **Whole-site test in a real browser.** `bash tools/build-site.sh && node
 tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
 the landing page's file input the same synthetic set, presses Analyse and
-waits for the result page. It then checks the story, the track change, the
-127–139 BPM tempo range, the keys 8A → 7A, the saved library card, and that
-there were no page errors. It uses Playwright's Chromium, or your installed
+waits for the result page. Its 15 checks cover:
+- the story, the track change, the 127–139 BPM tempo range and keys 8A → 7A
+- Play really plays and shows the pause icon, and Space pauses
+- a transition row opens the mix inspector
+- *Download the analysis* gives a `.setreplay.json` that imports back into
+  the library
+- Delete needs two clicks
+- no page errors It uses Playwright's Chromium, or your installed
 Chrome with `--chrome` (always a fresh temporary profile), and takes about
-6 s.
+7 s.
 
 **GitHub Actions** (`.github/workflows/selftest.yml`) runs both on every push
 to `main`, together with a JS syntax check, a Python compile check and the

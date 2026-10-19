@@ -5,7 +5,8 @@
 
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
-   presses Analyse, waits for the result page and checks it. Uses Playwright's
+   presses Analyse, waits for the result page and checks it, then exercises
+   play/pause, Space, the mix inspector, download + import and two-click delete. Uses Playwright's
    Chromium (npx playwright install chromium), or with --chrome your installed
    Chrome. Always a fresh temporary profile. Exits non-zero on failure. */
 import fs from "node:fs";
@@ -48,7 +49,7 @@ const wav = path.join(os.tmpdir(), "set-replay-e2e.wav");
 fs.writeFileSync(wav, wavBytes(makeSet(16000), 16000));
 
 const browser = await pw.chromium.launch(useChrome ? { channel: "chrome", headless: true } : { headless: true });
-const page = await (await browser.newContext()).newPage();
+const page = await (await browser.newContext({ acceptDownloads: true })).newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
@@ -75,9 +76,41 @@ try {
   check(`tempo spans ${SYNTH.parts[0].bpm}-${SYNTH.parts[1].bpm} BPM`, bpm, (t) => { const m = t.match(/(\d+)\D+(\d+)/); return !!m && Math.abs(+m[1] - 128) <= 3 && Math.abs(+m[2] - 140) <= 3; });
   const keys = await page.locator(".trk .key-chip").allTextContents();
   check("keys A minor then D minor", keys.join(" "), (t) => t.startsWith("8A") && t.trim().endsWith("7A"));
+
+  /* the replay controls (regressions: icon never switched; Space handling) */
+  await page.click("#playBtn");
+  await page.waitForFunction(() => !document.getElementById("audio").paused, null, { timeout: 15000 });
+  check("Play plays and shows the pause icon", await page.evaluate(() => [
+    document.querySelector(".i-play").hasAttribute("hidden"), !document.querySelector(".i-pause").hasAttribute("hidden"),
+    document.getElementById("playBtn").getAttribute("aria-label")]), (v) => v[0] && v[1] && v[2] === "Pause");
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(300);
+  check("Space pauses (nothing focused)", await page.evaluate(() => [document.getElementById("audio").paused, !document.querySelector(".i-play").hasAttribute("hidden")]), (v) => v[0] && v[1]);
+  await page.locator(".seam").first().click();
+  check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
+
+  /* download the analysis, then import it on the landing page */
+  const [download] = await Promise.all([page.waitForEvent("download"), page.click("#exportBtn")]);
+  const exported = path.join(os.tmpdir(), "set-replay-e2e.setreplay.json");
+  await download.saveAs(exported);
+  check("Download the analysis gives a .setreplay.json", download.suggestedFilename(), (n) => n.endsWith(".setreplay.json"));
+
   await page.goto(BASE);
   await page.waitForSelector("#libList .card");
   check("set is saved in the library", await page.locator("#libList .card h3").first().textContent(), (t) => t === "set-replay-e2e");
+  await page.setInputFiles("#fileInput", exported);
+  await page.waitForFunction(() => document.querySelectorAll("#libList .card").length === 2, null, { timeout: 10000 });
+  check("dropping the .setreplay.json imports it", await page.locator("#libList .card").count(), (n) => n === 2);
+  fs.rmSync(exported, { force: true });
+
+  /* deleting takes two clicks */
+  const del = page.locator("#libList .card .del").first();
+  await del.click({ force: true });
+  check("first Delete click only arms it", [await page.locator("#libList .card").count(), await del.textContent()], (v) => v[0] === 2 && v[1] === "Click again to delete");
+  await del.click({ force: true });
+  await page.waitForFunction(() => document.querySelectorAll("#libList .card").length === 1, null, { timeout: 10000 });
+  check("second click deletes", await page.locator("#libList .card").count(), (n) => n === 1);
   check("no page errors", errors, (e) => e.length === 0);
 } catch (e) {
   checks.push(["flow completed", String(e).split("\n")[0], false]);
