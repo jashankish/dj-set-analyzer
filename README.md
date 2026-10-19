@@ -40,6 +40,7 @@ There are two ways to run it, and both produce the same JSON:
 13. [Troubleshooting](#troubleshooting)
 14. [Project layout](#project-layout)
 15. [Credits](#credits)
+16. [License](#license)
 
 ---
 
@@ -164,8 +165,10 @@ relative.
      other settings needed.
    - **Cloudflare Pages:** build command `bash tools/build-site.sh`, output
      directory `dist/set-replay`.
-   - **GitHub Pages:** needs a paid plan while this repo is private. No special
-   headers are required. The engine runs single-threaded WebAssembly inside
+   - **GitHub Pages:** publish `dist/set-replay/` (e.g. from an Actions
+     workflow). It can't read `web/_headers`, so see the cache rules below.
+
+   No special headers are required. The engine runs single-threaded WebAssembly inside
    several workers, so it doesn't need `SharedArrayBuffer` or cross-origin
    isolation.
 3. **Cache rules.** `web/_headers` sets them for Netlify and Cloudflare Pages:
@@ -197,38 +200,46 @@ relative.
    `--audio worship-part-1=https://…/part1.m4a` (a file on your own host or
    CDN). Without audio, a demo is fully explorable but silent.
 
-### On yappertech.com
+6. **Your site's own tags** (analytics, a consent banner, a theme script):
+   the repo ships no tracking code. Put the HTML in a file and pass it at
+   build time, and it's inserted before `</head>` on every page:
 
-Set Replay is served at **https://www.yappertech.com/set-replay/** (and the
-apex domain), following the monorepo's guide
-`docs/hosting-an-external-web-app.md`:
+   ```bash
+   bash tools/build-site.sh --head my-analytics.html
+   # or, from another build script: SET_REPLAY_HEAD=my-analytics.html bash tools/build-site.sh
+   ```
 
-- **Build:** the monorepo's `build.js` runs `bash tools/build-site.sh` in this
-  repo (`../dj-set-analyzer`, or `SET_REPLAY_REPO=/path`). It then copies
-  `dist/set-replay/` into its own `dist/`. No env vars are needed, because every
-  path is relative.
-- **Caching:** the site caches non-HTML files as immutable for a year. Set
-  Replay's files aren't content-hashed and its ES modules import each other,
-  so the monorepo's `deploy.sh` and `release.sh` serve `set-replay/*` as
-  `no-cache`, except the versioned `set-replay/models/*`, which stay immutable.
-- **Shared origin:** every YapperTech product shares one origin. Set Replay's
-  `localStorage` keys are prefixed `set-replay:` (older `djsa:` keys are
-  migrated automatically by `js/prefs.js`), and its IndexedDB is named
-  `set-replay`.
-- **Missing files** come back as the YapperTech homepage with HTTP 200, so
-  model downloads reject HTML responses with a clear error.
-- **Analytics:** both pages carry YapperTech's Google Analytics tag
-  (`G-EEGS99GRLN`), like the other products.
-- **Naming helper from a public site:** Chrome's Local Network Access asks
-  the visitor before an https site may reach `127.0.0.1`. The naming pop-up
-  tells visitors on a non-localhost host to choose Allow (and how to undo a
-  Block). `e2e.mjs --url` on a remote host starts Chromium with that check
-  off, standing in for the click.
-- **No CloudFront router change:** pages are real files (`set.html?id=…`),
-  so there are no History-API deep links.
-- **Verify a deployment:**
-  `node tools/e2e.mjs --url https://www.yappertech.com/set-replay/` runs the
-  full browser suite against the live site in a fresh browser profile.
+### Inside a larger site
+
+Set Replay can live in a sub-folder of an existing site (say
+`example.com/set-replay/`) next to other apps. A few things make that safe:
+
+- **Relative paths everywhere.** Copy `dist/set-replay/` into the parent
+  site's output and it works at any depth. There are no environment variables
+  to set.
+- **Shared origin.** Apps in sub-folders of one domain share `localStorage`
+  and IndexedDB. Set Replay's `localStorage` keys are all prefixed
+  `set-replay:` (`js/prefs.js`; it also migrates keys from the old `djsa:`
+  prefix), and its IndexedDB database is named `set-replay`.
+- **Missing files.** Some hosts answer any unknown path with their homepage
+  and HTTP 200 (a single-page-app fallback). Set Replay rejects an HTML
+  response for a model file with a clear "missing from this deployment"
+  error, and hides the demo teaser if its data is missing.
+- **Caching.** The file names aren't content-hashed, and the ES modules
+  import each other, so they can't be cache-busted from the HTML. If the
+  parent site caches static files as `immutable`, exempt `set-replay/*`
+  (serve it `no-cache`), except `set-replay/models/*`, which is versioned
+  and safe to cache for a year.
+- **No routing rules.** Pages are real files (`index.html`,
+  `set.html?id=…`), so no history-API fallback is needed.
+- **The naming helper from a public site.** Chrome asks the visitor before
+  an https site may reach `127.0.0.1` (Local Network Access). On any host
+  other than localhost, the naming pop-up tells visitors to choose Allow, and
+  how to undo a Block.
+- **Verify a deployment** with the full browser suite, in a fresh browser
+  profile: `node tools/e2e.mjs --url https://example.com/set-replay/`. Against
+  a remote host, Chromium starts with the Local Network Access check off,
+  standing in for the visitor's Allow click.
 
 There's nothing to run or pay for on the server side. Visitors' computers do
 the analysis, and their sets live in their browser's IndexedDB.
@@ -694,9 +705,11 @@ clipboard check runs only in Chromium, where a test can grant clipboard
 access. That matrix found and fixed three real issues:
 - Firefox: an unhandled `storage.persist()` promise
 - Firefox: an unhandled `AudioContext.resume()` promise
-- WebKit: no Blob storage in private sessions It uses a couple of minutes of the free monthly Actions
-allowance. Results on Recording 9 with identification off: the browser
-engine and Python both give 18 tracks with identical start times.
+- WebKit: no Blob storage in private sessions
+
+Each run takes a few minutes. Results on Recording 9 (one of the bundled
+demo sets) with identification off: the browser engine and Python both give
+18 tracks with identical start times.
 
 **Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
 recording, from drop to result. Dropping both bundled recordings together
@@ -868,9 +881,11 @@ pipeline:
   (once per visit, then cached for a year) and about 16 MB of engine
   WebAssembly from jsDelivr (a free CDN). Workers share one copy of each.
 - **Licences:**
-  - The Python and JS code here is yours.
-  - **Essentia.js is AGPL-3.0**, so publishing the site means keeping its
-    source available (this repo).
+  - **Set Replay's own code is AGPL-3.0** (`LICENSE`), matching Essentia
+    and Essentia.js, which it builds on.
+  - **Essentia (Python) and Essentia.js are AGPL-3.0**, so a public
+    deployment must offer its source; linking to this repository (or your
+    fork, if you change it) does that.
   - **The Discogs-EffNet models are CC BY-NC-SA 4.0**: attribution,
     non-commercial use only, and share-alike. For a commercial site, get a
     licence from the MTG (`web/models/LICENSE.md`).
@@ -910,7 +925,7 @@ pipeline:
 
 ```
 dj-set-analyzer/
-├── Recording 9.m4a, Recording 10.m4a   # the sets (git-ignored)
+├── *.m4a, *.mp3 …     # your recordings for the Python pipeline (git-ignored)
 ├── analyzer/
 │   ├── analyze.py     # CLI, stages, checkpoints, summary, JSON export
 │   ├── features.py    # decoding, 3-band energy, beats, tempo, key, EffNet, model download
@@ -926,6 +941,7 @@ dj-set-analyzer/
 │   ├── js/app.js      # viewer
 │   ├── js/landing.js  # drop, queue, library, teaser
 │   ├── js/store.js    # IndexedDB library
+│   ├── js/prefs.js    # set-replay: localStorage key prefix (+ old-key migration)
 │   ├── js/mini.js     # small renderers for the landing page (cached animated ribbon)
 │   ├── js/color.js    # Camelot → OKLCH colour
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
@@ -944,12 +960,13 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
-│   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip)
+│   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
 │   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labelled sets
 ├── requirements.txt
-└── run.sh             # starts the server (default port 8778)
+├── run.sh             # starts the server (default port 8778)
+└── LICENSE            # AGPL-3.0
 ```
 
 ---
@@ -965,3 +982,16 @@ dj-set-analyzer/
 - [shazamio](https://github.com/shazamio/ShazamIO) for track identification
 - [ffmpeg](https://ffmpeg.org) for decoding
 - [Archivo](https://fonts.google.com/specimen/Archivo) by Omnibus-Type
+
+---
+
+## License
+
+Set Replay is free software under the **GNU Affero General Public License
+v3.0** (see `LICENSE`). If you run a modified copy as a public website, the
+AGPL asks you to offer its source to visitors: point the "source code" link
+in the footer of `web/index.html` at your fork.
+
+The bundled Discogs-EffNet models in `web/models/` are separately licensed
+**CC BY-NC-SA 4.0** by the Music Technology Group (`web/models/LICENSE.md`),
+so commercial use needs a licence from the MTG.

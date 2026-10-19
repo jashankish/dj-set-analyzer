@@ -15,15 +15,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..900;1,62..125,400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/landing.css" />
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-EEGS99GRLN"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-EEGS99GRLN');
-  </script>
 </head>
 <body class="landing">
   <header class="l-top">
@@ -121,7 +112,7 @@
       <h2 class="h2" id="faqTitle">Questions</h2>
       <dl>
         <dt>Is my audio uploaded anywhere?</dt>
-        <dd>No. Decoding and analysis happen on your device in WebAssembly. The page downloads its analysis models once (about 35 MB, then cached) and loads YapperTech's site analytics, which counts page visits only. Your audio and results are never sent anywhere.</dd>
+        <dd>No. Decoding and analysis happen on your device in WebAssembly. The page downloads its analysis models once (about 35 MB, then cached); your audio and results are never sent anywhere.</dd>
         <dt>Why are tracks called “ID”?</dt>
         <dd>Naming songs needs Shazam's fingerprint database, and browsers aren't allowed to ask it directly. Set Replay still finds where each track starts and how it was mixed, and you can double-click any ID to name it. For automatic names, <button class="linkish" id="faqNaming" type="button">run the small naming helper</button> on your computer and Set Replay will ask Shazam through it.</dd>
         <dt>How accurate is it?</dt>
@@ -136,6 +127,7 @@
     Analysis by <a href="https://essentia.upf.edu" target="_blank" rel="noopener">Essentia.js</a> and the
     <a href="https://essentia.upf.edu/models.html" target="_blank" rel="noopener">Discogs-EffNet models</a> (Music Technology Group, UPF; models licensed CC BY-NC-SA 4.0),
     run with <a href="https://onnxruntime.ai" target="_blank" rel="noopener">ONNX Runtime Web</a>.
+    Set Replay is open source under the AGPL-3.0: <a href="https://github.com/jashankish/dj-set-analyzer" target="_blank" rel="noopener">source code</a>.
   </footer>
 
   <div class="toast" id="toast" hidden></div>

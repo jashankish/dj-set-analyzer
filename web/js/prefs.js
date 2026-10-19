@@ -1,5 +1,6 @@
-/* Browser-storage keys for Set Replay. On yappertech.com every product shares
-   one origin (and so one localStorage), so every key carries the app's slug.
+/* Browser-storage keys for Set Replay. When the app lives in a sub-folder of a
+   larger site it shares that site's origin (and so its localStorage), so every
+   key carries the app's name.
    Importing this module also migrates keys from the old "djsa:" prefix once. */
 export const KEY = "set-replay:";
 

@@ -2,7 +2,7 @@
 /* End-to-end test of the packaged website in a real (headless) browser.
 
      bash tools/build-site.sh && node tools/e2e.mjs [--browser chromium|firefox|webkit] [--chrome]
-     node tools/e2e.mjs --url https://www.yappertech.com/set-replay/      (any served copy)
+     node tools/e2e.mjs --url https://example.com/set-replay/      (any served copy, e.g. a deployment)
 
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
