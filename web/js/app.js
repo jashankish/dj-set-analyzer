@@ -424,7 +424,8 @@ import { openNamingDialog } from "./naming-ui.js";
       const L = Math.max(0, x0), R = Math.min(w, x1);
       if (R - L < 18) return;
       const label = R - L > 90 ? `<b>${tr.n}</b>${esc(tr.identified || S.names[tr.n] ? shortName(tr) : "ID")}` : `<b>${tr.n}</b>`;
-      html.push(`<div class="r-label${i === S.cur ? " now" : ""}" style="left:${L}px;width:${R - L}px;border-left-color:${keyColor(keyOf(tr), "base", 0.8)}">${label}</div>`);
+      const tight = R - L < 44 ? " tight" : "";   // narrow tracks: just the number, no side padding
+      html.push(`<div class="r-label${i === S.cur ? " now" : ""}${tight}" style="left:${L}px;width:${R - L}px;border-left-color:${keyColor(keyOf(tr), "base", 0.8)}">${label}</div>`);
     });
     box.innerHTML = html.join("");
   }

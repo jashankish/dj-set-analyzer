@@ -726,7 +726,9 @@ pipeline:
     readout
 - **Responsive:**
   - below 1080 px the now-playing panel stacks above the setlist
-  - below 720 px the gutter shrinks to 16 px and secondary columns hide
+  - below 720 px the gutter shrinks to 16 px and secondary columns hide;
+    ribbon labels on narrow tracks drop their padding so the track number
+    stays whole (checked at 390 px with no horizontal scroll)
   - reduced-motion settings are respected
   - focus outlines are visible on every control
   - every control has an accessible name (the drop zone included), and a

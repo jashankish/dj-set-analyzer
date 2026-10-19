@@ -129,6 +129,8 @@ button { font-family: inherit; color: inherit; }
 }
 .r-label b { font-weight: 700; margin-right: 6px; }
 .r-label.now { color: var(--ink); }
+.r-label.tight { padding: 7px 0 0 3px; text-overflow: clip; }
+.r-label.tight b { margin-right: 0; }
 
 .tip {
   position: absolute; z-index: 5; pointer-events: none;
