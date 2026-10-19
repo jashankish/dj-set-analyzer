@@ -1343,6 +1343,8 @@ import { openNamingDialog } from "./naming-ui.js";
     if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key;
+    // Space presses a focused button or link (keyboard convention); elsewhere it plays/pauses
+    if (k === " " && (tag === "button" || tag === "a") && e.target.id !== "playBtn") return;
     if (k === " ") { e.preventDefault(); togglePlay(); }
     else if (k === "ArrowRight" || k === "ArrowLeft") {
       e.preventDefault();

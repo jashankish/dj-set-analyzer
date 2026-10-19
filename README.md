@@ -80,7 +80,7 @@ top; its colour swatches are the set's track keys in order. Then:
 
 | Key | Action |
 | --- | --- |
-| `Space` | Play / pause |
+| `Space` | Play / pause (when a button or link has focus, Space presses it instead) |
 | `←` / `→` | Seek 5 s (`Shift`: 30 s) |
 | `N` / `P` | Next / previous track |
 | `M` | Hear the next mix |
