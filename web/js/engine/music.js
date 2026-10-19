@@ -124,15 +124,15 @@ export function resolveOctaves(raw, styleActs, classes, jumpCost = 12) {
   const path = new Array(n);
   path[n - 1] = D.indexOf(Math.max(...D));
   for (let t = n - 1; t > 0; t--) path[t - 1] = P[t - 1][path[t]];
-  return fillTempoBlips(clean.map((v, t) => v * mult[path[t]]));
+  return clean.map((v, t) => v * mult[path[t]]);
 }
 
-/* Smooth over short tempo misreadings (see music.fill_tempo_blips): a run of up
-   to 9 windows (90 s) that disagrees with matching tempos on both sides takes
-   the surrounding tempo; afterwards a short run at either end takes its
-   neighbour's tempo if that neighbour is established (> 9 windows). */
-export function fillTempoBlips(bpm, maxLen = 9, tol = 0.04) {
-  const v = bpm.slice();
+/* Smooth over short tempo misreadings (see music.fill_tempo_blips; run on the
+   set's music span): a run of up to 9 windows (90 s) between agreeing tempos
+   takes that tempo; then, at each end of the set, up to 12 windows (2 min) of
+   short runs (fades, crowd noise) take the nearest established tempo. */
+export function fillTempoBlips(bpm, maxLen = 9, tol = 0.04, edgeLen = 12) {
+  const v = Array.from(bpm);
   const same = (x, y) => Number.isFinite(x) && Number.isFinite(y) && Math.abs(x / y - 1) < tol;
   const segments = () => {
     const segs = [];
@@ -140,21 +140,26 @@ export function fillTempoBlips(bpm, maxLen = 9, tol = 0.04) {
     for (let i = 1; i <= v.length; i++) if (i === v.length || !same(v[i], v[start])) { segs.push([start, i]); start = i; }
     return segs;
   };
-  for (const edges of [false, true]) {
-    let changed = true;
-    while (changed) {
-      changed = false;
-      const segs = segments();
-      for (let k = 0; k < segs.length; k++) {
-        const [a, b] = segs[k];
-        if (b - a > maxLen || segs.length === 1) continue;
-        const prev = segs[k - 1], nxt = segs[k + 1];
-        let fill = null;
-        if (!edges && prev && nxt && same(v[prev[0]], v[nxt[0]])) fill = v[prev[0]];
-        else if (edges && !prev && nxt && nxt[1] - nxt[0] > maxLen) fill = v[nxt[0]];
-        else if (edges && !nxt && prev && prev[1] - prev[0] > maxLen) fill = v[prev[0]];
-        if (fill != null && Number.isFinite(fill)) { v.fill(fill, a, b); changed = true; break; }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const segs = segments();
+    for (let k = 1; k < segs.length - 1; k++) {
+      const [a, b] = segs[k], p = v[segs[k - 1][0]];
+      if (b - a <= maxLen && same(p, v[segs[k + 1][0]])) { v.fill(p, a, b); changed = true; break; }
+    }
+  }
+  const segs = segments();
+  for (const lead of [true, false]) {
+    const order = lead ? segs : segs.slice().reverse();
+    let acc = 0;
+    for (let k = 0; k < order.length; k++) {
+      const [a, b] = order[k];
+      if (b - a > maxLen) {
+        if (k && acc <= edgeLen && Number.isFinite(v[a])) { if (lead) v.fill(v[a], 0, a); else v.fill(v[a], b); }
+        break;
       }
+      acc += b - a;
     }
   }
   return v;

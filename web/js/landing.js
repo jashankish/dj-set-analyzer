@@ -201,7 +201,7 @@ function renderQueue() {
   const total = queue.filter((q) => q.state === "ready").reduce((s, q) => s + (q.duration || 0), 0);
   $("qNote").textContent = running
     ? "Keep this tab open while it works. Everything stays on this computer."
-    : ready ? `Runs on this computer${total ? `, roughly ${Math.max(1, Math.round(total / 3600 * (helperOn && nameTracks ? 9 : 1.2)))} min of work` : ""}. Nothing is uploaded${helperOn && nameTracks ? "; short clips go to your naming helper" : ""}.` : "";
+    : ready ? `Runs on this computer${total ? `, roughly ${Math.max(1, Math.round(total / 3600 * (helperOn && nameTracks ? 10 : 2)))} min of work` : ""}. Nothing is uploaded${helperOn && nameTracks ? "; short clips go to your naming helper" : ""}.` : "";
 }
 
 async function analyseAll() {

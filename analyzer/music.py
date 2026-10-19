@@ -159,17 +159,17 @@ def resolve_octaves(raw_bpm, style_acts, classes, jump_cost=12.0):
     path[-1] = D[-1].argmax()
     for t in range(n - 1, 0, -1):
         path[t - 1] = P[t, path[t]]
-    return fill_tempo_blips(clean * mult[path]), mult[path]
+    return clean * mult[path], mult[path]
 
 
-def fill_tempo_blips(bpm, max_len=9, tol=0.04):
-    """Smooth over short tempo misreadings.
+def fill_tempo_blips(bpm, max_len=9, tol=0.04, edge_len=12):
+    """Smooth over short tempo misreadings (run this on the set's music span).
 
     A DJ doesn't change tempo for a minute and then change straight back, so
     a run of up to `max_len` windows (90 s) that disagrees with the tempo on
     both sides, while those two sides agree, takes the surrounding tempo.
-    Once no such run is left, a short run at either end of the set takes its
-    neighbour's tempo if that neighbour is itself established (> max_len).
+    Then, at each end of the set, up to `edge_len` windows (2 min) of short
+    runs (fade-ins, fade-outs, crowd noise) take the nearest established tempo.
     """
     v = np.array(bpm, float)
 
@@ -184,25 +184,24 @@ def fill_tempo_blips(bpm, max_len=9, tol=0.04):
                 start = i
         return segs
 
-    for edges in (False, True):
-        changed = True
-        while changed:
-            changed = False
-            segs = segments()
-            for k, (a, b) in enumerate(segs):
-                if b - a > max_len or len(segs) == 1:
-                    continue
-                prev = segs[k - 1] if k > 0 else None
-                nxt = segs[k + 1] if k + 1 < len(segs) else None
-                fill = None
-                if not edges and prev and nxt and same(v[prev[0]], v[nxt[0]]):
-                    fill = v[prev[0]]
-                elif edges and not prev and nxt and nxt[1] - nxt[0] > max_len:
-                    fill = v[nxt[0]]
-                elif edges and not nxt and prev and prev[1] - prev[0] > max_len:
-                    fill = v[prev[0]]
-                if fill is not None and np.isfinite(fill):
-                    v[a:b] = fill
-                    changed = True
-                    break
+    changed = True
+    while changed:
+        changed = False
+        segs = segments()
+        for k in range(1, len(segs) - 1):
+            a, b = segs[k]
+            if b - a <= max_len and same(v[segs[k - 1][0]], v[segs[k + 1][0]]) and np.isfinite(v[segs[k - 1][0]]):
+                v[a:b] = v[segs[k - 1][0]]
+                changed = True
+                break
+    segs = segments()
+    for order in (segs, segs[::-1]):           # leading edge, then trailing edge
+        acc = 0
+        for k, (a, b) in enumerate(order):
+            if b - a > max_len:
+                if k and acc <= edge_len and np.isfinite(v[a]):
+                    lo, hi = (0, a) if order is segs else (b, len(v))
+                    v[lo:hi] = v[a]
+                break
+            acc += b - a
     return v

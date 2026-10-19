@@ -383,9 +383,12 @@ one-off misreadings. Each window's candidates are then ×½, ×1 and ×2.
   Because 87.5 × 2 and 175 × 1 are the same tempo, only a real change of speed
   costs anything, so a steady set gets one consistent octave.
 
-Next, **tempo blips** are smoothed (`fill_tempo_blips`). A DJ doesn't change
-tempo for a minute and then change straight back, so a run of up to 90 s that
-disagrees with matching tempos on both sides takes the surrounding tempo.
+Next, **tempo blips** are smoothed within the set's music span
+(`fill_tempo_blips`). A DJ doesn't change tempo for a minute and then change
+straight back, so a run of up to 90 s that disagrees with matching tempos on
+both sides takes the surrounding tempo. Then, at the start and end of the set,
+up to 2 minutes of short scattered runs (fade-ins, fade-outs, crowd noise)
+take the nearest established tempo.
 This catches the browser engine's occasional 16 kHz misreadings (e.g. 140
 instead of 174 for one stretch) and leaves real tempo changes alone. The
 resolved curve is then median-filtered, and the beat grid is filled in at the
@@ -598,8 +601,9 @@ node tools/engine-check.mjs "Recording 9.m4a" --cache /tmp/r9.v8
 logic in seconds. Results on Recording 9 with identification off: the browser
 engine and Python both give 18 tracks with identical start times.
 
-**Speed** (Chrome, Apple M4, 6 workers): a 34-minute set takes about 55 s from
-drop to result, of which decoding is about 9 s. Long sets scale linearly.
+**Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
+recording, from drop to result. Dropping both bundled recordings together
+(34 and 94 minutes) took 254 s, analysed in turn. Long sets scale linearly.
 
 ---
 

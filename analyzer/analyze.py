@@ -138,12 +138,16 @@ def _resample(t, v, step, duration):
 def build_payload(audio, slug, title, Z, probes, classes, bpm_range, probe_step):
     D = float(Z["duration"])
     bpm, tempo_method = resolve_tempo(Z, classes, bpm_range)
+    span = setlist.music_span(Z["band_rms"], D)
+    inside = setlist._slice(Z["bpm_t"], *span)
+    if inside.any():  # smooth tempo misreadings within the set; its edges count as edges
+        bpm = np.array(bpm, float)
+        bpm[inside] = music.fill_tempo_blips(bpm[inside])
     # light smoothing so one bad window doesn't flicker
     bpm_s = setlist.median_filter(np.nan_to_num(bpm, nan=np.nanmedian(bpm)), size=5, mode="nearest")
     bands = {k[5:]: Z[k] for k in Z if k.startswith("band_")}
     heads = {k[5:]: Z[k] for k in Z if k.startswith("head_")}
     keys = [tuple(k) for k in Z["keys"]]
-    span = setlist.music_span(Z["band_rms"], D)
     if span != (0.0, D):
         log(f"  music runs {span[0] / 60:.1f}–{span[1] / 60:.1f} min of {D / 60:.1f}; the rest is treated as outside the set")
     F = {

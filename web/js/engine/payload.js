@@ -53,6 +53,12 @@ export function buildPayload(F, classes, meta) {
   } else {
     bpm = M.resolveOctaves(Array.from(F.bpmRaw), F.bpmT.map((t) => actsAround(t)), classes);
   }
+  // smooth tempo misreadings within the set (its start and end count as edges)
+  const inside = F.bpmT.map((t, i) => (t >= span[0] && t <= span[1] ? i : -1)).filter((i) => i >= 0);
+  if (inside.length) {
+    const fixed = M.fillTempoBlips(inside.map((i) => bpm[i]));
+    inside.forEach((i, k) => { bpm[i] = fixed[k]; });
+  }
   const fin = bpm.filter(Number.isFinite), fill = fin.length ? median(fin) : 120;
   const bpmS = medianFilter(Float64Array.from(bpm, (v) => (Number.isFinite(v) ? v : fill)), 5);
 
