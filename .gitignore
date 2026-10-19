@@ -1,0 +1,18 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Audio recordings
+*.m4a
+*.mp3
+*.wav
+*.flac
+*.aiff
+
+# Downloaded model weights
+models/
