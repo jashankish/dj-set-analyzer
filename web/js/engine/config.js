@@ -23,6 +23,9 @@ export function assets() {
   return { ...DEFAULT_ASSETS, ...o };
 }
 
+/* the engine's working sample rate (what EffNet expects; cheap to decode) */
+export const SR = 16000;
+
 export const HEADS = {
   danceability: "danceable",
   mood_party: "party",

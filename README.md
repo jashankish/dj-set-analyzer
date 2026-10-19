@@ -566,7 +566,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 | `mel.js` | A pure-JS twin of Essentia's `TensorflowInputMusiCNN` (Hann → FFT → 96 Slaney mel bands, unit-area triangles, on the power spectrum → `log10(1 + 10000·x)`). It matches Essentia.js to a max error of 6e-5 and is about 30× faster than one WASM call per frame |
 | `music.js`, `setlist.js`, `payload.js` | Line-for-line ports of `music.py`, `setlist.py` and `analyze.build_payload` |
 | `dsp.js` | FFT, percentiles, smoothing, median filter and interpolation |
-| `config.js` | Asset URLs (jsDelivr libraries, self-hosted models) |
+| `config.js` | Asset URLs (jsDelivr libraries, self-hosted models), the 16 kHz working sample rate and the classifier heads. Pages import only this and `naming.js` up front; the analysis modules load when an analysis starts |
 | `naming.js` | Optional naming through the helper: finds it (`/health`), cuts the 12 s clips, encodes WAV, and collects probes |
 
 The engine works at 16 kHz rather than the Python pipeline's 44.1 kHz. That

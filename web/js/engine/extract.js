@@ -9,8 +9,9 @@
    upsampled on the fly. */
 import { bandEnergy } from "./dsp.js";
 import { melFrame } from "./mel.js";
+import { SR } from "./config.js";
 
-export const SR = 16000;
+export { SR };
 export const FPS = 8;
 const MEL_FRAME = 512, MEL_HOP = 256, PATCH = 128, PATCH_HOP = 62;
 

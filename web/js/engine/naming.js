@@ -6,7 +6,7 @@
 
    Probing mirrors analyzer/identify.py: a 12 s clip every 24 s inside the
    music span, stopping after 3 failures in a row (Shazam rate-limiting). */
-import { SR } from "./extract.js";
+import { SR } from "./config.js";   // not extract.js: keeps pages that only show the pop-up light
 
 export const HELPER_URL = "http://127.0.0.1:8789";
 export const PROBE_STEP = 24, PROBE_CLIP = 12;
