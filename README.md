@@ -385,8 +385,9 @@ one-off misreadings. Each window's candidates are then ×½, ×1 and ×2.
 
 Next, **tempo blips** are smoothed within the set's music span
 (`fill_tempo_blips`). A DJ doesn't change tempo for a minute and then change
-straight back, so a run of up to 90 s that disagrees with matching tempos on
-both sides takes the surrounding tempo. Then, at the start and end of the set,
+straight back, so up to 90 s of misreadings between two stretches at the same
+tempo take that tempo. The misreadings can be a mix of different values, such
+as 113, 195 and then 140 BPM inside a 174 BPM set. Then, at the start and end of the set,
 up to 2 minutes of short scattered runs (fade-ins, fade-outs, crowd noise)
 take the nearest established tempo.
 This catches the browser engine's occasional 16 kHz misreadings (e.g. 140

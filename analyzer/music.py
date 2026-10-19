@@ -166,8 +166,8 @@ def fill_tempo_blips(bpm, max_len=9, tol=0.04, edge_len=12):
     """Smooth over short tempo misreadings (run this on the set's music span).
 
     A DJ doesn't change tempo for a minute and then change straight back, so
-    a run of up to `max_len` windows (90 s) that disagrees with the tempo on
-    both sides, while those two sides agree, takes the surrounding tempo.
+    a stretch of up to `max_len` windows (90 s), even a mix of different
+    misreadings, between two stretches at the same tempo takes that tempo.
     Then, at each end of the set, up to `edge_len` windows (2 min) of short
     runs (fade-ins, fade-outs, crowd noise) take the nearest established tempo.
     """
@@ -184,15 +184,26 @@ def fill_tempo_blips(bpm, max_len=9, tol=0.04, edge_len=12):
                 start = i
         return segs
 
+    # a cluster of short runs (up to max_len windows in all) between two
+    # stretches at the same tempo takes that tempo
     changed = True
     while changed:
         changed = False
         segs = segments()
         for k in range(1, len(segs) - 1):
-            a, b = segs[k]
-            if b - a <= max_len and same(v[segs[k - 1][0]], v[segs[k + 1][0]]) and np.isfinite(v[segs[k - 1][0]]):
-                v[a:b] = v[segs[k - 1][0]]
-                changed = True
+            anchor = v[segs[k - 1][0]]
+            if not np.isfinite(anchor):
+                continue
+            total = 0
+            for j in range(k, len(segs) - 1):
+                total += segs[j][1] - segs[j][0]
+                if total > max_len:
+                    break
+                if same(anchor, v[segs[j + 1][0]]):
+                    v[segs[k][0]:segs[j][1]] = anchor
+                    changed = True
+                    break
+            if changed:
                 break
     segs = segments()
     for order in (segs, segs[::-1]):           # leading edge, then trailing edge

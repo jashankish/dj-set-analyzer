@@ -128,8 +128,8 @@ export function resolveOctaves(raw, styleActs, classes, jumpCost = 12) {
 }
 
 /* Smooth over short tempo misreadings (see music.fill_tempo_blips; run on the
-   set's music span): a run of up to 9 windows (90 s) between agreeing tempos
-   takes that tempo; then, at each end of the set, up to 12 windows (2 min) of
+   set's music span): up to 9 windows (90 s) of misreadings, even a mix of
+   them, between two stretches at the same tempo take that tempo; then, at each end of the set, up to 12 windows (2 min) of
    short runs (fades, crowd noise) take the nearest established tempo. */
 export function fillTempoBlips(bpm, maxLen = 9, tol = 0.04, edgeLen = 12) {
   const v = Array.from(bpm);
@@ -140,13 +140,21 @@ export function fillTempoBlips(bpm, maxLen = 9, tol = 0.04, edgeLen = 12) {
     for (let i = 1; i <= v.length; i++) if (i === v.length || !same(v[i], v[start])) { segs.push([start, i]); start = i; }
     return segs;
   };
+  // a cluster of short runs (up to maxLen windows in all) between two stretches
+  // at the same tempo takes that tempo
   let changed = true;
   while (changed) {
     changed = false;
     const segs = segments();
-    for (let k = 1; k < segs.length - 1; k++) {
-      const [a, b] = segs[k], p = v[segs[k - 1][0]];
-      if (b - a <= maxLen && same(p, v[segs[k + 1][0]])) { v.fill(p, a, b); changed = true; break; }
+    for (let k = 1; k < segs.length - 1 && !changed; k++) {
+      const anchor = v[segs[k - 1][0]];
+      if (!Number.isFinite(anchor)) continue;
+      let total = 0;
+      for (let j = k; j < segs.length - 1; j++) {
+        total += segs[j][1] - segs[j][0];
+        if (total > maxLen) break;
+        if (same(anchor, v[segs[j + 1][0]])) { v.fill(anchor, segs[k][0], segs[j][1]); changed = true; break; }
+      }
     }
   }
   const segs = segments();
