@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* End-to-end test of the packaged website in a real (headless) browser.
 
-     bash tools/build-site.sh && node tools/e2e.mjs [--chrome]
+     bash tools/build-site.sh && node tools/e2e.mjs [--browser chromium|firefox|webkit] [--chrome]
 
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
@@ -21,6 +21,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SITE = path.join(ROOT, "dist", "set-replay");
 const args = process.argv.slice(2);
 const useChrome = args.includes("--chrome");
+const engine = args.includes("--browser") ? args[args.indexOf("--browser") + 1] : "chromium";   // chromium | firefox | webkit
 const pwDir = args.includes("--pw") ? args[args.indexOf("--pw") + 1] : null;
 if (!fs.existsSync(path.join(SITE, "index.html"))) { console.error("Build the site first: bash tools/build-site.sh"); process.exit(2); }
 
@@ -49,9 +50,12 @@ const { makeSet, wavBytes, SYNTH } = await import(pathToFileURL(path.join(ROOT, 
 const wav = path.join(os.tmpdir(), "set-replay-e2e.wav");
 fs.writeFileSync(wav, wavBytes(makeSet(16000), 16000));
 
-const browser = await pw.chromium.launch(useChrome ? { channel: "chrome", headless: true } : { headless: true });
+if (!pw[engine]) { console.error(`Unknown --browser ${engine}`); process.exit(2); }
+const browser = await pw[engine].launch(useChrome && engine === "chromium" ? { channel: "chrome", headless: true } : { headless: true });
+console.log(`browser: ${engine} ${browser.version()}`);
 const context = await browser.newContext({ acceptDownloads: true });
-await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+// only Chromium lets a test grant clipboard access; elsewhere that check is skipped
+const canClip = await context.grantPermissions(["clipboard-read", "clipboard-write"]).then(() => true, () => false);
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
@@ -90,9 +94,11 @@ try {
   await page.keyboard.press("Space");
   await page.waitForTimeout(300);
   check("Space pauses (nothing focused)", await page.evaluate(() => [document.getElementById("audio").paused, !document.querySelector(".i-play").hasAttribute("hidden")]), (v) => v[0] && v[1]);
+  if (canClip) {
   await page.click("#copyBtn");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   check("Copy tracklist lists each ID with its key and tempo", copied.split("\n").slice(2, 4), (l) => /^0:00  ID – ID \(8A, 12\d BPM\)$/.test(l[0]) && /ID – ID \(7A, 1[34]\d BPM\)$/.test(l[1]));
+  }
   await page.locator(".seam").first().click();
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
 

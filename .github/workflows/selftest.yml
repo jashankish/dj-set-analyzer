@@ -41,8 +41,24 @@ jobs:
       - name: Site build
         run: bash tools/build-site.sh
 
-      - name: Browser end-to-end (headless Chromium, drop → analyse → result page)
+
+  # the whole site, in the three engines visitors actually use
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]   # webkit = Safari's engine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Site build
+        run: bash tools/build-site.sh
+      - name: Browser end-to-end in ${{ matrix.browser }} (drop → analyse → result → naming)
         run: |
           npm i --no-save --silent playwright@1.55.0
-          npx playwright install --with-deps chromium
-          node tools/e2e.mjs
+          npx playwright install --with-deps ${{ matrix.browser }}
+          node tools/e2e.mjs --browser ${{ matrix.browser }}
