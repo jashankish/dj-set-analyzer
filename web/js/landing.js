@@ -2,6 +2,8 @@
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
 import { drawRibbon, drawStrip, drawWheel } from "./mini.js";
 import { listSets, deleteSet, saveSet, importSet } from "./store.js";
+import { helperStatus } from "./engine/naming.js";
+import { openNamingDialog } from "./naming-ui.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -101,6 +103,26 @@ async function loadLibrary() {
   }));
 }
 
+/* ------------------------------------------------ naming helper (optional) */
+let helperOn = false, nameTracks = true;
+function renderNaming() {
+  const el = $("naming");
+  el.classList.toggle("on", helperOn);
+  el.innerHTML = helperOn
+    ? `<span class="dot"></span><label><input type="checkbox" id="nameTracks" ${nameTracks ? "checked" : ""}> Name tracks with Shazam</label><span>Naming helper connected</span>`
+    : `<span class="dot"></span><span>Tracks will show as IDs.</span><button class="linkish" id="wantNames" type="button">Want them named?</button>`;
+  $("nameTracks")?.addEventListener("change", (e) => { nameTracks = e.target.checked; renderQueue(); });
+  $("wantNames")?.addEventListener("click", showNaming);
+}
+function showNaming() {
+  const d = openNamingDialog({ mode: "landing" });
+  d.addEventListener("helper", (e) => { helperOn = e.detail; renderNaming(); renderQueue(); });
+}
+async function checkHelper() {
+  const on = !!(await helperStatus());
+  if (on !== helperOn) { helperOn = on; renderNaming(); renderQueue(); }
+}
+
 /* ------------------------------------------------ the queue */
 const AUDIO_EXT = /\.(m4a|mp3|wav|flac|aac|ogg|oga|opus|aif|aiff|webm|mp4)$/i;
 const queue = [];
@@ -166,7 +188,7 @@ function renderQueue() {
   const total = queue.filter((q) => q.state === "ready").reduce((s, q) => s + (q.duration || 0), 0);
   $("qNote").textContent = running
     ? "Keep this tab open while it works. Everything stays on this computer."
-    : ready ? `Runs on this computer${total ? `, roughly ${Math.max(1, Math.round(total / 3600 * 1.2))} min of work` : ""}. Nothing is uploaded.` : "";
+    : ready ? `Runs on this computer${total ? `, roughly ${Math.max(1, Math.round(total / 3600 * (helperOn && nameTracks ? 9 : 1.2)))} min of work` : ""}. Nothing is uploaded${helperOn && nameTracks ? "; short clips go to your naming helper" : ""}.` : "";
 }
 
 async function analyseAll() {
@@ -189,6 +211,7 @@ async function analyseAll() {
     try {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
+        identify: helperOn && nameTracks && !!(await helperStatus()),
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
       });
       q.id = await saveSet(payload, q.file);
@@ -244,3 +267,7 @@ function bindDrop() {
 bindDrop();
 loadLibrary();
 loadDemos();
+renderNaming();
+checkHelper();
+window.addEventListener("focus", checkHelper);
+$("faqNaming")?.addEventListener("click", showNaming);

@@ -28,17 +28,18 @@ There are two ways to run it, and both produce the same JSON:
 1. [What you get](#what-you-get)
 2. [Quick start](#quick-start)
 3. [Hosting it on your site](#hosting-it-on-your-site)
-4. [Command-line options](#command-line-options)
-5. [Architecture](#architecture)
-6. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
-7. [The browser engine](#the-browser-engine)
-8. [The data format](#the-data-format)
-9. [The web app](#the-web-app)
-10. [Accuracy and limits](#accuracy-and-limits)
-11. [Costs and licences](#costs-and-licences)
-12. [Troubleshooting](#troubleshooting)
-13. [Project layout](#project-layout)
-14. [Credits](#credits)
+4. [Naming tracks with the helper](#naming-tracks-with-the-helper)
+5. [Command-line options](#command-line-options)
+6. [Architecture](#architecture)
+7. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
+8. [The browser engine](#the-browser-engine)
+9. [The data format](#the-data-format)
+10. [The web app](#the-web-app)
+11. [Accuracy and limits](#accuracy-and-limits)
+12. [Costs and licences](#costs-and-licences)
+13. [Troubleshooting](#troubleshooting)
+14. [Project layout](#project-layout)
+15. [Credits](#credits)
 
 ---
 
@@ -51,6 +52,9 @@ There are two ways to run it, and both produce the same JSON:
   Each file shows its progress, and **Stop** cancels the run. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead.
+- **Naming bar:** under the drop zone. Without the naming helper it reads
+  *Tracks will show as IDs. Want them named?* and opens the setup pop-up.
+  With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
 - **Your sets:** everything analysed in this browser, with key-coloured
   strips. Hover a card to delete it.
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
@@ -178,6 +182,65 @@ relative.
 
 There's nothing to run or pay for on the server side. Visitors' computers do
 the analysis, and their sets live in their browser's IndexedDB.
+
+---
+
+## Naming tracks with the helper
+
+On its own, the website leaves tracks as **ID**s: browsers aren't allowed to
+call Shazam (it sends no CORS headers). The optional **naming helper** lets
+visitors get real names anyway. It's a small program on their own computer
+that does the Shazam lookups for the page.
+
+**For visitors** (the site explains this in a pop-up: *Want them named?* on
+the landing page, *Name these IDs* on a set):
+
+1. Download `helper/set-replay-helper.py` from the site.
+2. Run `python3 set-replay-helper.py` (Windows: `py set-replay-helper.py`).
+   The first run builds a private environment in `~/.set-replay-helper` and
+   installs `shazamio` (about a minute).
+3. Leave it running. The page notices within a few seconds and shows *Naming
+   helper connected*.
+
+After that, new analyses name tracks automatically; there's a *Name tracks
+with Shazam* checkbox to switch it off. Sets already analysed get a *Name
+these IDs* button, which re-analyses the stored recording with names and
+replaces the set.
+
+**How it works**
+
+```
+browser: analysis finishes → music span → a 12 s clip every 24 s (16 kHz WAV)
+    └─ POST http://127.0.0.1:8789/identify ─► helper: shazamio fingerprints the clip
+                                                └─► Shazam: match + offset
+    ◄──────────── {track: {title, artist, art, …}, offset} ──────────┘
+browser: probes → setlist.js anchors tracks on matches (same as the Python pipeline)
+```
+
+- **Privacy:** the recording stays on the visitor's computer. Clips go only
+  to `127.0.0.1`, and only fingerprints go to Shazam, exactly as with the
+  Python pipeline.
+- **Helper endpoints:** `GET /health` and `POST /identify` (an audio file of
+  up to 8 MB). Lookups are serialised and paced 0.6 s apart, with a 25 s
+  timeout. The helper listens only on `127.0.0.1`.
+- **Permissions:** it answers CORS and Chrome's *Private Network Access*
+  preflight (`Access-Control-Allow-Private-Network: true`), so a public https
+  page can reach it. To only accept your own site, run it with
+  `--origin https://your-site.example`.
+- **Python version:** shazamio's compiled core crashes on Python 3.14, so the
+  helper builds its environment with Python 3.9–3.13. It uses the running
+  interpreter if that one qualifies, otherwise `python3.12`/`3.13`/`3.11`/…
+  from the PATH, or `py -3.12` on Windows. It checks the import in a separate
+  process before starting. On Python 3.13 it also installs `audioop-lts`,
+  which `pydub` needs.
+- **Rate limits:** after 3 failed clips in a row, the browser stops asking.
+  The set keeps the names it has, and an explanatory note is saved with it.
+- **Timing:** expect about 3 s per lookup, so roughly 8 minutes of naming per
+  hour of set on top of the analysis. On Recording 9 it named 10 tracks,
+  matching the Python pipeline.
+
+Browsers: Chrome, Edge and Firefox work. Safari may refuse to let an https
+page talk to `127.0.0.1`, and the pop-up says so.
 
 ---
 
@@ -309,7 +372,12 @@ one-off misreadings. Each window's candidates are then ×½, ×1 and ×2.
   Because 87.5 × 2 and 175 × 1 are the same tempo, only a real change of speed
   costs anything, so a steady set gets one consistent octave.
 
-The resolved curve is median-filtered, and the beat grid is filled in at the
+Next, **tempo blips** are smoothed (`fill_tempo_blips`). A DJ doesn't change
+tempo for a minute and then change straight back, so a run of up to 90 s that
+disagrees with matching tempos on both sides takes the surrounding tempo.
+This catches the browser engine's occasional 16 kHz misreadings (e.g. 140
+instead of 174 for one stretch) and leaves real tempo changes alone. The
+resolved curve is then median-filtered, and the beat grid is filled in at the
 midpoints where it was tracked at half-time. Pass `--bpm-range lo-hi` to
 replace all of this with simple folding into a range.
 
@@ -498,6 +566,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 | `music.js`, `setlist.js`, `payload.js` | Line-for-line ports of `music.py`, `setlist.py` and `analyze.build_payload` |
 | `dsp.js` | FFT, percentiles, smoothing, median filter and interpolation |
 | `config.js` | Asset URLs (jsDelivr libraries, self-hosted models) |
+| `naming.js` | Optional naming through the helper: finds it (`/health`), cuts the 12 s clips, encodes WAV, and collects probes |
 
 The engine works at 16 kHz rather than the Python pipeline's 44.1 kHz. That
 keeps a 2-hour set to about 450 MB of decoded audio, and the high band tops
@@ -682,13 +751,13 @@ pipeline:
     non-commercial use only, and share-alike. For a commercial site, get a
     licence from the MTG (`web/models/LICENSE.md`).
   - ONNX Runtime Web is MIT.
-- **Track names:** song names need a fingerprint database, and none runs
-  inside a browser. Shazam has no CORS-enabled or official public API, so
-  the hosted site leaves tracks as nameable **ID**s. The Python pipeline
-  still names them, and its output can be shown as demos. A hosted option
-  would need a small proxy (for example, a free-tier Cloudflare Worker) in
-  front of an identification service whose terms allow it. Weigh the terms
-  and the cost before adding one.
+- **Track names:** browsers can't reach Shazam, so the site alone leaves
+  nameable **ID**s. With the optional [naming helper](#naming-tracks-with-the-helper),
+  each visitor's own computer asks Shazam, which costs nothing and creates no
+  shared rate limits. It's still Shazam's unofficial API, the same grey area
+  as `shazamio` itself, used for personal lookups. Automatic names for every
+  visitor without a helper would need a paid recognition service (e.g.
+  ACRCloud or AudD) behind a small relay.
 
 ---
 
@@ -704,6 +773,8 @@ pipeline:
 | Wrong tempo octave | Re-run with `--bpm-range` (e.g. `160-190` for drum & bass, `118-135` for house) |
 | The website behaves like an older version after a deploy | Stale cached JS. Serve HTML/JS/CSS with `Cache-Control: no-cache` (see `web/_headers`), then hard-reload |
 | "too long for this browser's memory" | Decoding needs about 64 KB of memory per second of audio, plus working space. Use a desktop browser, close other tabs, or split very long recordings |
+| The naming pop-up never says “Connected” | Check the helper window shows *running on http://127.0.0.1:8789*. Use Chrome, Edge or Firefox (Safari may block it). If you started it with `--origin`, the site's address must match exactly |
+| Helper: “needs Python 3.9 to 3.13” | Install Python 3.12 from python.org and run the helper again. It finds `python3.12` by itself |
 | A set from the website is missing on another computer | Sets live in the browser that analysed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
 
 ---
@@ -730,7 +801,9 @@ dj-set-analyzer/
 │   ├── js/store.js    # IndexedDB library
 │   ├── js/mini.js     # small renderers for the landing page
 │   ├── js/color.js    # Camelot → OKLCH colour
+│   ├── js/naming-ui.js  # the "Want them named?" pop-up
 │   ├── js/engine/     # the browser engine (see "The browser engine")
+│   ├── helper/set-replay-helper.py  # the optional naming helper visitors run
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
 │   ├── demo/          # bundled demo sets (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages

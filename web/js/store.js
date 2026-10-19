@@ -60,6 +60,15 @@ export async function importSet(json) {
   return id;
 }
 
+/** Replace a set's analysis (e.g. after naming its tracks), keeping its id and audio. */
+export async function replacePayload(id, payload) {
+  const rec = await getSet(id);
+  if (!rec) return;
+  payload.slug = id;
+  rec.payload = payload;
+  await tx("readwrite", (s) => s.put(rec));
+}
+
 export async function updatePayload(id, patch) {
   const rec = await getSet(id);
   if (!rec) return;

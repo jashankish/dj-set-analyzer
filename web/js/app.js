@@ -6,7 +6,8 @@
      set.html#<slug>       the local Python server (data/sets.json + /audio/<file>)
    Draws the set and keeps every view in step with the audio.
    ============================================================ */
-import { getSet, listSets, deleteSet, attachAudio } from "./store.js";
+import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
+import { openNamingDialog } from "./naming-ui.js";
 
 (function () {
   "use strict";
@@ -152,6 +153,34 @@ import { getSet, listSets, deleteSet, attachAudio } from "./store.js";
     S.record = rec;
     renderSetNav();
     openPayload(rec.payload, rec.audio ? URL.createObjectURL(rec.audio) : null);
+    if (rec.payload.naming_note) toast(rec.payload.naming_note);
+    setupNaming(rec);
+  }
+
+  /* "Name these IDs": re-run the analysis with the visitor's naming helper */
+  function setupNaming(rec) {
+    const ids = rec.payload.tracks.filter((t) => !t.identified).length;
+    const btn = $("nameBtn");
+    btn.hidden = !ids || !rec.audio;
+    btn.textContent = ids === rec.payload.tracks.length ? "Name these IDs" : `Name the ${ids} remaining ID${ids === 1 ? "" : "s"}`;
+    btn.onclick = () => openNamingDialog({
+      mode: "viewer", ids,
+      onNameNow: async (progress) => {
+        audio.pause();
+        const engine = await import("./engine/pipeline.js");
+        const file = rec.audio instanceof File ? rec.audio : new File([rec.audio], rec.payload.file || "set.m4a");
+        const payload = await engine.analyzeFile(file, {
+          identify: true, title: rec.payload.title,
+          onProgress: ({ stage, f }) => progress(stage, f),
+        });
+        engine.releaseEngine();
+        await replacePayload(rec.id, payload);
+        // track numbers change once names anchor the setlist; keep the title, drop per-number names
+        const saved = load(`djsa:${rec.id}`) || {};
+        store(`djsa:${rec.id}`, { title: saved.title || null, names: {} });
+        location.reload();
+      },
+    });
   }
 
   /* a bundled demo */

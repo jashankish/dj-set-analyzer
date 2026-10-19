@@ -11,6 +11,8 @@
 import { assets } from "./config.js";
 import { buildPayload } from "./payload.js";
 import { SR, FPS } from "./extract.js";
+import { musicSpan } from "./setlist.js";
+import { identifyClips } from "./naming.js";
 
 const RANGE = 120;          // seconds per job (a multiple of 10)
 const LOOKAHEAD = 72;       // longest window any feature reads past its start (beats: 60 s)
@@ -131,7 +133,7 @@ export function merge(parts, duration) {
 
 /* ------------------------------------------------ the whole thing */
 let pool = null;
-export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange, signal } = {}) {
+export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange, signal, identify = false } = {}) {
   const say = (stage, f) => onProgress({ stage, f });
   const check = () => { if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" }); };
   say("Decoding audio", 0);
@@ -161,13 +163,25 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
     say("Listening to the set", 0.06 + 0.88 * (prog.reduce((s, x) => s + x, 0) / jobs.length));
   });
   if (signal) signal.removeEventListener("abort", onAbort);
-  say("Building the setlist", 0.95);
   const F = merge(parts, duration);
+  let probes = [], namingNote = null;
+  if (identify) {
+    // name tracks through the visitor's naming helper (optional)
+    const r = await identifyClips(y, musicSpan(F.bands.rms, duration), {
+      signal,
+      onProgress: (i, n, hits) => say(`Naming tracks · ${i} of ${n} clips, ${hits} matched`, 0.93 + 0.05 * (i / Math.max(1, n))),
+    });
+    probes = r.probes; namingNote = r.stopped;
+  }
+  say("Building the setlist", 0.98);
   await new Promise((r) => setTimeout(r, 0));
   const payload = buildPayload(F, classes, {
     slug: slugify(file.name), title: title || file.name.replace(/\.[^.]+$/, ""), file: file.name,
-    bpmRange, source: "browser",
+    bpmRange, source: "browser", probes,
   });
+  if (identify) payload.credits.identification = probes.some((p) => p.track)
+    ? "Shazam, through your Set Replay naming helper" : "the naming helper found no matches";
+  if (namingNote) payload.naming_note = namingNote;
   say("Done", 1);
   return payload;
 }

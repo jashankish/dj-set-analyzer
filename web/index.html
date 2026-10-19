@@ -36,6 +36,8 @@
         <input type="file" id="fileInput" accept="audio/*,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff,.json" multiple hidden />
       </div>
 
+      <div class="naming" id="naming" aria-live="polite"></div>
+
       <div class="queue" id="queue" hidden>
         <ol class="q-list" id="qList"></ol>
         <div class="q-actions">
@@ -107,7 +109,7 @@
         <dt>Is my audio uploaded anywhere?</dt>
         <dd>No. Decoding and analysis happen on your device in WebAssembly. The page downloads its analysis models once (about 35 MB, then cached), and that's all the network traffic there is.</dd>
         <dt>Why are tracks called “ID”?</dt>
-        <dd>Naming songs needs a fingerprint database, and none can run inside a browser. Set Replay finds where each track starts and how it was mixed, and you can double-click any ID to name it yourself.</dd>
+        <dd>Naming songs needs Shazam's fingerprint database, and browsers aren't allowed to ask it directly. Set Replay still finds where each track starts and how it was mixed, and you can double-click any ID to name it. For automatic names, <button class="linkish" id="faqNaming" type="button">run the small naming helper</button> on your computer and Set Replay will ask Shazam through it.</dd>
         <dt>How accurate is it?</dt>
         <dd>Tempo, key and swap points are reliable. Mix-in and mix-out are estimates to within a few seconds. Style labels are best read as relative: “harder than the last track” rather than a definitive genre.</dd>
         <dt>Which browsers work?</dt>

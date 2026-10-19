@@ -420,3 +420,45 @@ button { font-family: inherit; color: inherit; }
 .c-actions { display: inline-flex; gap: 8px; margin-left: 6px; vertical-align: middle; }
 body.no-audio .pp { opacity: .45; }
 body.no-audio .p-now::after { content: "Demo without audio"; display: block; color: var(--muted); font-size: .78rem; }
+
+/* ---------------------------------------------------------------- naming helper pop-up */
+dialog.nm {
+  width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto;
+  background: #1C1B26; color: var(--ink); border: 1px solid var(--line); border-radius: 16px;
+  padding: 26px 28px 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+dialog.nm::backdrop { background: rgba(10,9,15,.72); backdrop-filter: blur(3px); }
+.nm-close { position: absolute; top: 12px; right: 12px; margin: 0; }
+.nm-close button { background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
+.nm-close button:hover { color: var(--ink); }
+.nm-title { margin: 0 28px 8px 0; font-stretch: 118%; font-weight: 800; font-size: 1.5rem; line-height: 1.15; }
+.nm-lead { margin: 0 0 18px; color: var(--ink-2); line-height: 1.6; }
+.nm-steps { margin: 0; padding: 0; list-style: none; counter-reset: n; display: flex; flex-direction: column; gap: 16px; }
+.nm-steps li { counter-increment: n; display: grid; grid-template-columns: 30px 1fr; gap: 4px 12px; align-items: start; }
+.nm-steps li::before {
+  content: counter(n); grid-row: span 4; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--raised); display: grid; place-items: center; font-weight: 700; font-size: .85rem; font-stretch: 85%;
+}
+.nm-steps li > * { grid-column: 2; }
+.nm-steps b { font-weight: 650; }
+.nm-steps .solid { justify-self: start; text-decoration: none; margin-top: 6px; }
+.nm-small { color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.nm-small a, .nm-foot a { color: var(--ink-2); }
+.nm-cmd { display: flex; gap: 8px; align-items: center; margin: 6px 0 2px; }
+.nm-cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; background: #0F0E15; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: .86rem; }
+code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.nm-status { display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--ink-2); font-size: .9rem; }
+.nm-status i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); box-shadow: 0 0 0 3px rgba(113,108,134,.25); }
+.nm-status.on { color: var(--ink); }
+.nm-status.on i { background: #8EE3A6; box-shadow: 0 0 0 3px rgba(142,227,166,.25); }
+.nm-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; min-height: 8px; }
+.nm-actions:empty { margin-top: 0; }
+.nm-foot { margin: 18px 0 0; color: var(--faint); font-size: .8rem; line-height: 1.55; }
+
+/* naming bar (landing) and button (viewer) */
+.naming { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; color: var(--ink-2); font-size: .92rem; }
+.naming .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.naming.on .dot { background: #8EE3A6; }
+.naming label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
+.naming input { width: 16px; height: 16px; accent-color: #EFECF5; }
+.linkish { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; }
