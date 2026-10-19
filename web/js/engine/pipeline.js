@@ -25,16 +25,22 @@ export const slugify = (name) =>
 /* ------------------------------------------------ models: downloaded once, shared by every worker */
 const MODEL_FILES = ["discogs-effnet-bsdynamic-1.onnx", "discogs-effnet-bsdynamic-1.json",
   ...Object.keys(HEADS).flatMap((h) => [`${h}-discogs-effnet-1.onnx`, `${h}-discogs-effnet-1.json`])];
-let modelsP = null;
+let modelsP = null, lastProgress = null;
+const modelListeners = new Set();
 
-/** Fetch every model file once (with byte progress); later calls reuse it. */
+/** Fetch every model file once (with byte progress); later calls reuse the same
+    download and still get progress, so the page can start it early (prefetch). */
 export function loadModels(onProgress = () => {}) {
+  modelListeners.add(onProgress);
+  if (lastProgress) onProgress(...lastProgress);
   if (modelsP) return modelsP;
   modelsP = (async () => {
     const base = assets().models, got = new Map(), sizes = new Map();
     const report = () => {
       const done = [...got.values()].reduce((a, b) => a + b, 0), total = [...sizes.values()].reduce((a, b) => a + b, 0);
-      if (total) onProgress(done, total);
+      if (!total) return;
+      lastProgress = [done, total];
+      modelListeners.forEach((fn) => fn(done, total));
     };
     const files = await Promise.all(MODEL_FILES.map(async (name) => {
       const r = await fetch(base + name);
@@ -187,8 +193,11 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
   const total = y.length, duration = total / SR;
   if (duration < 60) throw new Error(`“${file.name}” is under a minute long — drop in a full set.`);
   say("Loading the analysis engine", 0.03);
-  const models = await loadModels((done, total) =>
-    say(`Downloading the analysis models · ${Math.round(done / 1e6)} of ${Math.round(total / 1e6)} MB`, 0.03 + 0.02 * (done / total)));
+  const onModels = (done, total) => {
+    if (done < total) say(`Downloading the analysis models · ${Math.round(done / 1e6)} of ${Math.round(total / 1e6)} MB`, 0.03 + 0.02 * (done / total));
+  };
+  const models = await loadModels(onModels);
+  modelListeners.delete(onModels);
   check();
   say("Starting the analysis engine", 0.05);
   if (!pool) { pool = new Pool(poolSize()); await pool.start(models); }

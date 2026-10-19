@@ -51,7 +51,8 @@ There are two ways to run it, and both produce the same JSON:
   one or more recordings (or click to choose them) and press **Analyse**.
   Each file shows its progress, and **Stop** cancels the run. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
-  imports that analysis instead.
+  imports that analysis instead. On phones and low-memory devices, sets
+  over an hour carry a note that a laptop works best.
 - **Naming bar:** under the drop zone. Without the naming helper it reads
   *Tracks will show as IDs. Want them named?* and opens the setup pop-up.
   With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
@@ -559,7 +560,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 
 | File | Role |
 | --- | --- |
-| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz) and plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports cancelling (`AbortSignal`), and turns out-of-memory decode failures into readable errors |
+| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz) and plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. The landing page starts this download as soon as files are dropped, before Analyse is pressed, and the analysis reuses it; any caller can follow its progress. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports cancelling (`AbortSignal`), and turns out-of-memory decode failures into readable errors |
 | `worker.js` | Loads Essentia.js, ONNX Runtime Web and the models once per worker, then extracts features for ranges |
 | `extract.js` | The per-range features. Each lives on a fixed global grid (band frames, tempo windows, key windows, 54 s beat chunks, EffNet patches), and a worker only computes grid items that start inside its range, so the parallel ranges join exactly. The beat tracker assumes 44.1 kHz, so its 60 s chunks are upsampled on the fly |
 | `mel.js` | A pure-JS twin of Essentia's `TensorflowInputMusiCNN` (Hann → FFT → 96 Slaney mel bands, unit-area triangles, on the power spectrum → `log10(1 + 10000·x)`). It matches Essentia.js to a max error of 6e-5 and is about 30× faster than one WASM call per frame |

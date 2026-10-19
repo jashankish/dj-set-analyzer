@@ -124,6 +124,8 @@ async function checkHelper() {
 }
 
 /* ------------------------------------------------ the queue */
+/* phones and low-memory devices: long sets may not fit while decoding */
+const LOW_MEMORY = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.deviceMemory && navigator.deviceMemory <= 4);
 const AUDIO_EXT = /\.(m4a|mp3|wav|flac|aac|ogg|oga|opus|aif|aiff|webm|mp4)$/i;
 const queue = [];
 let controller = null;        // {file, state: "ready"|"running"|"done"|"error", f, stage, id, error, duration}
@@ -152,6 +154,8 @@ function addFiles(list) {
   }
   if (skipped) toast(skipped === 1 ? "Skipped one file that isn't audio" : `Skipped ${skipped} files that aren't audio`);
   renderQueue();
+  // start downloading the analysis models while the visitor is still choosing
+  if (queue.some((q) => q.state === "ready")) import("./engine/pipeline.js").then((m) => m.loadModels()).catch(() => {});
 }
 
 function probeDuration(item) {
@@ -169,6 +173,7 @@ function renderQueue() {
     if (q.state === "ready") {
       state = q.duration ? `${fmt(q.duration)} of audio` : "Ready";
       if (q.duration > 3 * 3600) state += ` · long set, needs about ${Math.ceil((q.duration * 16000 * 4 * 3) / 1e9)} GB of free memory`;
+      else if (LOW_MEMORY && q.duration > 3600) state += " · may run out of memory on this device; a laptop works best";
     }
     if (q.state === "running") state = `${q.stage} · ${Math.round(q.f * 100)}%`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
