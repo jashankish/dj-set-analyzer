@@ -1242,7 +1242,7 @@ import { openNamingDialog } from "./naming-ui.js";
       return;
     }
     ensureAudioGraph();
-    if (S.actx && S.actx.state === "suspended") S.actx.resume();
+    if (S.actx && S.actx.state === "suspended") S.actx.resume().catch(() => {});   // Firefox rejects it on navigation
     const p = audio.play();
     if (p && p.catch) p.catch(() => toast("Press play to start the audio"));
   }

@@ -59,8 +59,9 @@ const canClip = engine === "chromium";
 if (canClip) await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 const page = await context.newPage();
 const errors = [];
-page.on("pageerror", (e) => errors.push(String(e)));
-page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+const where = () => { try { return new URL(page.url()).pathname.split("/").pop() || "index"; } catch (e) { return "?"; } };
+page.on("pageerror", (e) => errors.push(`${where()}: ${String(e)}`));
+page.on("console", (m) => { if (m.type() === "error") errors.push(`${where()}: ${m.text()}`); });
 
 const checks = [];
 const check = (name, value, ok) => checks.push([name, value, ok(value)]);
@@ -127,6 +128,10 @@ try {
   check("no page errors", errors, (e) => e.length === 0);
 } catch (e) {
   checks.push(["flow completed", String(e).split("\n")[0], false]);
+  // say where it got stuck: the queue's state and anything the page logged
+  const q = await page.locator("#qList").textContent().catch(() => "(no queue)");
+  console.log(`  queue: ${(q || "").replace(/\s+/g, " ").slice(0, 200)}`);
+  console.log(`  page errors: ${JSON.stringify(errors).slice(0, 600)}`);
 }
 
 /* ---------------- naming through the helper, with a stand-in helper that
