@@ -16,3 +16,6 @@ __pycache__/
 
 # Downloaded model weights
 models/
+
+# Generated analysis output
+output/
