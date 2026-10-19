@@ -219,6 +219,11 @@ apex domain), following the monorepo's guide
   model downloads reject HTML responses with a clear error.
 - **Analytics:** both pages carry YapperTech's Google Analytics tag
   (`G-EEGS99GRLN`), like the other products.
+- **Naming helper from a public site:** Chrome's Local Network Access asks
+  the visitor before an https site may reach `127.0.0.1`. The naming pop-up
+  tells visitors on a non-localhost host to choose Allow (and how to undo a
+  Block). `e2e.mjs --url` on a remote host starts Chromium with that check
+  off, standing in for the click.
 - **No CloudFront router change:** pages are real files (`set.html?id=…`),
   so there are no History-API deep links.
 - **Verify a deployment:**

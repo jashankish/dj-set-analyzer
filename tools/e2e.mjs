@@ -58,7 +58,10 @@ const wav = path.join(os.tmpdir(), "set-replay-e2e.wav");
 fs.writeFileSync(wav, wavBytes(makeSet(16000), 16000));
 
 if (!pw[engine]) { console.error(`Unknown --browser ${engine}`); process.exit(2); }
-const browser = await pw[engine].launch(useChrome && engine === "chromium" ? { channel: "chrome", headless: true } : { headless: true });
+// On a public site Chrome asks the visitor before a page may reach 127.0.0.1 (Local Network
+// Access); headless can't click Allow, so switch the check off to stand in for that click.
+const lnaArgs = remote && engine === "chromium" && !/\/\/(localhost|127\.0\.0\.1)[:/]/.test(remote) ? ["--disable-features=LocalNetworkAccessChecks"] : [];
+const browser = await pw[engine].launch(useChrome && engine === "chromium" ? { channel: "chrome", headless: true, args: lnaArgs } : { headless: true, args: lnaArgs });
 console.log(`browser: ${engine} ${browser.version()}`);
 const context = await browser.newContext({ acceptDownloads: true });
 // only Chromium lets a test grant clipboard access; elsewhere that check is skipped

@@ -5,6 +5,8 @@ import { helperStatus, HELPER_URL, markHelperWanted } from "./engine/naming.js";
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const isWin = /Win/i.test(navigator.platform || navigator.userAgent);
 const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
+// served from a real site (not localhost), browsers ask before a page may reach the helper on this computer
+const isPublic = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 /**
  * @param opts.mode     "landing" | "viewer"
@@ -39,6 +41,7 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) 
       <li>
         <b>Leave it running and come back here</b>
         <span class="nm-status" id="nmStatus"><i></i><span>Looking for the helper…</span></span>
+        ${isPublic ? `<span class="nm-small">If your browser asks to let ${esc(location.hostname)} access devices on your local network, choose <b>Allow</b>; that's how this page reaches the helper. Clicked Block? Allow it again from the icon at the left of the address bar.</span>` : ""}
       </li>
     </ol>
     <div class="nm-actions" id="nmActions"></div>
