@@ -244,6 +244,22 @@ export function merge(parts, duration) {
   };
 }
 
+/* ------------------------------------------------ setlist building, off the main thread */
+/* Resolves to the payload, or to null when no worker can be created (then the
+   caller builds on the main thread; the arrays haven't been handed over yet). */
+function buildInWorker(F, classes, meta) {
+  return new Promise((resolve, reject) => {
+    let w;
+    try { w = new Worker(new URL("./payload-worker.js", import.meta.url), { type: "module" }); } catch (e) { resolve(null); return; }
+    w.onmessage = (e) => { w.terminate(); e.data.error ? reject(new Error(e.data.error)) : resolve(e.data.payload); };
+    w.onerror = (e) => { w.terminate(); reject(new Error(e.message || "setlist worker failed")); };
+    // hand the big arrays over instead of copying them
+    const transfer = [F.acts.buffer, F.emb.buffer, F.embT.buffer, ...Object.values(F.bands).map((a) => a.buffer),
+      ...Object.values(F.heads).map((a) => a.buffer)];
+    w.postMessage({ F, classes, meta }, transfer);
+  });
+}
+
 /* ------------------------------------------------ the whole thing */
 let pool = null;
 export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange, signal, identify = false } = {}) {
@@ -301,11 +317,12 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
     probes = r.probes; namingNote = r.stopped;
   }
   say("Building the setlist", 0.98);
-  await new Promise((r) => setTimeout(r, 0));
-  const payload = buildPayload(F, classes, {
+  const meta = {
     slug: slugify(file.name), title: title || file.name.replace(/\.[^.]+$/, ""), file: file.name,
     bpmRange, source: "browser", probes,
-  });
+  };
+  let payload = await buildInWorker(F, classes, meta);
+  if (!payload) payload = buildPayload(F, classes, meta);      // no worker available: build here
   if (identify) payload.credits.identification = probes.some((p) => p.track)
     ? "Shazam, through your Set Replay naming helper" : "the naming helper found no matches";
   if (namingNote) payload.naming_note = namingNote;
