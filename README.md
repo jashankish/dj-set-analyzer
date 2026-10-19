@@ -624,6 +624,13 @@ house at 128 BPM over A minor, then 140 BPM over D minor with a different
 timbre. It runs the exact browser engine and checks tempo (127.1 / 138.9),
 key (8A / 7A), that a track change is found near 90 s, and that every part
 of the output is present. It takes about 6 s and is deterministic.
+**Python pipeline self-test.** `venv/bin/python tools/selftest_py.py` runs
+the Python pipeline's own stages on the same synthetic set and makes the same
+checks: tempo 127.6 / 139.7, keys 8A / 7A, and a change at 91 s. It keeps the
+two engines in agreement. Its first run found that a reused
+`PercivalBpmEstimator` keeps returning its first answer, which had frozen the
+Python tempo curve. That is now fixed, with a fresh estimator per window.
+
 **Whole-site test in a real browser.** `bash tools/build-site.sh && node
 tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
 the landing page's file input the same synthetic set, presses Analyse and
@@ -646,8 +653,8 @@ waits for the result page. Its 27 checks cover:
 Chrome with `--chrome` (always a fresh temporary profile), and takes about
 7 s.
 
-**GitHub Actions** (`.github/workflows/selftest.yml`) runs both on every push
-to `main`, together with a JS syntax check, a Python compile check and the
+**GitHub Actions** (`.github/workflows/selftest.yml`) runs all three on every
+push to `main`, together with a JS syntax check, a Python compile check and the
 site build. The browser test runs in **Chromium, Firefox and WebKit**
 (Safari's engine) in parallel. All three pass the full flow, except that the
 clipboard check runs only in Chromium, where a test can grant clipboard
@@ -902,6 +909,7 @@ dj-set-analyzer/
 ├── tools/
 │   ├── synth.mjs         # the synthetic test set (128 BPM 8A, then 140 BPM 7A)
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
+│   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python

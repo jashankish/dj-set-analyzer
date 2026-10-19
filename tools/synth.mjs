@@ -38,3 +38,10 @@ export function wavBytes(y, sr = 16000) {
   for (let i = 0; i < n; i++) buf.writeInt16LE(Math.max(-32768, Math.min(32767, Math.round(y[i] * 32767))), 44 + i * 2);
   return buf;
 }
+
+/* CLI: node tools/synth.mjs out.wav [sampleRate]  (used by tools/selftest_py.py) */
+if (process.argv[1] && process.argv[1].endsWith("synth.mjs") && process.argv[2]) {
+  const fs = await import("node:fs");
+  const sr = +(process.argv[3] || 44100);
+  fs.writeFileSync(process.argv[2], wavBytes(makeSet(sr), sr));
+}

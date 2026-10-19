@@ -41,6 +41,17 @@ jobs:
       - name: Site build
         run: bash tools/build-site.sh
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Python pipeline self-test on the same synthetic set
+        run: |
+          sudo apt-get install -y -qq ffmpeg > /dev/null
+          python -m pip install -q -r requirements.txt
+          mkdir -p models && cp web/models/*.onnx web/models/*.json models/
+          python tools/selftest_py.py
+
 
   # the whole site, in the three engines visitors actually use
   browsers:

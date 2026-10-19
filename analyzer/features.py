@@ -99,7 +99,12 @@ def bpm_windows(y44, win_s=20.0, hop_s=10.0):
     """
     import essentia.standard as es
     sr = 44100
-    est = es.PercivalBpmEstimator(sampleRate=sr, minBPM=70, maxBPM=190)
+    # A fresh estimator per window: a reused PercivalBpmEstimator keeps
+    # returning its first answer (found by tools/selftest_py.py), which froze
+    # the whole tempo curve at the first window's value.
+    def estimate(seg):
+        return float(es.PercivalBpmEstimator(sampleRate=sr, minBPM=70, maxBPM=190)(seg))
+
     times, bpms = [], []
     t0 = 0.0
     n = len(y44)
@@ -109,7 +114,7 @@ def bpm_windows(y44, win_s=20.0, hop_s=10.0):
             break
         rms = float(np.sqrt(np.mean(seg ** 2)))
         times.append(t0 + len(seg) / sr / 2)
-        bpms.append(float(est(seg)) if rms > 1e-3 else np.nan)
+        bpms.append(estimate(seg) if rms > 1e-3 else np.nan)
         t0 += hop_s
     return np.array(times, np.float32), np.array(bpms, np.float32)
 
