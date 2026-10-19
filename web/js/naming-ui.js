@@ -1,6 +1,6 @@
 /* "Want these IDs named?" — the pop-up that explains the naming helper and
    watches for it to come online. Shared by the landing page and the viewer. */
-import { helperStatus, HELPER_URL } from "./engine/naming.js";
+import { helperStatus, HELPER_URL, markHelperWanted } from "./engine/naming.js";
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const isWin = /Win/i.test(navigator.platform || navigator.userAgent);
@@ -14,6 +14,7 @@ const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.use
  */
 export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) {
   document.getElementById("namingDialog")?.remove();
+  markHelperWanted();   // from now on, pages in this browser may look for the helper
   const helperHref = new URL("helper/set-replay-helper.py", document.baseURI).href;
   const cmd = isWin ? "cd $HOME\\Downloads; py set-replay-helper.py" : "cd ~/Downloads && python3 set-replay-helper.py";
   const d = document.createElement("dialog");

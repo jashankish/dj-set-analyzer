@@ -2,7 +2,7 @@
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
 import { drawRibbonFast, drawStrip, drawWheel } from "./mini.js";
 import { listSets, deleteSet, saveSet, importSet, storageEstimate } from "./store.js";
-import { helperStatus } from "./engine/naming.js";
+import { helperStatus, helperWanted } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
 
 const $ = (id) => document.getElementById(id);
@@ -148,6 +148,7 @@ function showNaming() {
   d.addEventListener("helper", (e) => { helperOn = e.detail; renderNaming(); renderQueue(); });
 }
 async function checkHelper() {
+  if (!helperWanted()) return;         // never probe a visitor's computer uninvited
   const on = !!(await helperStatus());
   if (on !== helperOn) { helperOn = on; renderNaming(); renderQueue(); }
 }
@@ -260,7 +261,7 @@ async function analyseAll() {
     try {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
-        identify: helperOn && nameTracks && !!(await helperStatus()),
+        identify: helperOn && nameTracks && helperWanted() && !!(await helperStatus()),
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
       });
       try {

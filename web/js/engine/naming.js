@@ -11,6 +11,15 @@ import { SR } from "./config.js";   // not extract.js: keeps pages that only sho
 export const HELPER_URL = "http://127.0.0.1:8789";
 export const PROBE_STEP = 24, PROBE_CLIP = 12;
 
+/* Pages only look for the helper once the visitor has shown interest (opened
+   the naming pop-up, or connected before). Otherwise every visitor's browser
+   would contact their own computer on each page load, which logs errors and,
+   with Chrome's local-network-access prompts, could ask strangers for
+   permission they have no reason to give. */
+const INTEREST = "djsa:naming-helper";
+export function helperWanted() { try { return localStorage.getItem(INTEREST) === "1"; } catch (e) { return false; } }
+export function markHelperWanted() { try { localStorage.setItem(INTEREST, "1"); } catch (e) { /* private mode */ } }
+
 /** Is the helper running? Resolves to its /health info or null. */
 export async function helperStatus(timeoutMs = 900) {
   try {

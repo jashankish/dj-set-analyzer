@@ -219,6 +219,12 @@ the landing page, *Name these IDs* on a set):
 3. Leave it running. The page notices within a few seconds and shows *Naming
    helper connected*.
 
+Pages only look for the helper (`http://127.0.0.1:8789`) after the visitor
+has opened this pop-up once in that browser. Visitors who never ask for names
+are never probed. Otherwise every page load would contact their computer,
+log errors and, with Chrome's local-network-access prompts, could ask them
+for a permission they have no reason to give.
+
 After that, new analyses name tracks automatically; there's a *Name tracks
 with Shazam* checkbox to switch it off. Sets already analysed get a *Name
 these IDs* button, which re-analyses the stored recording with names and
