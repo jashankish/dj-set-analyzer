@@ -85,10 +85,11 @@ export async function decode(file) {
 }
 
 /* ------------------------------------------------ worker pool */
-class Pool {
-  constructor(size) {
+export class Pool {
+  constructor(size, { stallMs = 180000 } = {}) {
     this.size = size;
     this.workers = [];
+    this.stallMs = stallMs;            // fail if a busy worker is silent this long
   }
   async start(models) {
     const a = assets();
@@ -112,19 +113,46 @@ class Pool {
     let next = 0;
     return new Promise((resolve, reject) => {
       let active = 0, failed = false;
-      this.abort = () => { failed = true; reject(Object.assign(new Error("Analysis stopped"), { name: "AbortError" })); };
+      const busy = new Map();           // worker → last time it was heard from
+      const fail = (err) => {
+        if (failed) return;
+        failed = true;
+        clearInterval(watch);
+        reject(err);
+      };
+      // a worker that dies without saying so (crash, killed for memory) would otherwise hang the run
+      const watch = setInterval(() => {
+        for (const seen of busy.values()) {
+          if (Date.now() - seen > this.stallMs) {
+            fail(new Error("The analysis stopped responding (the browser may have run out of memory). Close other tabs and try again, or try a shorter recording."));
+            return;
+          }
+        }
+      }, Math.min(5000, this.stallMs / 2));
+      this.abort = () => fail(Object.assign(new Error("Analysis stopped"), { name: "AbortError" }));
       const feed = (w) => {
         if (failed) return;
-        if (next >= jobs.length) { if (active === 0) resolve(results); return; }
+        if (next >= jobs.length) {
+          busy.delete(w);
+          if (active === 0) { clearInterval(watch); resolve(results); }
+          return;
+        }
         const id = next++, job = jobs[id];
         active++;
+        busy.set(w, Date.now());
         w.onmessage = (e) => {
           const m = e.data;
           if (m.id !== id) return;
+          busy.set(w, Date.now());
           if (m.type === "progress") onJobProgress(id, m.f);
           else if (m.type === "done") { results[id] = m.res; active--; onJobProgress(id, 1); feed(w); }
-          else if (m.type === "error") { failed = true; reject(new Error(m.message)); }
+          else if (m.type === "error") fail(new Error(m.message));
         };
+        w.onerror = (e) => {
+          if (e.preventDefault) e.preventDefault();
+          fail(new Error(`The analysis crashed${e.message ? ` (${e.message})` : ""}. Try again, or try a shorter recording.`));
+        };
+        w.onmessageerror = () => fail(new Error("The analysis couldn't pass data between threads. Try again."));
         w.postMessage({ type: "run", id, ...job }, [job.audio.buffer]);
       };
       this.workers.forEach(feed);
@@ -208,10 +236,17 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
 
   const jobs = planJobs(y);
   const prog = new Array(jobs.length).fill(0);
-  const parts = await pool.run(jobs, (id, f) => {
-    prog[id] = f;
-    say("Listening to the set", 0.06 + 0.88 * (prog.reduce((s, x) => s + x, 0) / jobs.length));
-  });
+  let parts;
+  try {
+    parts = await pool.run(jobs, (id, f) => {
+      prog[id] = f;
+      say("Listening to the set", 0.06 + 0.88 * (prog.reduce((s, x) => s + x, 0) / jobs.length));
+    });
+  } catch (e) {
+    // a failed pool may hold a dead or wedged worker: start fresh next time
+    if (!(e && e.name === "AbortError")) releaseEngine();
+    throw e;
+  }
   if (signal) signal.removeEventListener("abort", onAbort);
   const F = merge(parts, duration);
   let probes = [], namingNote = null;
