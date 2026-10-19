@@ -6,16 +6,17 @@
 
    Probing mirrors analyzer/identify.py: a 12 s clip every 24 s inside the
    music span, stopping after 3 failures in a row (Shazam rate-limiting). */
+import "../prefs.js";          // migrates old storage keys before any are read
 import { SR } from "./config.js";   // not extract.js: keeps pages that only show the pop-up light
 
 /* Default helper address; a site can set window.SET_REPLAY_HELPER_URL, and a
    visitor running the helper on another port (--port) can store theirs in
-   localStorage["djsa:helper-url"]. */
+   localStorage["set-replay:helper-url"]. */
 export const HELPER_URL = (() => {
   const fallback = "http://127.0.0.1:8789";
   try {
     if (typeof window === "undefined") return fallback;
-    return (window.SET_REPLAY_HELPER_URL || localStorage.getItem("djsa:helper-url") || fallback).replace(/\/$/, "");
+    return (window.SET_REPLAY_HELPER_URL || localStorage.getItem("set-replay:helper-url") || fallback).replace(/\/$/, "");
   } catch (e) {
     return fallback;
   }
@@ -27,7 +28,7 @@ export const PROBE_STEP = 24, PROBE_CLIP = 12;
    would contact their own computer on each page load, which logs errors and,
    with Chrome's local-network-access prompts, could ask strangers for
    permission they have no reason to give. */
-const INTEREST = "djsa:naming-helper";
+const INTEREST = "set-replay:naming-helper";
 export function helperWanted() { try { return localStorage.getItem(INTEREST) === "1"; } catch (e) { return false; } }
 export function markHelperWanted() { try { localStorage.setItem(INTEREST, "1"); } catch (e) { /* private mode */ } }
 

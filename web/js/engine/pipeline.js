@@ -45,6 +45,10 @@ export function loadModels(onProgress = () => {}) {
     const files = await Promise.all(MODEL_FILES.map(async (name) => {
       const r = await fetch(base + name);
       if (!r.ok) throw new Error(`Couldn't download the analysis model ${name} (HTTP ${r.status}).`);
+      // hosts like yappertech.com answer a missing file with their homepage and HTTP 200
+      if (/text\/html/i.test(r.headers.get("content-type") || "")) {
+        throw new Error(`The analysis model ${name} is missing from this deployment (the server returned a web page instead).`);
+      }
       sizes.set(name, +r.headers.get("content-length") || 0);
       if (!r.body || !sizes.get(name)) return [name, new Uint8Array(await r.arrayBuffer())];
       const reader = r.body.getReader(), chunks = [];

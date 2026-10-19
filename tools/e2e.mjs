@@ -2,6 +2,7 @@
 /* End-to-end test of the packaged website in a real (headless) browser.
 
      bash tools/build-site.sh && node tools/e2e.mjs [--browser chromium|firefox|webkit] [--chrome]
+     node tools/e2e.mjs --url https://www.yappertech.com/set-replay/      (any served copy)
 
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
@@ -23,7 +24,9 @@ const args = process.argv.slice(2);
 const useChrome = args.includes("--chrome");
 const engine = args.includes("--browser") ? args[args.indexOf("--browser") + 1] : "chromium";   // chromium | firefox | webkit
 const pwDir = args.includes("--pw") ? args[args.indexOf("--pw") + 1] : null;
-if (!fs.existsSync(path.join(SITE, "index.html"))) { console.error("Build the site first: bash tools/build-site.sh"); process.exit(2); }
+// --url: test an already-served copy (e.g. http://localhost:8080/set-replay/ or the live site) instead of dist/
+const remote = args.includes("--url") ? args[args.indexOf("--url") + 1].replace(/\/?$/, "/") : null;
+if (!remote && !fs.existsSync(path.join(SITE, "index.html"))) { console.error("Build the site first: bash tools/build-site.sh"); process.exit(2); }
 
 const require = createRequire(pwDir ? path.join(path.resolve(pwDir), "x.js") : import.meta.url);
 let pw;
@@ -42,8 +45,12 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": TYPES[path.extname(f)] || "application/octet-stream", "Cache-Control": "no-cache" });
   fs.createReadStream(f).pipe(res);
 });
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const BASE = `http://127.0.0.1:${server.address().port}/set-replay/`;
+let BASE = remote;
+if (!remote) {
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  BASE = `http://127.0.0.1:${server.address().port}/set-replay/`;
+}
+console.log(`site: ${BASE}`);
 
 /* ---------------- the synthetic set as a WAV file */
 const { makeSet, wavBytes, SYNTH } = await import(pathToFileURL(path.join(ROOT, "tools/synth.mjs")));
@@ -183,8 +190,8 @@ const helperUrl = `http://127.0.0.1:${mock.address().port}`;
 try {
   const ctx2 = await browser.newContext();
   await ctx2.addInitScript((url) => {
-    localStorage.setItem("djsa:helper-url", url);
-    localStorage.setItem("djsa:naming-helper", "1");    // as if the visitor had opened the pop-up
+    localStorage.setItem("set-replay:helper-url", url);
+    localStorage.setItem("set-replay:naming-helper", "1");    // as if the visitor had opened the pop-up
   }, helperUrl);
   const p2 = await ctx2.newPage();
   const errs2 = [];

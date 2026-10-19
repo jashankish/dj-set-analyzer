@@ -1,3 +1,4 @@
+import "./prefs.js";   // slug-prefixed storage keys (migrates old ones)
 /* The visitor's library: analysed sets kept in this browser (IndexedDB),
    each with its audio file so the replay works on the next visit too.
    Nothing here is ever uploaded. */
@@ -86,7 +87,7 @@ export async function importSet(json) {
   const names = payload.user_names || {};
   delete payload.user_names;
   const id = await saveSet(payload, null);
-  try { localStorage.setItem(`djsa:${id}`, JSON.stringify({ title: payload.title, names })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(`set-replay:${id}`, JSON.stringify({ title: payload.title, names })); } catch (e) { /* private mode */ }
   return id;
 }
 

@@ -197,6 +197,34 @@ relative.
    `--audio worship-part-1=https://…/part1.m4a` (a file on your own host or
    CDN). Without audio, a demo is fully explorable but silent.
 
+### On yappertech.com
+
+Set Replay is served at **https://www.yappertech.com/set-replay/** (and the
+apex domain), following the monorepo's guide
+`docs/hosting-an-external-web-app.md`:
+
+- **Build:** the monorepo's `build.js` runs `bash tools/build-site.sh` in this
+  repo (`../dj-set-analyzer`, or `SET_REPLAY_REPO=/path`). It then copies
+  `dist/set-replay/` into its own `dist/`. No env vars are needed, because every
+  path is relative.
+- **Caching:** the site caches non-HTML files as immutable for a year. Set
+  Replay's files aren't content-hashed and its ES modules import each other,
+  so the monorepo's `deploy.sh` and `release.sh` serve `set-replay/*` as
+  `no-cache`, except the versioned `set-replay/models/*`, which stay immutable.
+- **Shared origin:** every YapperTech product shares one origin. Set Replay's
+  `localStorage` keys are prefixed `set-replay:` (older `djsa:` keys are
+  migrated automatically by `js/prefs.js`), and its IndexedDB is named
+  `set-replay`.
+- **Missing files** come back as the YapperTech homepage with HTTP 200, so
+  model downloads reject HTML responses with a clear error.
+- **Analytics:** both pages carry YapperTech's Google Analytics tag
+  (`G-EEGS99GRLN`), like the other products.
+- **No CloudFront router change:** pages are real files (`set.html?id=…`),
+  so there are no History-API deep links.
+- **Verify a deployment:**
+  `node tools/e2e.mjs --url https://www.yappertech.com/set-replay/` runs the
+  full browser suite against the live site in a fresh browser profile.
+
 There's nothing to run or pay for on the server side. Visitors' computers do
 the analysis, and their sets live in their browser's IndexedDB.
 
@@ -251,7 +279,7 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   page can reach it. To only accept your own site, run it with
   `--origin https://your-site.example`.
 - **Another port:** if the helper runs with `--port 9000`, point the page at
-  it with `localStorage.setItem("djsa:helper-url", "http://127.0.0.1:9000")`
+  it with `localStorage.setItem("set-replay:helper-url", "http://127.0.0.1:9000")`
   in that browser. A site owner can set `window.SET_REPLAY_HELPER_URL` instead.
 - **Python version:** shazamio's compiled core crashes on Python 3.14, so the
   helper builds its environment with Python 3.9–3.13. It uses the running
@@ -766,7 +794,7 @@ pipeline:
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
 - **Your edits:** renamed IDs and set titles are saved in `localStorage`
-  under `djsa:<slug>`. They never touch the analysis files.
+  under `set-replay:<slug>`. They never touch the analysis files.
 
 ### Design system
 

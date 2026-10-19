@@ -176,8 +176,8 @@ import { openNamingDialog } from "./naming-ui.js";
         engine.releaseEngine();
         await replacePayload(rec.id, payload);
         // track numbers change once names anchor the setlist; keep the title, drop per-number names
-        const saved = load(`djsa:${rec.id}`) || {};
-        store(`djsa:${rec.id}`, { title: saved.title || null, names: {} });
+        const saved = load(`set-replay:${rec.id}`) || {};
+        store(`set-replay:${rec.id}`, { title: saved.title || null, names: {} });
         location.reload();
       },
     });
@@ -217,7 +217,7 @@ import { openNamingDialog } from "./naming-ui.js";
     const home = `<a class="home" href="./">Set Replay</a>`;
     $("sets").innerHTML = home + S.sets.map((s) => {
       const sw = (s.keys || []).slice(0, 40).map((k) => `<i style="background:${keyColor(k, "base")}"></i>`).join("");
-      const t = (load(`djsa:${s.slug}`) || {}).title || s.title;
+      const t = (load(`set-replay:${s.slug}`) || {}).title || s.title;
       return `<button data-slug="${esc(s.slug)}"${s.href ? ` data-href="${esc(s.href)}"` : ""}><span class="set-sw">${sw}</span>${esc(t)} <span class="set-dur">${fmt(s.duration)}</span></button>`;
     }).join("");
     $("sets").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
@@ -237,7 +237,7 @@ import { openNamingDialog } from "./naming-ui.js";
     const slug = D.slug;
     S.set = S.sets.find((s) => s.slug === slug);
     $("sets").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.slug === slug ? "true" : "false"));
-    const saved = load(`djsa:${slug}`) || {};
+    const saved = load(`set-replay:${slug}`) || {};
     S.names = saved.names || {};
     S.title = saved.title || null;
     S.cur = -1; S.mix = 0; S.lastBeat = -1;
@@ -260,7 +260,7 @@ import { openNamingDialog } from "./naming-ui.js";
   }
 
   function saveLocal() {
-    store(`djsa:${S.D.slug}`, { title: S.title, names: S.names });
+    store(`set-replay:${S.D.slug}`, { title: S.title, names: S.names });
   }
 
   /* ------------------------------------------------ header */

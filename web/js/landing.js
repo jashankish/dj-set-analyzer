@@ -41,7 +41,12 @@ async function loadDemos() {
     </a></li>`).join("");
   drawCards($("demoList"));
   if (!idx.length) { document.querySelector(".tease").hidden = true; $("demos").hidden = true; return; }
-  demo = await (await fetch(`demo/${idx[0].slug}.json`)).json();
+  try {
+    demo = await (await fetch(`demo/${idx[0].slug}.json`)).json();
+  } catch (e) {
+    document.querySelector(".tease").hidden = true;   // no teaser rather than a broken one
+    return;
+  }
   startTeaser();
 }
 
@@ -125,7 +130,7 @@ async function loadLibrary() {
       return;
     }
     await deleteSet(b.dataset.id);
-    try { localStorage.removeItem(`djsa:${b.dataset.id}`); } catch (err) { /* private mode */ }
+    try { localStorage.removeItem(`set-replay:${b.dataset.id}`); } catch (err) { /* private mode */ }
     toast("Set deleted from this browser");
     announce("Set deleted.");
     loadLibrary();
