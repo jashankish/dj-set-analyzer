@@ -606,7 +606,17 @@ node tools/engine-check.mjs "Recording 9.m4a" --cache /tmp/r9.v8
 ```
 
 `--cache` saves the extracted features, so you can iterate on the setlist
-logic in seconds. Results on Recording 9 with identification off: the browser
+logic in seconds.
+
+**Self-test without recordings.** `node tools/selftest.mjs` (same
+`.engine-deps` folder) builds a 3-minute synthetic set with a known answer:
+house at 128 BPM over A minor, then 140 BPM over D minor with a different
+timbre. It runs the exact browser engine and checks tempo (127.1 / 138.9),
+key (8A / 7A), that a track change is found near 90 s, and that every part
+of the output is present. It takes about 6 s and is deterministic.
+**GitHub Actions** (`.github/workflows/selftest.yml`) runs it on every push
+to `main`, together with a JS syntax check, a Python compile check and the
+site build. It uses about a minute of the free monthly Actions allowance. Results on Recording 9 with identification off: the browser
 engine and Python both give 18 tracks with identical start times.
 
 **Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
@@ -848,7 +858,9 @@ dj-set-analyzer/
 │   ├── serve.py       # local dev server with ranged audio
 │   └── data/          # Python output for the local server (git-ignored)
 ├── netlify.toml       # one-click Netlify deploy (runs tools/build-site.sh)
+├── .github/workflows/selftest.yml  # CI: self-test, syntax, compile, build on every push
 ├── tools/
+│   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
