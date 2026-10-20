@@ -308,7 +308,10 @@ export async function analyzeFile(file, { onProgress = () => {}, onAudio = () =>
     y = await decode(file);
   } catch (e) {
     if (e instanceof RangeError || /memory|allocation/i.test(String(e))) {
-      throw new Error(`“${file.name}” is too long for this browser's memory. Try a shorter recording or a desktop browser.`);
+      throw new Error(`“${source.name}” is too long for this browser's memory. Try a shorter recording or a desktop browser.`);
+    }
+    if (file !== source) {
+      throw new Error(`The audio was taken out of “${source.name}”, but this browser can't decode its AAC sound. Try Chrome, Safari or Edge, or save the audio as an MP3 and drop that.`);
     }
     throw e;
   }

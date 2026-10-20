@@ -183,7 +183,17 @@ try {
   await pv.setInputFiles("#fileInput", path.join(ROOT, "tools/fixtures/set-replay-e2e.mov"));
   await pv.waitForSelector(".q-item");
   check("video: a .mov is accepted into the queue", await pv.locator(".q-name b").first().textContent(), (t) => t === "set-replay-e2e.mov");
+  // open-source browser builds (Playwright's Chromium, Linux Firefox without system codecs)
+  // can't decode AAC at all: there, check the soundtrack is still taken out and the
+  // visitor is told why it stopped, instead of failing on the browser's missing codec
+  const aac = await pv.evaluate(() => !!document.createElement("audio").canPlayType('audio/mp4; codecs="mp4a.40.2"'));
   await pv.click("#analyzeBtn");
+  if (!aac) {
+    await pv.waitForSelector(".q-state.err", { timeout: 60000 });
+    check("video (this browser build has no AAC decoder): the soundtrack is taken out and the visitor told why it stops", await pv.locator(".q-state").first().textContent(), (t) => /taken out of “set-replay-e2e\.mov”, but this browser can't decode its AAC/.test(t));
+    await ctxV.close();
+    throw Object.assign(new Error("skip"), { skip: true });
+  }
   await waitForResult(pv, consoleV);
   await pv.waitForSelector(".trk");
   check("video: the set is found in its soundtrack", await pv.locator(".trk").count(), (n) => n >= 2);
@@ -197,7 +207,7 @@ try {
   await pv.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase("set-replay"); q.onsuccess = q.onerror = q.onblocked = r; }));
   await ctxV.close();
 } catch (e) {
-  checks.push(["video flow completed", String(e).split("\n")[0], false]);
+  if (!e.skip) checks.push(["video flow completed", String(e).split("\n")[0], false]);
 }
 
 /* ---------------- on a phone: 390 x 844 with touch */
