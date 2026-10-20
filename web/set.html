@@ -183,6 +183,23 @@
     </div>
   </section>
 
+  <!-- the mood map -->
+  <section class="moodmap" id="moodmap" aria-labelledby="mmH">
+    <div class="mm-map">
+      <h2 class="h2" id="mmH">Mood map</h2>
+      <p class="j-sub">Each track by brightness and intensity, joined in the order played. The cross is this set's own middle.</p>
+      <div class="mm-box">
+        <svg id="mmSvg" viewBox="0 0 400 400" role="img" aria-label="Mood map: tracks placed by brightness and intensity"></svg>
+        <div class="tip" id="mmTip" hidden></div>
+      </div>
+    </div>
+    <div class="mm-side">
+      <p class="mm-line" id="mmLine"></p>
+      <div class="mm-quads" id="mmQuads"></div>
+      <p class="mm-note">Brightness: the mood model's <i>happy</i> score, plus a little for major keys. Intensity: energy, with the <i>aggressive</i> and <i>party</i> scores. Both are relative to this set, because a phone in a loud room pulls every score towards the middle.</p>
+    </div>
+  </section>
+
   <!-- the vibe, for a playlist AI -->
   <section class="vibe" id="vibe" aria-labelledby="vibeH">
     <div class="v-head">

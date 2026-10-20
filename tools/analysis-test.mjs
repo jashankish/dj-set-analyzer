@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /* Checks the page's own analyses on the bundled demo sets and on edge cases:
    the Spotify prompt writer (web/js/vibe.js), the chapter finder
-   (web/js/phases.js) and the mixing breakdown (web/js/craft.js).
+   (web/js/phases.js), the mixing breakdown (web/js/craft.js) and the
+   mood map (web/js/moodmap.js).
    No dependencies: node tools/analysis-test.mjs
 
    The demos are phone recordings of drum & bass sets (Sub Focus, Culture
@@ -16,6 +17,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
+const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
 const checks = [];
@@ -77,6 +79,18 @@ const cutter = { tracks: [], drops: [], transitions: [0, 1, 2, 3].map((i) => mk(
 check("hard cuts read as a quick cutter", craftProfile(cutter).style.id, (id) => id === "cutter");
 check("relationClass sorts key moves", ["Same key", "Mood shift", "Key clash"].map(relationClass), (v) => v.join() === "good,partial,clash");
 check("no transitions, no profile", craftProfile({ tracks: [], transitions: [] }), (v) => v === null);
+
+/* ---------------- mood map (web/js/moodmap.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), M = moodMap(D);
+  check(`${slug}: one point per track`, M.points.length, (n) => n === D.tracks.length);
+  check(`${slug}: quadrant shares add up to 1`, Object.values(M.share).reduce((a, b) => a + b, 0), (x) => Math.abs(x - 1) < 1e-9);
+  check(`${slug}: each point's quadrant follows the set's medians`, M.points.every((p) => p.q === (p.a >= M.median.a ? (p.v >= M.median.v ? "euphoric" : "intense") : (p.v >= M.median.v ? "warm" : "brooding"))), (ok) => ok);
+  check(`${slug}: the home quadrant has the largest share`, M.share[M.home], (x) => x === Math.max(...Object.values(M.share)));
+  check(`${slug}: every point is inside the drawn domain`, M.points.every((p) => p.v > M.domain.v[0] && p.v < M.domain.v[1] && p.a > M.domain.a[0] && p.a < M.domain.a[1]), (ok) => ok);
+  check(`${slug}: the route sentence names where it opens and ends`, M.sentence, (t) => /opens \w+.* ends \w+|stays \w+/.test(t));
+}
+check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: {} }, { n: 2, moods: {} }] }), (v) => v === null);
 
 /* ---------------- pieces */
 check("artistsOf splits co-artists and finds remixers", [...artistsOf("Timewarp (Dimension Remix)", "Sub Focus & Wilkinson").keys()], (a) => a.join("|") === "Sub Focus|Wilkinson|Dimension");

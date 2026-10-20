@@ -88,6 +88,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
+| **Mood map** | Every track placed by **brightness** (the *happy* score plus a little for major keys) and **intensity** (energy with the *aggressive* and *party* scores), the valence × arousal map from music-emotion research. Dots are key-coloured and sized by length, numbered, and joined in play order (solid up to the playing track, dotted after). The cross is the set's own median, so the corners (Euphoric, Intense, Warm, Brooding) mean "more than this set's usual": room recordings pull every score to the middle. Beside it: time in each corner, a sentence on the route ("It opens intense, moves through euphoric and ends warm"), and the biggest swing between two tracks | Hover a dot for the track; click a dot (or Enter on it) to play it; **Biggest swing** plays into that change |
 | **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
@@ -585,6 +586,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/vibe.js     set → vibe fingerprint, keyword chips, Spotify prompt     │
                          │ js/phases.js   chapters: optimal split on track energy + tempo, names   │
                          │ js/craft.js    mixing style archetype, key-move/type tallies, moments   │
+                         │ js/moodmap.js  valence × arousal per track, corners, route sentence     │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1042,6 +1044,13 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **Mood map:** `renderMoodMap()` draws `moodmap.js`'s `moodMap()` as
+  inline SVG (a 400 × 400 viewBox, domains padded to the data); each dot is a
+  focusable `<g role="button">`. `setTrack()` calls `updateMoodMap()`,
+  which splits the route polyline at the playing track and rings its dot.
+  The route sentence takes the dominant corner (by time) of each third of
+  the set; "swings widely" / "small steps" come from the mean step length
+  between consecutive tracks on the normalised map.
 - **How it was mixed:** `renderCraft()` draws from `craft.js`'s
   `craftProfile()`. The timeline is HTML (one `<button>` per mix, height in a
   CSS variable), so each column is focusable and clickable; `selectMix()`
@@ -1201,6 +1210,7 @@ dj-set-analyzer/
 │   ├── js/vibe.js     # the set's vibe → keyword chips + Spotify prompt (no DOM)
 │   ├── js/phases.js   # the set's chapters (warm-up, peak, …) and per-chapter slices (no DOM)
 │   ├── js/craft.js    # how it was mixed: style archetype, tallies, signature moments (no DOM)
+│   ├── js/moodmap.js  # the mood map: brightness × intensity per track, route sentence (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
@@ -1218,7 +1228,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
-│   ├── analysis-test.mjs # the page analyses (Spotify prompt, chapters, mixing) on the demos and edge cases
+│   ├── analysis-test.mjs # the page analyses (Spotify prompt, chapters, mixing, mood map) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/

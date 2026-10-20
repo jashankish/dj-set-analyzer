@@ -115,6 +115,7 @@ try {
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
   check("the vibe section writes a Spotify prompt", await page.locator("#vibePrompt").inputValue(), (t) => /^A .*playlist \(\d+–\d+ BPM\)/.test(t));
   check("one mix is too few for the mixing breakdown, so it hides", await page.locator("#craft").isHidden(), (h) => h === true);
+  check("two tracks are too few for the mood map, so it hides", await page.locator("#moodmap").isHidden(), (h) => h === true);
   check("a 3-minute set is one chapter, so the chapters strip hides", await page.locator("#phases").evaluate((el) => el.closest(".j-block").hidden), (h) => h === true);
   check("the vibe radar has the whole set and the live track", await page.locator("#vibeRadar .vr-set, #vibeRadar .vr-now").count(), (n) => n === 2);
 
@@ -180,6 +181,9 @@ try {
   await p3.locator('#vibeTarget [data-t="chat"]').tap();
   check("phone: the AI-chat prompt asks for a track list", await p3.locator("#vibePrompt").inputValue(), (t) => t.startsWith("Make me a playlist of about"));
   await p3.locator('#vibeTarget [data-t="spotify"]').tap();
+  check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
+  await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
+  check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");
   check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
   await p3.locator(".ph-vibe").last().tap();
   check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");
