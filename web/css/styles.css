@@ -321,6 +321,27 @@ button { font-family: inherit; color: inherit; }
 .j-curves { display: flex; flex-direction: column; gap: 30px; min-width: 0; }
 .j-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
 .j-head .j-sub { margin: 0; }
+.phases { display: grid; gap: 4px; }
+.ph {
+  position: relative; min-width: 0; border-radius: var(--r-s); overflow: hidden;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 34%, var(--panel)), var(--panel) 70%);
+  border: 1px solid var(--line-soft); display: flex; flex-direction: column;
+}
+.ph.now { border-color: var(--c2); box-shadow: inset 0 0 0 1px var(--c2); }
+.ph-go {
+  all: unset; box-sizing: border-box; cursor: pointer; padding: 10px 12px 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;
+}
+.ph-go:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ph-l { font-weight: 750; font-stretch: 108%; font-size: .98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-t, .ph-s, .ph-st { font-size: .76rem; font-stretch: 82%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-t { color: var(--muted); }
+.ph-s { color: var(--ink-2); }
+.ph-st { color: var(--muted); }
+.ph-bar { display: block; height: 4px; border-radius: 2px; background: rgba(255,255,255,.07); margin-top: 6px; }
+.ph-bar i { display: block; height: 100%; border-radius: 2px; background: var(--c2); }
+.ph-vibe { margin: 0 12px 10px; align-self: flex-start; font-size: .76rem; padding: 3px 8px; }
+.v-scope { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.v-scope [aria-selected="true"] { color: var(--ink); background: var(--raised); border-color: var(--raised); }
 .curve { position: relative; height: 150px; cursor: pointer; }
 .curve canvas { width: 100%; height: 100%; display: block; }
 .c-hover { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,.4); pointer-events: none; }
@@ -471,6 +492,7 @@ button { font-family: inherit; color: inherit; }
   .p-now, #prevTrack, #helpBtn { display: none; }
   .r-legend .lg-key { display: none; }
   .v-vals { grid-template-columns: repeat(2, 1fr); }
+  .phases { grid-template-columns: 1fr !important; }
   .v-gl { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {

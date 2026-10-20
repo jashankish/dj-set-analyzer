@@ -134,6 +134,10 @@
     </div>
     <div class="j-curves">
       <div class="j-block">
+        <div class="j-head"><h2 class="h2">Chapters</h2><span class="j-sub" id="phaseSub"></span></div>
+        <div class="phases" id="phases"></div>
+      </div>
+      <div class="j-block">
         <div class="j-head"><h2 class="h2">Energy</h2><span class="j-sub" id="energySub"></span></div>
         <div class="curve" id="energyBox"><canvas id="energyCanvas"></canvas><div class="c-hover" hidden></div><div class="tip" hidden></div></div>
       </div>
@@ -162,6 +166,7 @@
         <dl class="v-vals" id="vibeVals"></dl>
       </figure>
       <div class="v-prompt">
+        <div class="v-scope" id="vibeScope" role="tablist" aria-label="Which part of the set" hidden></div>
         <div class="v-chips" id="vibeChips"></div>
         <div class="v-form" role="tablist" aria-label="Prompt length">
           <button class="ghost" role="tab" id="vibeFull" aria-selected="true">Full prompt</button>

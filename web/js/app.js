@@ -8,7 +8,9 @@
    ============================================================ */
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { openNamingDialog } from "./naming-ui.js";
-import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./vibe-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt } from "./vibe-ui.js";
+import { findPhases, slicePayload } from "./phases.js";
+import { vibeProfile } from "./vibe.js";
 
 (function () {
   "use strict";
@@ -244,6 +246,7 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
     S.title = saved.title || null;
     S.cur = -1; S.mix = 0; S.lastBeat = -1;
     S.view = { t0: span()[0], t1: span()[1] };
+    S.phases = findPhases(D);
     prepColors();
     S.noAudio = !audioUrl;
     S.vt = span()[0];
@@ -255,7 +258,8 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
     renderWheel();
     renderRows();
     renderCredits();
-    mountVibe({ D, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast });
+    renderPhases();
+    mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast });
     drawAll();
     setTrack(0, true);
     selectMix(0, false);
@@ -309,6 +313,12 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
       const x = M.find((m) => m.from === s.longest_blend.from);
       const a = T[x.from - 1], b = T[x.to - 1];
       parts.push(`The longest blend ran <b>${x.bars ? `${x.bars} bars` : fmtDur(x.duration)}</b>, ${esc(shortName(a))} into ${esc(shortName(b))}.`);
+    }
+    const P = S.phases || [];
+    if (P.length > 1) {
+      const words = ["two", "three", "four", "five"][P.length - 2];
+      const named = P.map((p) => `${p.label.toLowerCase()} (tracks ${p.from}–${p.to})`);
+      parts.push(`It plays in ${words} chapters: ${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}.`);
     }
     const tail = D.duration - (s.set_end || D.duration);
     if (tail > 60) parts.push(`The recording runs on for another ${fmtDur(Math.round(tail / 60) * 60)} after the music stops; that part is greyed out.`);
@@ -628,6 +638,8 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
     drawRibbon();
     updateWheel();
     vibeTrack(i);
+    const ph = (S.phases || []).findIndex((p) => tr.n >= p.from && tr.n <= p.to);
+    document.querySelectorAll(".ph").forEach((el) => el.classList.toggle("now", +el.dataset.i === ph));
   }
 
   function bindRename() {
@@ -1068,6 +1080,38 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
     $("wcSub").textContent = tr.key ? tr.key.name : "key unclear";
   }
 
+  /* ------------------------------------------------ chapters */
+  function renderPhases() {
+    const P = S.phases, T = tracks();
+    const block = $("phases").closest(".j-block");
+    block.hidden = P.length < 2;
+    if (P.length < 2) return;
+    $("phaseSub").textContent = "Where the set changes gear, from track energy and tempo";
+    const maxE = Math.max(...P.map((p) => p.energy));
+    $("phases").style.gridTemplateColumns = P.map((p) => `minmax(0, ${Math.max(1, p.end - p.start).toFixed(0)}fr)`).join(" ");
+    $("phases").innerHTML = P.map((p, i) => {
+      const k = p.keys[0] || keyOf(T[p.from - 1]);
+      // the same words the chapter's Spotify prompt uses: trusted genres, then the leading mood
+      const V = vibeProfile(slicePayload(S.D, p));
+      const styles = [...V.chips.filter((c) => c.group === "Genre" && c.on).slice(0, 2), ...V.chips.filter((c) => c.group === "Mood").slice(0, 1)].map((c) => c.text).join(" · ");
+      return `<div class="ph" data-i="${i}" style="--c:${keyColor(k, "deep")};--c2:${keyColor(k, "base")}">
+        <button class="ph-go" data-t="${p.start}" aria-label="Play ${esc(p.label)}, tracks ${p.from} to ${p.to}">
+          <span class="ph-l">${esc(p.label)}</span>
+          <span class="ph-t">${fmt(p.start)}–${fmt(p.end)} · tracks ${p.from}–${p.to}</span>
+          <span class="ph-s">${Math.round(p.bpm)} BPM · energy ${p.energy.toFixed(1)}${p.drops ? ` · ${p.drops} drop${p.drops > 1 ? "s" : ""}` : ""}</span>
+          ${styles ? `<span class="ph-st">${esc(styles)}</span>` : ""}
+          <span class="ph-bar" aria-hidden="true"><i style="width:${Math.round((p.energy / maxE) * 100)}%"></i></span>
+        </button>
+        <button class="ph-vibe ghost" data-i="${i}">Spotify prompt</button>
+      </div>`;
+    }).join("");
+    $("phases").querySelectorAll(".ph-go").forEach((b) => b.addEventListener("click", () => seek(+b.dataset.t + 0.05, true)));
+    $("phases").querySelectorAll(".ph-vibe").forEach((b) => b.addEventListener("click", () => {
+      vibeScope(+b.dataset.i);
+      $("vibe").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }));
+  }
+
   /* ------------------------------------------------ energy + rows */
   function drawEnergy() {
     const box = $("energyBox"), c = $("energyCanvas");
@@ -1103,6 +1147,20 @@ import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./v
     ctx.strokeStyle = "rgba(239,236,245,.9)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    // chapter boundaries and names
+    if ((S.phases || []).length > 1) {
+      ctx.save();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = "rgba(239,236,245,.35)";
+      ctx.font = "600 10.5px Archivo, sans-serif";
+      S.phases.forEach((p, i) => {
+        const x = xt(p.start);
+        if (i) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h - 14); ctx.stroke(); }
+        ctx.fillStyle = "rgba(239,236,245,.6)";
+        if (xt(p.end) - x > 60) ctx.fillText(p.label.toUpperCase(), x + 6, 12);
+      });
+      ctx.restore();
+    }
     // drops along the baseline
     ctx.fillStyle = "rgba(239,236,245,.85)";
     S.D.drops.forEach((d) => {

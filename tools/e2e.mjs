@@ -114,6 +114,7 @@ try {
   await page.locator(".seam").first().click();
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
   check("the vibe section writes a Spotify prompt", await page.locator("#vibePrompt").inputValue(), (t) => /^A .*playlist \(\d+–\d+ BPM\)/.test(t));
+  check("a 3-minute set is one chapter, so the chapters strip hides", await page.locator("#phases").evaluate((el) => el.closest(".j-block").hidden), (h) => h === true);
   check("the vibe radar has the whole set and the live track", await page.locator("#vibeRadar .vr-set, #vibeRadar .vr-now").count(), (n) => n === 2);
 
   /* download the analysis, then import it on the landing page */
@@ -170,6 +171,9 @@ try {
   check("phone: tapping a keyword takes it out of the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => !t.includes("Sub Focus"));
   await p3.locator("#vibeShort").tap();
   check("phone: keywords-only prompt fits Spotify's 300 characters", (await p3.locator("#vibePrompt").inputValue()).length, (n) => n > 20 && n <= 300);
+  check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
+  await p3.locator(".ph-vibe").last().tap();
+  check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");
   check("phone: no page errors", errs3, (e) => e.length === 0);
   await phone.close();
 } catch (e) {

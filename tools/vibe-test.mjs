@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
+const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
 const checks = [];
@@ -36,6 +37,21 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
 }
 check("part 2: hardcore (a room-noise artefact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
+
+/* ---------------- chapters (web/js/phases.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), P = findPhases(D);
+  check(`${slug}: 2–5 chapters`, P.length, (n) => n >= 2 && n <= 5);
+  check(`${slug}: chapters tile the set's tracks in order`, P.map((p) => [p.from, p.to]), (r) => r[0][0] === 1 && r[r.length - 1][1] === D.tracks.length && r.every((x, i) => !i || x[0] === r[i - 1][1] + 1));
+  check(`${slug}: one chapter is the peak, and it has the most energy`, P.map((p) => [p.role, +p.energy.toFixed(2)]), (v) => { const pk = v.filter(([r]) => r === "peak"); return pk.length === 1 && pk[0][1] === Math.max(...v.map(([, e]) => e)); });
+  check(`${slug}: chapter names are unique`, P.map((p) => p.label), (l) => new Set(l).size === l.length);
+  check(`${slug}: every chapter is at least 2.5 min`, P.map((p) => Math.round(p.end - p.start)), (d) => d.every((x) => x >= 150));
+  const last = slicePayload(D, P[P.length - 1]);
+  check(`${slug}: a chapter's slice keeps only its tracks and drops`, [last.tracks.length, last.drops.every((d) => d.t >= P[P.length - 1].start)], ([n, ok]) => n === P[P.length - 1].to - P[P.length - 1].from + 1 && ok);
+  check(`${slug}: the last chapter writes its own prompt`, buildPrompt(vibeProfile(last)).full, (t) => /^A .* playlist \(/.test(t));
+}
+const flat = { title: "Flat", duration: 600, summary: { bpm_avg: 124, styles: [] }, drops: [], tracks: [0, 1, 2].map((i) => ({ n: i + 1, start: i * 200, end: (i + 1) * 200, identified: false, bpm: 124, energy: 6, key: { camelot: "8A" }, moods: {} })) };
+check("a level set is one chapter", findPhases(flat).length, (n) => n === 1);
 
 /* ---------------- pieces */
 check("artistsOf splits co-artists and finds remixers", [...artistsOf("Timewarp (Dimension Remix)", "Sub Focus & Wilkinson").keys()], (a) => a.join("|") === "Sub Focus|Wilkinson|Dimension");

@@ -77,16 +77,17 @@ top; its colour swatches are the set's track keys in order. Then:
 
 | Part of the page | What it shows | What you can do |
 | --- | --- | --- |
-| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set | Double-click the title to rename the set (saved in this browser) |
+| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser) |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's colour on the Camelot wheel**. Colours cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterwards) is greyed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, and a one-sentence description | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead) | Click a dot to play that track |
-| **Energy** | The energy arc of the set, filled per track in its key colour, with drops and the peak marked | Hover for values; click to seek |
+| **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
+| **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
-| **Take the vibe to Spotify** | A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, labels, era, flow, length) and the prompt they make | Hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
+| **Take the vibe to Spotify** | A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, labels, era, flow, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
 
@@ -464,6 +465,29 @@ Node by `tools/vibe-test.mjs`):
 The **vibe fingerprint** radar shows the same numbers the words come from,
 so you can see why the prompt says what it says.
 
+**One chapter at a time.** A two-hour set often has a warm-up, a peak and a
+come-down that would make three different playlists. Above the chips,
+*Prompt for* switches the prompt (and the radar's fill, and what *Save*
+exports) to one chapter. `phases.slicePayload()` cuts the set down to that
+chapter's tracks, drops, styles and vocal share, and `vibe.js` writes the
+prompt from that. A chapter with fewer than three named artists borrows the
+whole set's leading artists (their chips say so), so Spotify still has names
+to steer by. Each scope remembers its own switched-off chips.
+
+**How chapters are found** (`web/js/phases.js`, also tested by
+`tools/vibe-test.mjs`): each track is a point (energy, tempo), weighted by
+its length. Dynamic programming finds, for 1 to 5 chapters, the split on
+track boundaries with the least spread inside chapters, where no chapter may
+be shorter than 2.5 minutes or 10% of the set. A chapter is kept only if it
+removes at least 18% of the set's spread (plus 3% per extra chapter), so a
+level set stays one chapter and both demos come out as *peak → cool-down*.
+Names come from shape: the highest-energy chapter is the **Peak**, a lower
+first chapter a **Warm-up** (else **Opening**), a lower last one a
+**Cool-down** (else **Finale**), a dip between two higher chapters a
+**Breather**, a climb before the peak a **Build**, a rise after it a
+**Second wind**; a tempo change of 8+ BPM is added to the name ("Build ·
+tempo up").
+
 **Save the set to Spotify** creates a private playlist named
 *&lt;set title&gt; · Set Replay* holding the set's named tracks, with the
 keywords as its description. Each track is matched by ISRC first (Shazam
@@ -535,6 +559,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/store.js    the visitor's library in IndexedDB                       │
                          │ js/app.js      viewer: canvases, SVG wheel, playback sync, shortcuts    │
                          │ js/vibe.js     set → vibe fingerprint, keyword chips, Spotify prompt     │
+                         │ js/phases.js   chapters: optimal split on track energy + tempo, names   │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -992,6 +1017,10 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **Chapters:** `openPayload()` runs `findPhases()` once into `S.phases`;
+  `renderPhases()` builds the strip (CSS grid with `fr` columns in seconds),
+  `drawEnergy()` adds the dashed boundaries, `setTrack()` outlines the
+  playing chapter, and `story()` names the chapters in the header.
 - **The vibe section** (`js/vibe-ui.js`): `openPayload()` calls
   `mountVibe()`, which builds the profile with `vibe.js` and draws the radar
   as inline SVG; `setTrack()` calls `vibeTrack()` so the dashed outline
@@ -1135,6 +1164,7 @@ dj-set-analyzer/
 │   ├── js/color.js    # Camelot → OKLCH colour
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
 │   ├── js/vibe.js     # the set's vibe → keyword chips + Spotify prompt (no DOM)
+│   ├── js/phases.js   # the set's chapters (warm-up, peak, …) and per-chapter slices (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
@@ -1152,7 +1182,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
-│   ├── vibe-test.mjs     # the Spotify prompt writer on the demo sets and edge cases
+│   ├── vibe-test.mjs     # the Spotify prompt writer and the chapter finder, on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/

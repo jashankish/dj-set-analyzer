@@ -3,10 +3,11 @@
    The vibe fingerprint radar, the keyword chips, the prompt, and the
    Spotify actions. Words come from vibe.js, Spotify calls from spotify.js;
    app.js owns the set and tells this module when the set or track changes.
-   Per-set choices (chips switched off, own direction, prompt length) are
-   kept in localStorage under set-replay:vibe:<slug>.
+   Per-set choices (chips switched off, per scope; own direction; prompt
+   length; scope) are kept in localStorage under set-replay:vibe:<slug>.
    ============================================================ */
 import { vibeProfile, buildPrompt, defaultOff, AXES, trust } from "./vibe.js";
+import { slicePayload } from "./phases.js";
 import * as spotify from "./spotify.js";
 
 const $ = (id) => document.getElementById(id);
@@ -14,11 +15,11 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&":
 const R = 112;                                   // radar radius in viewBox units
 const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Labels", "Era", "Flow", "Length"];
 
-let V = null;      // { D, P, off, extra, form, names, title, cur, keyColor, toast }
+let V = null;      // { D, phases, scope, Ds, P, Pall, offs, off, extra, form, names, title, cur, keyColor, toast }
 
 function storeKey() { return `set-replay:vibe:${V.D.slug}`; }
 function save() {
-  try { localStorage.setItem(storeKey(), JSON.stringify({ off: [...V.off], extra: V.extra, form: V.form })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope })); } catch (e) { /* private mode */ }
 }
 function restore() {
   try { return JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch (e) { return null; }
@@ -44,8 +45,8 @@ function axisText(k, v, bpm) {
 }
 
 function renderRadar() {
-  const { P, D, keyColor } = V;
-  const k = dominantKey(D);
+  const { P, keyColor } = V;
+  const k = dominantKey(V.Ds);
   const fill = keyColor(k, "base"), ink = keyColor(k, "ink");
   let g = "";
   [0.25, 0.5, 0.75, 1].forEach((r) => (g += `<polygon class="vr-ring" points="${AXES.map((_, i) => pt(i, r).join(",")).join(" ")}"/>`));
@@ -64,7 +65,7 @@ function renderRadar() {
     g += `<path class="vr-hit" data-k="${key}" d="M0,0 L${(Math.cos(a0) * rr).toFixed(1)},${(Math.sin(a0) * rr).toFixed(1)} A${rr},${rr} 0 0 1 ${(Math.cos(a1) * rr).toFixed(1)},${(Math.sin(a1) * rr).toFixed(1)} Z"/>`;
   });
   $("vibeRadar").innerHTML = g;
-  $("vibeCap").innerHTML = `<span class="v-lg"><i class="v-sw" style="background:${fill};border-color:${ink}"></i>Whole set</span><span class="v-lg"><i class="v-sw v-sw-now"></i>Track playing now</span>`;
+  $("vibeCap").innerHTML = `<span class="v-lg"><i class="v-sw" style="background:${fill};border-color:${ink}"></i>${scopeName()}</span><span class="v-lg"><i class="v-sw v-sw-now"></i>Track playing now</span>`;
   $("vibeVals").innerHTML = AXES.map(([key, label]) => `<div><dt>${label}</dt><dd>${axisText(key, P.axes[key], P.bpm)}</dd></div>`).join("");
   $("vibeRadar").querySelectorAll(".vr-hit").forEach((h) => {
     h.addEventListener("pointerenter", () => showAxisTip(h.dataset.k));
@@ -76,11 +77,11 @@ function renderRadar() {
 function showAxisTip(key) {
   const { P, D, cur } = V;
   const i = AXES.findIndex(([k]) => k === key), label = AXES[i][1];
-  const tr = D.tracks[cur], ta = P.trackAxes[cur];
+  const tr = D.tracks[cur], ta = V.Pall.trackAxes[cur];
   const tip = $("vibeTip"), box = $("vibeRadar").getBoundingClientRect(), fig = $("vibeRadar").parentElement.getBoundingClientRect();
   const [x, y] = pt(i, 1.05);
   const sx = box.width / 340, px = box.left - fig.left + (x + 170) * sx, py = box.top - fig.top + (y + 150) * sx;
-  tip.innerHTML = `<span class="t-title">${label}</span><span class="t-meta">Whole set: ${axisText(key, P.axes[key], P.bpm)}</span>` +
+  tip.innerHTML = `<span class="t-title">${label}</span><span class="t-meta">${scopeName()}: ${axisText(key, P.axes[key], P.bpm)}</span>` +
     (tr ? `<span class="t-meta">Track ${tr.n}: ${axisText(key, ta[key], tr.bpm)}</span>` : "");
   tip.hidden = false;
   tip.style.left = `${Math.max(4, Math.min(fig.width - 170, px - 80))}px`;
@@ -89,7 +90,7 @@ function showAxisTip(key) {
 
 function updateRadar() {
   if (!V || !$("vrNow")) return;
-  const ta = V.P.trackAxes[V.cur];
+  const ta = V.Pall.trackAxes[V.cur];
   if (!ta) return;
   $("vrNow").setAttribute("points", poly(ta));
   $("vrDots").innerHTML = AXES.map(([k], i) => { const [x, y] = pt(i, Math.max(0.03, ta[k])); return `<circle class="vr-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join("");
@@ -130,7 +131,7 @@ const status = (html) => ($("vibeStatus").innerHTML = html);
 /* the tracks worth sending: named ones Shazam is fairly sure of, plus the visitor's own names */
 function exportTracks() {
   const out = [], doubtful = [];
-  V.D.tracks.forEach((tr) => {
+  V.Ds.tracks.forEach((tr) => {
     const own = V.names[tr.n];
     if (own && !tr.identified) {
       const m = String(own).split(/\s+[–—-]\s+/);
@@ -164,7 +165,7 @@ async function saveToSpotify() {
   const btn = $("vibeSave");
   btn.disabled = true;
   try {
-    const name = `${V.title} · Set Replay`;
+    const name = V.scope < 0 ? `${V.title} · Set Replay` : `${V.title} · ${V.phases[V.scope].label} · Set Replay`;
     const r = await spotify.savePlaylist({ name, description: prompt().short, tracks: out }, (m) => status(esc(m)));
     const miss = r.missed.length ? ` Not on Spotify: ${r.missed.map((t) => esc([t.artist, t.title].filter(Boolean).join(" – "))).join("; ")}.` : "";
     const skip = doubtful.length ? ` Left out ${doubtful.length} doubtful Shazam match${doubtful.length > 1 ? "es" : ""}.` : "";
@@ -191,13 +192,17 @@ function bind() {
     b.setAttribute("aria-pressed", String(!V.off.has(id)));
     save(); renderPrompt();
   });
+  $("vibeScope").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b) vibeScope(+b.dataset.i);
+  });
   $("vibeFull").addEventListener("click", () => { V.form = "full"; save(); renderPrompt(); });
   $("vibeShort").addEventListener("click", () => { V.form = "short"; save(); renderPrompt(); });
   $("vibeExtra").addEventListener("input", () => { V.extra = $("vibeExtra").value; save(); renderPrompt(); });
   $("vibePrompt").addEventListener("input", () => ($("vibeCount").textContent = `${$("vibePrompt").value.length} characters`));
   $("vibeCopy").addEventListener("click", copyPrompt);
   $("vibeOpen").addEventListener("click", () => { copyText($("vibePrompt").value).then((ok) => ok && V.toast("Prompt copied. Paste it into Prompted Playlist")); });
-  $("vibeReset").addEventListener("click", () => { V.off = defaultOff(V.P); V.extra = ""; $("vibeExtra").value = ""; save(); renderChips(); renderPrompt(); });
+  $("vibeReset").addEventListener("click", () => { V.off = defaultOff(V.P); delete V.offs[V.scope]; V.extra = ""; $("vibeExtra").value = ""; save(); renderChips(); renderPrompt(); });
   $("vibeSave").addEventListener("click", saveToSpotify);
   $("vibeUri").textContent = spotify.redirectUri();
   $("vibeUriCopy").addEventListener("click", () => copyText(spotify.redirectUri()).then(() => V.toast("Redirect URI copied")));
@@ -209,17 +214,57 @@ function bind() {
   if (spotify.hostClientId()) $("vibeConnect").hidden = true;
 }
 
+/* the part of the set the prompt is about: the whole set (-1) or one chapter */
+const scopeName = () => (V.scope < 0 ? "Whole set" : esc(V.phases[V.scope].label));
+function scoped() {
+  const p = V.phases[V.scope];
+  V.Ds = p ? slicePayload(V.D, p) : V.D;
+  const inScope = new Set(V.Ds.tracks.map((t) => String(t.n)));
+  V.P = p ? vibeProfile(V.Ds, Object.fromEntries(Object.entries(V.names).filter(([n]) => inScope.has(n)))) : V.Pall;
+  if (p) {
+    // a chapter with few named tracks borrows the set's leading artists, so Spotify still has names to go on
+    const have = V.P.chips.filter((c) => c.group === "Artists");
+    const add = V.Pall.chips.filter((c) => c.group === "Artists" && c.on && !have.some((h) => h.id === c.id)).slice(0, Math.max(0, 4 - have.length));
+    if (have.length < 3 && add.length) {
+      const at = V.P.chips.findIndex((c) => c.group === "Labels" || c.group === "Era" || c.group === "Flow");
+      V.P.chips.splice(at < 0 ? V.P.chips.length : at, 0, ...add.map((c) => ({ ...c, hint: "From the whole set: this chapter has few named tracks" })));
+    }
+  }
+}
+/* each scope keeps its own switched-off chips; a scope never touched starts at the defaults */
+function useOff() {
+  const k = String(V.scope);
+  V.off = V.offs[k] ? new Set(V.offs[k]) : defaultOff(V.P);
+}
+function renderScope() {
+  const el = $("vibeScope");
+  el.hidden = V.phases.length < 2;
+  el.innerHTML = [`<span class="v-gl">Prompt for</span><button class="ghost" role="tab" data-i="-1" aria-selected="${V.scope < 0}">Whole set</button>`,
+    ...V.phases.map((p, i) => `<button class="ghost" role="tab" data-i="${i}" aria-selected="${V.scope === i}" title="Tracks ${p.from}–${p.to}">${esc(p.label)}</button>`)].join("");
+}
+export function vibeScope(i) {
+  if (!V) return;
+  V.scope = i >= 0 && i < V.phases.length ? i : -1;
+  scoped();
+  useOff();
+  save();
+  renderScope(); renderRadar(); renderChips(); renderPrompt();
+}
+
 /* app.js → here */
 export function mountVibe(ctx) {
   bind();
-  const P = vibeProfile(ctx.D, ctx.names);
-  V = { ...ctx, P, cur: Math.max(0, ctx.cur || 0) };
+  const Pall = vibeProfile(ctx.D, ctx.names);
+  V = { phases: [], ...ctx, Pall, P: Pall, Ds: ctx.D, cur: Math.max(0, ctx.cur || 0) };
   const saved = restore();
-  V.off = saved ? new Set(saved.off.filter((id) => P.chips.some((c) => c.id === id))) : defaultOff(P);
+  V.scope = saved && saved.scope != null && saved.scope < V.phases.length ? saved.scope : -1;
+  scoped();
+  V.offs = (saved && saved.offs) || {};
+  useOff();
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
   $("vibeExtra").value = V.extra;
-  renderRadar(); renderChips(); renderPrompt();
+  renderScope(); renderRadar(); renderChips(); renderPrompt();
   if (!pending) status(notice);
   notice = "";
   if (pending && pending.action === "save") { pending = null; saveToSpotify(); }

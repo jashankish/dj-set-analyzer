@@ -26,7 +26,7 @@ const SAY = {
   "Synth-pop": "synth-pop", "Nu-Disco": "nu-disco", "Italo-Disco": "italo disco", "Hi NRG": "hi-NRG",
   "EBM": "EBM", "Bass Music": "bass music", "Bassline": "bassline", "Afrobeat": "afrobeats",
 };
-const say = (s) => SAY[s] || s.toLowerCase();
+export const say = (s) => SAY[s] || s.toLowerCase();
 
 /* styles a phone in a loud room over-reports (distortion reads as "hard") */
 const HARSH = new Set(["Hardcore", "Gabber", "Happy Hardcore", "Speedcore", "Breakcore", "Noise",
