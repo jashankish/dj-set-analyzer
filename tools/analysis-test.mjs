@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
-const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
+const { craftProfile, relationClass, mixScore } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -95,6 +95,17 @@ check("long overlapping mixes read as a long blender", craftProfile(blender).sty
 const cutter = { tracks: [], drops: [], transitions: [0, 1, 2, 3].map((i) => mk("Cut", 2, i % 2 ? "Key clash" : "Same key", i % 2 ? false : true)) };
 check("hard cuts read as a quick cutter", craftProfile(cutter).style.id, (id) => id === "cutter");
 check("relationClass sorts key moves", ["Same key", "Mood shift", "Key clash"].map(relationClass), (v) => v.join() === "good,partial,clash");
+const perfect = mk("Bass swap", 16, "Same key", true, { low_dip_db: 12 });
+check("smoothness: same key, same tempo, bass swapped, 16 bars → 100", mixScore(perfect), (s) => s.score === 100 && s.label === "Seamless" && s.notes.length === 0);
+const rough = mk("Blend", 13, "Key clash", false, { bpm_delta: 4, energy_delta: 3.5, low_dip_db: 0 });
+check("smoothness: clash + tempo jump + two bass lines + lurch → bumpy, with every reason", mixScore(rough), (s) => s.score < 55 && s.label === "Bumpy" && s.notes.length === 4);
+check("smoothness: a deliberate drop isn't marked down for its energy jump", mixScore(mk("Into breakdown", 16, "Same key", true, { energy_delta: -4 })).parts.flow, (f) => f === 10);
+check("smoothness: 51 bars counts as on the 48-bar phrase (room-recording slack)", mixScore(mk("Long blend", 51, "Same key", true, { low_dip_db: 9 })).parts.phrase, (p) => p === 15);
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const C = craftProfile(demo(slug));
+  check(`${slug}: smoothness per mix and a mean`, [C.smooth.length, C.stats.smooth], ([n, m]) => n === demo(slug).transitions.length && m >= 0 && m <= 100);
+  check(`${slug}: the roughest mix is a key clash`, C.moments.find((m) => m.what === "Roughest mix"), (m) => m && /keys clash/.test(m.detail));
+}
 check("no transitions, no profile", craftProfile({ tracks: [], transitions: [] }), (v) => v === null);
 
 /* ---------------- mood map (web/js/moodmap.js) */

@@ -23,6 +23,41 @@ export const RELATIONS = ["Same key", "Energy up", "Energy down", "Relative majo
 export const TYPES = ["Long blend", "Blend", "Bass swap", "Double drop", "Breakdown drop", "Into breakdown", "Drop swap", "Cut"];
 const DRAMA = new Set(["Double drop", "Breakdown drop", "Into breakdown", "Drop swap"]);
 
+/* how smooth one transition is, 0–100, from five things a DJ is judged on:
+   key (30), tempo (25), low end (20: one bass line at a time), phrasing (15:
+   a length on 4- or 8-bar phrases) and energy (10: no lurch, unless the type is a
+   deliberate drop or breakdown). Returns the score, a label, the parts and
+   what cost points. It's read from a recording, so it's a close estimate. */
+export function mixScore(m) {
+  const notes = [];
+  const h = m.harmonic || {};
+  const key = h.compatible === true ? 30 : h.compatible === "partial" ? 18 : h.compatible === false ? 4 : 15;
+  if (h.compatible === false) notes.push(`keys clash (${m.key_from} → ${m.key_to})`);
+  else if (h.compatible === "partial") notes.push(`a bolder key move (${h.label.toLowerCase()})`);
+  const d = Math.abs(m.bpm_delta || 0);
+  const tempo = d <= 0.5 ? 25 : 25 * Math.max(0, 1 - (d - 0.5) / 5.5);
+  if (d > 0.5) notes.push(`tempo shifts ${m.bpm_delta > 0 ? "+" : "−"}${d.toFixed(1)} BPM`);
+  const swapped = m.type === "Bass swap" || DRAMA.has(m.type) || (m.low_dip_db || 0) >= 6;
+  const low = swapped ? 20 : m.type === "Cut" ? 14 : 6 + 14 * Math.min(1, (m.low_dip_db || 0) / 6);
+  if (!swapped && m.type !== "Cut") notes.push("both bass lines overlap");
+  let phrase;
+  if (m.type === "Cut") phrase = 12;
+  else if (!m.bars) phrase = 9;
+  else {
+    // bar counts from a room recording are off by a bar or two: short mixes may sit on
+    // 4-bar phrases, longer ones on 8, with 10% (at least 1 bar) of slack
+    const unit = m.bars < 16 ? 4 : 8, near = unit * Math.max(1, Math.round(m.bars / unit));
+    if (m.bars >= 4 && Math.abs(m.bars - near) <= Math.max(1, 0.1 * m.bars)) phrase = 15;
+    else { phrase = m.bars >= 4 ? 9 : 6; notes.push(`about ${m.bars} bars, off the phrase`); }
+  }
+  const e = Math.abs(m.energy_delta || 0);
+  const flow = DRAMA.has(m.type) || e <= 1.5 ? 10 : e <= 3 ? 6 : 3;
+  if (flow < 10) notes.push(`energy ${m.energy_delta > 0 ? "jumps" : "drops"} ${e.toFixed(1)}`);
+  const score = Math.round(key + tempo + low + phrase + flow);
+  const label = score >= 85 ? "Seamless" : score >= 70 ? "Clean" : score >= 55 ? "Rough edges" : "Bumpy";
+  return { score, label, parts: { key, tempo: Math.round(tempo), low: Math.round(low), phrase, flow }, notes };
+}
+
 export function craftProfile(D) {
   const M = D.transitions || [], T = D.tracks || [];
   const n = M.length;
@@ -44,11 +79,14 @@ export function craftProfile(D) {
   const medBars = median(M.map((m) => m.bars));
   const medDur = median(M.map((m) => m.duration));
   const cont = median(M.map((m) => m.style_continuity));
+  const smooth = M.map(mixScore);
+  const avgSmooth = Math.round(smooth.reduce((a, x) => a + x.score, 0) / n);
 
   const stats = {
     mixes: n, medBars, medDur, harmonicPct: pct(good, known.length), partialPct: pct(partial, known.length), clashPct: pct(clash, known.length),
     bassPct: pct(bass, n), dramaPct: pct(drama, n), cutPct: pct(cuts, n), longPct: pct(longs, n),
     tempoMoves: moved, maxBpmDelta: maxBpm, ups, downs, continuity: cont,
+    smooth: avgSmooth, smoothLabel: avgSmooth >= 85 ? "Seamless" : avgSmooth >= 70 ? "Clean" : avgSmooth >= 55 ? "Rough edges" : "Bumpy",
   };
 
   /* archetypes: each scores 0–1+ from the evidence; the best one names the style */
@@ -93,7 +131,13 @@ export function craftProfile(D) {
   const tm = best((m) => Math.abs(m.bpm_delta || 0));
   if (Math.abs(M[tm].bpm_delta || 0) >= 2) add(tm, "Biggest tempo move", `${M[tm].bpm_delta > 0 ? "+" : ""}${M[tm].bpm_delta.toFixed(1)} BPM`);
 
-  return { stats, style, relations, types, moments };
+  const sm = best((m) => mixScore(m).score), rough = best((m) => -mixScore(m).score);
+  if (smooth[sm].score > smooth[rough].score) {
+    add(sm, "Smoothest mix", `smoothness ${smooth[sm].score}`);
+    add(rough, "Roughest mix", `smoothness ${smooth[rough].score}: ${smooth[rough].notes.slice(0, 2).join(", ") || "small slips"}`);
+  }
+
+  return { stats, style, relations, types, moments, smooth };
 }
 
 /* how a key move is judged, for colouring and legends */

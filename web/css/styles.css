@@ -310,7 +310,7 @@ button { font-family: inherit; color: inherit; }
 .cv-k { margin: 0; color: var(--faint); font-size: .74rem; font-stretch: 85%; text-transform: uppercase; letter-spacing: .06em; }
 .cv-name { margin: 2px 0 6px; font-size: 1.9rem; font-weight: 850; font-stretch: 118%; line-height: 1.05; letter-spacing: -.01em; }
 .cv-line { margin: 0; color: var(--ink-2); font-size: .92rem; max-width: 52ch; }
-.craft-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; margin: 0; background: var(--line-soft); border-radius: var(--r-m); overflow: hidden; }
+.craft-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; margin: 0; background: var(--line-soft); border-radius: var(--r-m); overflow: hidden; }
 .craft-stats div { background: var(--panel); padding: 10px 12px; }
 .craft-stats dt { color: var(--muted); font-size: .74rem; font-stretch: 85%; }
 .craft-stats dd { margin: 2px 0 0; font-size: 1.5rem; font-weight: 600; font-stretch: 70%; line-height: 1.05; }
@@ -610,6 +610,7 @@ button { font-family: inherit; color: inherit; }
   .journey { grid-template-columns: 1fr; }
   .v-body { grid-template-columns: 1fr; }
   .craft-top { grid-template-columns: 1fr; gap: 18px; }
+  .craft-stats { grid-template-columns: repeat(3, 1fr); }
   .moodmap { grid-template-columns: 1fr; }
   .mm-box { max-width: 460px; }
   .mm-side { padding-top: 0; }

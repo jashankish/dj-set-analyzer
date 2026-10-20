@@ -14,7 +14,7 @@ import { compareSets, mergePayloads } from "./compare.js";
 import { buildPrompt, AXES } from "./vibe.js";
 import { findPhases, slicePayload } from "./phases.js";
 import { vibeProfile } from "./vibe.js";
-import { craftProfile, relationClass } from "./craft.js";
+import { craftProfile, relationClass, mixScore } from "./craft.js";
 import { moodMap, QUADS } from "./moodmap.js";
 
 (function () {
@@ -869,9 +869,11 @@ import { moodMap, QUADS } from "./moodmap.js";
       ["Energy", `${A.energy.toFixed(1)} → ${B.energy.toFixed(1)} <small>${m.energy_delta > 0 ? "+" : ""}${m.energy_delta}</small>`],
       ["Low-end dip", `${m.low_dip_db > 0 ? Math.round(m.low_dip_db) : 0} dB`],
       ["Shared sound", `${Math.round(m.style_continuity * 100)}%`],
+      ["Smoothness", `${mixScore(m).score} <small>${mixScore(m).label.toLowerCase()}</small>`],
     ];
     $("mixStats").innerHTML = stats.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
-    $("mixNote").textContent = mixSentence(m, A, B);
+    const sc = mixScore(m);
+    $("mixNote").textContent = `${mixSentence(m, A, B)} Smoothness ${sc.score} of 100${sc.notes.length ? `; points lost for ${sc.notes.join(", ")}` : ", a clean hand-over on every count"}.`;
     document.querySelectorAll(".seam").forEach((el) => el.classList.toggle("sel", +el.dataset.m === S.mix));
     markCraft();
     drawMix();
@@ -1129,6 +1131,7 @@ import { moodMap, QUADS } from "./moodmap.js";
       ["Bass swaps", `${st.bassPct}%`, "of mixes"],
       ["Tempo moves", String(st.tempoMoves), st.maxBpmDelta ? `max ±${st.maxBpmDelta.toFixed(1)} BPM` : "none"],
       ["Lifts / drops", `${st.ups} / ${st.downs}`, "energy ±1 or more"],
+      ["Smoothness", `${st.smooth}`, `${st.smoothLabel.toLowerCase()}, mean of 100`],
     ];
     $("craftStats").innerHTML = tiles.map(([k, v, sub]) => `<div><dt>${k}</dt><dd>${v}${sub ? `<small>${sub}</small>` : ""}</dd></div>`).join("");
     // columns: height ∝ √bars so a 64-bar blend doesn't flatten the 8-bar swaps
@@ -1146,7 +1149,7 @@ import { moodMap, QUADS } from "./moodmap.js";
         const r = cols.getBoundingClientRect(), c = el.getBoundingClientRect();
         showTip(tip, c.left - r.left + c.width / 2, r.width,
           `<span class="t-time">Mix ${j + 1} · ${fmt(m.swap)}</span><span class="t-title">${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span>` +
-          `<span class="t-meta">${esc(m.type)} · ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)} · ${esc(m.key_from || "?")} → ${esc(m.key_to || "?")} ${esc(m.harmonic.label.toLowerCase())}${m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : ""}</span>`, 4);
+          `<span class="t-meta">${esc(m.type)} · ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)} · ${esc(m.key_from || "?")} → ${esc(m.key_to || "?")} ${esc(m.harmonic.label.toLowerCase())}${m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : ""} · smoothness ${C.smooth[j].score}</span>`, 4);
       });
       el.addEventListener("pointerleave", () => (tip.hidden = true));
       el.addEventListener("click", () => { selectMix(j, true); playMix(); });
