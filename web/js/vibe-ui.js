@@ -13,7 +13,26 @@ import * as spotify from "./spotify.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const R = 112;                                   // radar radius in viewBox units
-const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Labels", "Era", "Flow", "Length"];
+const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Tracks", "Labels", "Era", "Flow", "Avoid", "Length"];
+
+/* where the prompt goes. Every service builds its own playlist from the text;
+   only Spotify can also take a saved playlist from this page. */
+const TARGETS = [
+  { id: "spotify", name: "Spotify", open: "https://open.spotify.com/", where: "Prompted Playlist in Spotify",
+    steps: ["Copy the prompt.", "In the Spotify app, tap <b>Create</b> (+), then <b>Prompted Playlist</b> (Premium; English; in the US, Canada, the UK, Ireland, Australia, New Zealand and Sweden).",
+      "Paste, then refine it there. <b>Save the set to Spotify</b> also gives you the set's own named tracks as a playlist, with the keywords as its description."] },
+  { id: "youtube", name: "YouTube Music", open: "https://music.youtube.com/", where: "YouTube Music's AI playlist",
+    steps: ["Copy the prompt.", "In the YouTube Music app, open <b>Library</b>, tap <b>New</b>, then choose the <b>AI playlist</b> option (Premium, in the US and some other markets).", "Paste it, then adjust the playlist there."] },
+  { id: "apple", name: "Apple Music", open: "https://music.apple.com/", where: "Playlist Playground in Apple Music",
+    steps: ["Copy the prompt.", "In Apple Music, open <b>Playlist Playground</b>. It's in beta, so it may not be on your device yet.", "Paste it, then refine the playlist there."] },
+  { id: "deezer", name: "Deezer", open: "https://www.deezer.com/", where: "Deezer's Playlist with AI",
+    steps: ["Copy the prompt.", "In Deezer, start a <b>Playlist with AI</b> (a beta, open to some subscribers).", "Paste it, then refine the playlist there."] },
+  { id: "chat", name: "Any AI chat", open: null, where: "your AI assistant",
+    steps: ["Copy the prompt. This version asks for a numbered list of <i>Artist – Title</i>, real released tracks only.", "Paste it into any AI assistant.", "Look the tracks up in your music app, or ask the assistant to make the list into a playlist for you."] },
+];
+const K_TARGET = "set-replay:vibe-target";
+let target = TARGETS[0];
+try { target = TARGETS.find((t) => t.id === localStorage.getItem(K_TARGET)) || TARGETS[0]; } catch (e) { /* private mode */ }
 
 let V = null;      // { D, phases, scope, Ds, P, Pall, offs, off, extra, form, names, title, cur, keyColor, toast }
 
@@ -104,7 +123,22 @@ function renderChips() {
       `<button class="chip" data-id="${esc(c.id)}" aria-pressed="${!off.has(c.id)}"${c.hint ? ` title="${esc(c.hint)}"` : ""}>${esc(c.text)}</button>`).join("")}</div>`).join("");
 }
 
-function prompt() { return buildPrompt(V.P, V.off, V.extra); }
+function prompt() {
+  const p = buildPrompt(V.P, V.off, V.extra);
+  if (target.id !== "chat") return p;
+  const ask = `Make me a playlist of about ${V.P.songs} songs, as a numbered list of "Artist – Title", using only real, released tracks.`;
+  return { full: `${ask} ${p.full}`, short: `${ask} Keywords: ${p.short}` };
+}
+function renderTarget() {
+  $("vibeTarget").innerHTML = `<span class="v-gl">Send to</span>` + TARGETS.map((t) =>
+    `<button class="ghost" role="tab" data-t="${t.id}" aria-selected="${t === target}">${t.name}</button>`).join("");
+  const open = $("vibeOpen");
+  open.hidden = !target.open;
+  if (target.open) { open.href = target.open; open.textContent = `Open ${target.name}`; }
+  $("vibeSave").hidden = target.id !== "spotify";
+  $("vibeConnect").hidden = target.id !== "spotify" || !!spotify.hostClientId();
+  $("vibeHow").innerHTML = target.steps.map((s) => `<li>${s}</li>`).join("");
+}
 function renderPrompt() {
   const p = prompt(), text = V.form === "short" ? p.short : p.full;
   $("vibePrompt").value = text;
@@ -122,7 +156,7 @@ async function copyText(text) {
 export async function copyPrompt() {
   if (!V) return;
   const ok = await copyText($("vibePrompt").value);
-  V.toast(ok ? "Prompt copied. Paste it into Prompted Playlist in Spotify" : "Select the prompt and copy it");
+  V.toast(ok ? `Prompt copied. Paste it into ${target.where}` : "Select the prompt and copy it");
 }
 
 /* ------------------------------------------------ Spotify */
@@ -201,7 +235,14 @@ function bind() {
   $("vibeExtra").addEventListener("input", () => { V.extra = $("vibeExtra").value; save(); renderPrompt(); });
   $("vibePrompt").addEventListener("input", () => ($("vibeCount").textContent = `${$("vibePrompt").value.length} characters`));
   $("vibeCopy").addEventListener("click", copyPrompt);
-  $("vibeOpen").addEventListener("click", () => { copyText($("vibePrompt").value).then((ok) => ok && V.toast("Prompt copied. Paste it into Prompted Playlist")); });
+  $("vibeOpen").addEventListener("click", () => { copyText($("vibePrompt").value).then((ok) => ok && V.toast(`Prompt copied. Paste it into ${target.where}`)); });
+  $("vibeTarget").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    target = TARGETS.find((t) => t.id === b.dataset.t) || TARGETS[0];
+    try { localStorage.setItem(K_TARGET, target.id); } catch (err) { /* private mode */ }
+    renderTarget(); renderPrompt();
+  });
   $("vibeReset").addEventListener("click", () => { V.off = defaultOff(V.P); delete V.offs[V.scope]; V.extra = ""; $("vibeExtra").value = ""; save(); renderChips(); renderPrompt(); });
   $("vibeSave").addEventListener("click", saveToSpotify);
   $("vibeUri").textContent = spotify.redirectUri();
@@ -211,7 +252,7 @@ function bind() {
     spotify.setOwnClientId($("vibeClientId").value);
     status($("vibeClientId").value.trim() ? "Client ID saved in this browser. Now press <b>Save the set to Spotify</b>." : "Client ID removed.");
   });
-  if (spotify.hostClientId()) $("vibeConnect").hidden = true;
+
 }
 
 /* the part of the set the prompt is about: the whole set (-1) or one chapter */
@@ -264,10 +305,10 @@ export function mountVibe(ctx) {
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
   $("vibeExtra").value = V.extra;
-  renderScope(); renderRadar(); renderChips(); renderPrompt();
+  renderTarget(); renderScope(); renderRadar(); renderChips(); renderPrompt();
   if (!pending) status(notice);
   notice = "";
-  if (pending && pending.action === "save") { pending = null; saveToSpotify(); }
+  if (pending && pending.action === "save") { pending = null; target = TARGETS[0]; renderTarget(); saveToSpotify(); }
 }
 export function vibeTrack(i) {
   if (!V || i === V.cur) return;

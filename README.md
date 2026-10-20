@@ -88,7 +88,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
-| **Take the vibe to Spotify** | A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, labels, era, flow, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
+| **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
 
@@ -425,7 +425,19 @@ writes that description for you, from what the analysis measured, in the
 section **Take the vibe to Spotify**.
 
 **Using it:** press **Copy prompt** (or `C`). In the Spotify app, tap
-**Create** (+), then **Prompted Playlist**, and paste. Switch off any
+**Create** (+), then **Prompted Playlist**, and paste.
+
+**Other services.** *Send to* picks where the prompt goes; each choice
+changes the steps shown, the *Open* button and the copy message, and is
+remembered in this browser:
+
+| Send to | Where to paste | Notes |
+| --- | --- | --- |
+| Spotify | Create → Prompted Playlist | Premium. Only target with **Save the set to Spotify** |
+| YouTube Music | Library → New → AI playlist | Premium, US and some other markets (launched February 2026) |
+| Apple Music | Playlist Playground | In beta |
+| Deezer | Playlist with AI | Beta, open to some subscribers |
+| Any AI chat | Any assistant | The prompt is prefixed with a request for a numbered *Artist – Title* list of about N real tracks (N ≈ set length ÷ 3.5 min) | Switch off any
 keyword chip that doesn't fit before copying, or add your own direction
 ("for a late-night drive"). *Keywords only* gives a one-line version under
 300 characters, which also suits the older AI Playlist and other services'
@@ -458,6 +470,17 @@ Node by `tools/analysis-test.mjs`):
   usually room noise matched to library music). Lead artists count 1,
   co-artists 0.7, remixers 0.9, names in crowded credits 0.5. Names you
   type as `Artist – Title` count fully.
+- **Tracks** to start from: the two (of three offered) named tracks with
+  the most trusted match and the most playing time, as "Wildfire by Sub
+  Focus". AI playlist makers steer hardest on song references, so these
+  carry the set's taste better than any adjective.
+- **Avoid**, measured from what the set is *not*, so the playlist doesn't
+  drift: *tracks under N BPM* (N = the set's slowest tempo less ~6, when the
+  tempo stays within 12 BPM), *cheesy chart-pop* (brightness ≤ 25%),
+  *vocal-led pop* (vocals under 35%), *harsh, aggressive tracks*
+  (aggression ≤ 15%). Hard styles the model heard but the evidence didn't
+  back are offered too, switched off. The full prompt says "Leave out …",
+  the short one "no …".
 - **Labels** that recur (e.g. RAM Records, Positiva), the **era** of the
   trusted releases, and the **flow**: the energy arc over the set's thirds,
   phrased as an ordering instruction ("start strong, breathe in the middle,

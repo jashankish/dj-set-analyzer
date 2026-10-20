@@ -435,7 +435,7 @@ button { font-family: inherit; color: inherit; }
 .v-prompt { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .v-chips { display: flex; flex-direction: column; gap: 8px; }
 .v-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.v-gl { width: 64px; flex: none; color: var(--faint); font-size: .74rem; font-stretch: 85%; text-transform: uppercase; letter-spacing: .06em; }
+.v-gl { width: 84px; flex: none; color: var(--faint); font-size: .74rem; font-stretch: 85%; text-transform: uppercase; letter-spacing: .06em; }
 .chip {
   background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px;
   font-size: .82rem; font-stretch: 90%; cursor: pointer; color: var(--faint); text-decoration: line-through; text-decoration-color: var(--faint);

@@ -130,6 +130,8 @@ export function vibeProfile(D, names = {}) {
   const ranked = Object.values(cand).sort((a, b) => b.score - a.score);
   const top = ranked.length ? ranked[0].score : 0;
   const genres = ranked.filter((g, i) => i < 4 && g.score >= 0.45 * top && g.score > 0.02);
+  // hard styles the model heard but the evidence didn't back: offered (off) as things to avoid
+  const ruledOut = ranked.filter((g) => g.harsh < 1 && !genres.includes(g) && g.share >= 0.05).map((g) => say(g.style));
   const textures = (s.styles || []).filter((x) => TEXTURE[x.style] && x.share >= 0.07).map((x) => TEXTURE[x.style]);
 
   /* ---------- the feel: duration-weighted fingerprint */
@@ -160,6 +162,10 @@ export function vibeProfile(D, names = {}) {
     if (m.length > 1) artistsOf("", m[0]).forEach((w, a) => bump(a, w));
   });
   const artists = [...credit.entries()].filter(([, w]) => w >= 0.45).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([a]) => a);
+  const anchors = named.filter((t) => W.get(t) >= 0.6)
+    .map((t) => ({ t, w: W.get(t) * Math.max(1, t.end - t.start) }))
+    .sort((a, b) => b.w - a.w).slice(0, 3)
+    .map(({ t }) => `${t.title.replace(/\s*[([](feat|ft|with|extended|original|radio|edit|remaster)[^)\]]*[)\]]/gi, "").trim()} by ${t.artist.split(/\s*(?:,|&|feat\.?|ft\.?)\s*/i)[0]}`);
   const labelW = new Map();
   named.forEach((t) => t.meta && t.meta.label && labelW.set(t.meta.label, (labelW.get(t.meta.label) || 0) + W.get(t)));
   const labels = [...labelW.entries()].filter(([, w]) => w >= 1.4).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([l]) => l);
@@ -206,12 +212,20 @@ export function vibeProfile(D, names = {}) {
   if (D.drops && mins && D.drops.length / mins >= 0.4) chip("s:drops", "Sound", "big drops");
   artists.forEach((a, i) => chip(`a:${a}`, "Artists", a, i < 5));
   labels.forEach((l) => chip(`l:${l}`, "Labels", l));
+  anchors.forEach((a, i) => chip(`k:${a}`, "Tracks", a, i < 2, "A named track from the set, for the AI to start from"));
   if (era) chip("e:era", "Era", era.chip, true, era.say);
   chip("f:flow", "Flow", flow.chip, true, flow.say);
   const songs = Math.max(15, Math.min(50, Math.round(mins / 3.5)));
   chip("n:len", "Length", `about ${songs} songs`, false);
 
-  return { title: D.title, bpm, axes: ax, trackAxes: TA, arc, flow, era, artists, labels, genres, textures, chips };
+  /* what the set is not, so the playlist doesn't drift */
+  if (bpm && spread < 12) chip("x:slow", "Avoid", `tracks under ${Math.round(((s.bpm_min || bpm) - 6) / 5) * 5} BPM`, true, `the set never drops below ${Math.round(s.bpm_min || bpm)} BPM`);
+  if (ax.happy <= 0.25) chip("x:cheese", "Avoid", "cheesy chart-pop", true, `brightness is only ${Math.round(ax.happy * 100)}%`);
+  if (ax.vocal < 0.35) chip("x:vocal", "Avoid", "vocal-led pop", true, `vocals heard in ${Math.round(ax.vocal * 100)}% of the set`);
+  if (ax.aggr <= 0.15) chip("x:aggr", "Avoid", "harsh, aggressive tracks", true, `aggression is only ${Math.round(ax.aggr * 100)}%`);
+  if (ruledOut.length) chip("x:hard", "Avoid", list(ruledOut.slice(0, 2)), false, "the style model heard these, but tempo and Shazam didn't back them up: switch on if they're wrong for this set");
+
+  return { title: D.title, bpm, songs, anchors, ruledOut, axes: ax, trackAxes: TA, arc, flow, era, artists, labels, genres, textures, chips };
 }
 
 /* default off-set: the chips that start switched off */
@@ -221,6 +235,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
   const live = (g) => P.chips.filter((c) => c.group === g && !off.has(c.id)).map((c) => c.text);
   const one = (id) => { const c = P.chips.find((x) => x.id === id); return c && !off.has(id) ? c : null; };
   const genres = live("Genre"), moods = live("Mood"), sound = live("Sound"), artists = live("Artists"), labels = live("Labels");
+  const songs = live("Tracks"), avoid = live("Avoid");
   const tword = one("t:word") ? one("t:word").text : "", tbpm = one("t:bpm") ? one("t:bpm").text : "";
   const x = String(extra || "").trim();
 
@@ -238,6 +253,8 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
     parts.push(`${a}.`);
   } else if (labels.length) parts.push(`The ${list(labels)} sound${one("e:era") ? `, ${P.era.say}` : ""}.`);
   else if (one("e:era")) parts.push(`${cap(P.era.say)}.`);
+  if (songs.length) parts.push(`Start from songs like ${list(songs)}.`);
+  if (avoid.length) parts.push(`Leave out ${list(avoid)}.`);
   if (one("f:flow")) parts.push(`Order it like a DJ set: ${P.flow.say}.`);
   if (one("n:len")) parts.push(`${cap(one("n:len").text)}.`);
   if (x) parts.push(/[.!?]$/.test(x) ? x : `${x}.`);
@@ -246,6 +263,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
   /* short: keywords only, under Spotify's 300-character description limit */
   let short = [...moods.slice(0, 2), tword, ...genres, tbpm, ...sound.slice(0, 2)].filter(Boolean).join(", ");
   if (artists.length) short += `${short ? ", " : ""}like ${list(artists.slice(0, 4))}`;
+  if (avoid.length) short += `, no ${avoid.join(", no ")}`;
   if (x) short += `, ${x.replace(/[.!?]$/, "")}`;
   if (short.length > 300) short = `${short.slice(0, 299).replace(/,?\s*\S*$/, "")}…`;
   return { full, short };

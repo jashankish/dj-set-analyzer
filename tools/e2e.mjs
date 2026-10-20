@@ -169,12 +169,17 @@ try {
   check("phone: tapping the ribbon moves the playhead", await p3.locator("#tCur").textContent(), (t) => t !== "0:00");
   check("phone: the demo's prompt reads as drum & bass, naming Sub Focus", await p3.locator("#vibePrompt").inputValue(), (t) => t.includes("drum & bass") && t.includes("Sub Focus"));
   await p3.locator('.chip[data-id="a:Sub Focus"]').tap();
-  check("phone: tapping a keyword takes it out of the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => !t.includes("Sub Focus"));
+  check("phone: tapping a keyword takes it out of the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => !t.split("Start from")[0].includes("Sub Focus"));
   await p3.locator("#vibeShort").tap();
   check("phone: keywords-only prompt fits Spotify's 300 characters", (await p3.locator("#vibePrompt").inputValue()).length, (n) => n > 20 && n <= 300);
   check("phone: the mixing breakdown names a style", await p3.locator("#craftName").textContent(), (t) => /^The /.test(t));
   await p3.locator(".cc-col").nth(3).tap();
   check("phone: tapping a mix column opens that mix in the inspector", await p3.locator("#mixTitle").textContent(), (t) => /^Mix 4: /.test(t));
+  await p3.locator('#vibeTarget [data-t="youtube"]').tap();
+  check("phone: sending to YouTube Music relabels Open and hides Save", [await p3.locator("#vibeOpen").textContent(), await p3.locator("#vibeSave").isHidden()], ([t, h]) => t === "Open YouTube Music" && h);
+  await p3.locator('#vibeTarget [data-t="chat"]').tap();
+  check("phone: the AI-chat prompt asks for a track list", await p3.locator("#vibePrompt").inputValue(), (t) => t.startsWith("Make me a playlist of about"));
+  await p3.locator('#vibeTarget [data-t="spotify"]').tap();
   check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
   await p3.locator(".ph-vibe").last().tap();
   check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");

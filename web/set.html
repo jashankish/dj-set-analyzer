@@ -187,7 +187,7 @@
   <section class="vibe" id="vibe" aria-labelledby="vibeH">
     <div class="v-head">
       <h2 class="h2" id="vibeH">Take the vibe to Spotify</h2>
-      <p class="j-sub">The set's sound, written as a prompt for Spotify's Prompted Playlist. Switch keywords off to steer it.</p>
+      <p class="j-sub">The set's sound, written as a prompt for Spotify's Prompted Playlist (or YouTube Music, Apple Music, Deezer or any AI chat). Switch keywords off to steer it.</p>
     </div>
     <div class="v-body">
       <figure class="v-print">
@@ -199,6 +199,7 @@
       <div class="v-prompt">
         <div class="v-scope" id="vibeScope" role="tablist" aria-label="Which part of the set" hidden></div>
         <div class="v-chips" id="vibeChips"></div>
+        <div class="v-scope" id="vibeTarget" role="tablist" aria-label="Where the prompt goes"></div>
         <div class="v-form" role="tablist" aria-label="Prompt length">
           <button class="ghost" role="tab" id="vibeFull" aria-selected="true">Full prompt</button>
           <button class="ghost" role="tab" id="vibeShort" aria-selected="false">Keywords only</button>
@@ -213,11 +214,7 @@
           <button class="ghost" id="vibeReset" title="Switch the keywords back to the defaults">Reset</button>
         </div>
         <p class="v-status" id="vibeStatus" role="status" aria-live="polite"></p>
-        <ol class="v-how">
-          <li>Copy the prompt.</li>
-          <li>In the Spotify app, tap <b>Create</b> (+), then <b>Prompted Playlist</b> (Premium, in English-speaking markets).</li>
-          <li>Paste, then refine it there. <b>Save the set to Spotify</b> also gives you the set's own named tracks as a playlist, with the keywords as its description.</li>
-        </ol>
+        <ol class="v-how" id="vibeHow"></ol>
         <details class="v-connect" id="vibeConnect">
           <summary>Use your own Spotify app</summary>
           <p>Saving to Spotify needs a Spotify app's Client ID. Make one free at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> (choose <i>Web API</i>), add this exact Redirect URI, then paste the Client ID here. It stays in this browser.</p>

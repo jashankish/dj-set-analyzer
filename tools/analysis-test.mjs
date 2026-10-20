@@ -33,6 +33,11 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: one radar outline per track`, P.trackAxes.length, (n) => n === demo(slug).tracks.length);
   check(`${slug}: short prompt ≤ 300 characters`, short.length, (n) => n > 20 && n <= 300);
   check(`${slug}: full prompt asks for DJ-set ordering`, full, (t) => t.includes("Order it like a DJ set"));
+  check(`${slug}: anchors on two trusted named tracks`, P.chips.filter((c) => c.group === "Tracks" && c.on).map((c) => c.text), (t) => t.length === 2 && t.every((x) => / by /.test(x) && !/\((Edit|Extended)/i.test(x)));
+  check(`${slug}: full prompt names its anchor songs`, full, (t) => /Start from songs like .+ by /.test(t));
+  check(`${slug}: keeps the tempo floor (nothing under 170 BPM)`, full, (t) => t.includes("Leave out tracks under 170 BPM"));
+  check(`${slug}: short prompt words the avoids as "no …"`, short, (t) => t.includes("no tracks under 170 BPM") && !t.includes("no anything"));
+  check(`${slug}: a discounted hard style is offered to avoid, but off`, P.chips.filter((c) => c.id === "x:hard").map((c) => c.on), (v) => v.length === 1 && v[0] === false);
   const off = defaultOff(P);
   off.add("f:flow"); off.add("g:Drum n Bass");
   const p2 = buildPrompt(P, off, "for a late-night drive");
