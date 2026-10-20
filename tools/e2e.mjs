@@ -6,7 +6,7 @@
 
    Serves dist/set-replay/ from a sub-folder on a tiny static server, opens the
    landing page, gives the file input the synthetic set (tools/synth.mjs),
-   presses Analyse, waits for the result page and checks it, then exercises
+   presses Analyze, waits for the result page and checks it, then exercises
    play/pause, Space, the mix inspector, download + import and two-click delete,
    and finally naming through a stand-in naming helper with known answers. Uses Playwright's
    Chromium (npx playwright install chromium), or with --chrome your installed
@@ -85,7 +85,7 @@ try {
   await page.setInputFiles("#fileInput", wav);
   await page.waitForSelector(".q-item");
   check("queue shows the file", await page.locator(".q-name b").first().textContent(), (t) => t === "set-replay-e2e.wav");
-  await page.click("#analyseBtn");
+  await page.click("#analyzeBtn");
   await page.waitForURL(/set\.html\?id=/, { timeout: 240000 });
   await page.waitForSelector(".trk");
   const story = await page.locator("#story").textContent();
@@ -242,7 +242,7 @@ try {
   await p2.waitForSelector("#nameTracks", { timeout: 10000 });
   check("naming bar finds the helper", await p2.locator("#naming").textContent(), (t) => /connected/i.test(t));
   await p2.setInputFiles("#fileInput", wav);
-  await p2.click("#analyseBtn");
+  await p2.click("#analyzeBtn");
   await p2.waitForURL(/set\.html\?id=/, { timeout: 240000 });
   await p2.waitForSelector(".trk");
   check("the helper was asked once per probe", asked, (n) => n === probeTimes.length);

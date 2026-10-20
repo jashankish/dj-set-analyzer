@@ -49,7 +49,7 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: switching chips off removes them`, p2.full, (t) => !t.includes("drum & bass") && !t.includes("Order it like") && !t.includes("Let the mood"));
   check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
 }
-check("part 2: hardcore (a room-noise artefact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
+check("part 2: hardcore (a room-noise artifact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
 
 /* ---------------- how typical each track is (vibe.trackFit) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {

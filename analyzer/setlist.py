@@ -34,7 +34,7 @@ def novelty(emb_t, emb, duration):
     cnt = np.zeros(nb)
     np.add.at(E, idx, emb)
     np.add.at(cnt, idx, 1)
-    # fill empty bins from neighbours
+    # fill empty bins from neighbors
     for i in range(nb):
         if cnt[i] == 0 and i > 0:
             E[i] = E[i - 1]

@@ -7,7 +7,7 @@
    first, then by title and artist) and put the vibe prompt in its
    description, ready to grow in the Spotify app.
 
-   Authorisation is OAuth 2 with PKCE, entirely in the browser: no secret,
+   Authorization is OAuth 2 with PKCE, entirely in the browser: no secret,
    no server. It needs a Spotify app's Client ID, from either
      <meta name="set-replay-spotify-client-id" content="…">  (the host's app), or
      the visitor's own app, pasted on the page (kept in localStorage).

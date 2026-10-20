@@ -7,7 +7,7 @@
      least within-phase spread; K is chosen where one more phase stops
      paying for itself (a penalty per phase), and no phase may be shorter
      than max(2.5 min, 10% of the set).
-   Each phase is then named from its energy against its neighbours and
+   Each phase is then named from its energy against its neighbors and
    its place in the set, and measured (tempo, energy, styles, moods, keys).
    No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */

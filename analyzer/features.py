@@ -42,7 +42,7 @@ def band_energy(y, sr, fps=8):
     masks = {k: (freqs >= lo) & (freqs < hi) for k, (lo, hi) in BANDS.items()}
     n_frames = max(1, (len(y) - n_fft) // hop + 1)
     out = {k: np.zeros(n_frames, np.float32) for k in list(BANDS) + ["rms"]}
-    block = 2048  # frames per vectorised block, keeps memory bounded
+    block = 2048  # frames per vectorized block, keeps memory bounded
     for b0 in range(0, n_frames, block):
         b1 = min(n_frames, b0 + block)
         idx = (np.arange(b0, b1) * hop)[:, None] + np.arange(n_fft)[None, :]

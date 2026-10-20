@@ -39,7 +39,7 @@ There are two ways to run it, and both produce the same JSON:
 10. [The data format](#the-data-format)
 11. [The web app](#the-web-app)
 12. [Accuracy and limits](#accuracy-and-limits)
-13. [Costs and licences](#costs-and-licences)
+13. [Costs and licenses](#costs-and-licenses)
 14. [Troubleshooting](#troubleshooting)
 15. [Project layout](#project-layout)
 16. [Credits](#credits)
@@ -52,7 +52,7 @@ There are two ways to run it, and both produce the same JSON:
 **The landing page** (`index.html`) has these parts:
 
 - **Drop zone:** a large panel that is itself a waveform of a demo set. Drop
-  one or more recordings (or click to choose them) and press **Analyse**.
+  one or more recordings (or click to choose them) and press **Analyze**.
   Each file shows its progress, and **Stop** cancels the run. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
@@ -60,7 +60,7 @@ There are two ways to run it, and both produce the same JSON:
 - **Naming bar:** under the drop zone. Without the naming helper it reads
   *Tracks will show as IDs. Want them named?* and opens the setup pop-up.
   With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
-- **Your sets:** everything analysed in this browser, with key-coloured
+- **Your sets:** everything analyzed in this browser, with key-colored
   strips. Hover a card to delete it. Deleting also removes the saved
   recording, so it takes a second click ("Click again to delete"). The
   heading shows how much browser storage the library uses (each set keeps
@@ -73,24 +73,24 @@ There are two ways to run it, and both produce the same JSON:
   short FAQ.
 
 **The set page** (`set.html`) is the replay. Pick a set from the row at the
-top; its colour swatches are the set's track keys in order. Then:
+top; its color swatches are the set's track keys in order. Then:
 
 | Part of the page | What it shows | What you can do |
 | --- | --- | --- |
-| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser). **Set card** (or `K`) opens a shareable 1080 × 1350 image of the set: title and facts, the energy arc in key colours with its chapters, the vibe radar, mixing style, home key, mood route, keyword chips and the short playlist prompt. **Download PNG**, or **Share…** where the browser can share files (phones). It uses your title and the whole-set chips you left on |
-| **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's colour on the Camelot wheel**. Colours cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterwards) is greyed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
-| **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
+| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser). **Set card** (or `K`) opens a shareable 1080 × 1350 image of the set: title and facts, the energy arc in key colors with its chapters, the vibe radar, mixing style, home key, mood route, keyword chips and the short playlist prompt. **Download PNG**, or **Share…** where the browser can share files (phones). It uses your title and the whole-set chips you left on |
+| **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's color on the Camelot wheel**. Colors cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterward) is grayed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
+| **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyzer, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change, swap time and smoothness (◦ out of 100) | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, the mix's **smoothness** out of 100, and a description that ends with what cost it points. Below 85, **How it could be smoother** gives a DJ's fixes: for a key clash the bridging keys (Camelot keys next to both) or, if none, the shortest in-key route around the wheel ("via 4A, 5A, 6A, 7A"), naming tracks from this set in those keys; riding the pitch for a tempo gap; cutting the outgoing lows when bass lines overlap; starting on a phrase; going through a breakdown when the energy lurches | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
-| **How it was mixed** | The DJ's **mixing style**, one of six archetypes (the long blender, the technician, the drop architect, the quick cutter, the key purist, the selector) with the evidence in a sentence; tiles for the median mix length, share in key, share of bass swaps, tempo moves, energy lifts vs. drops and mean **smoothness**; a **mix timeline** where every transition is a column (height = length in bars on a √ scale with 8/16/32-bar guides, a gradient from the outgoing to the incoming track's key colour, dashed outline for a key clash); counts of **key moves** and **mix types**; and the set's **signature moments** (longest blend, deepest bass swap, biggest lift, boldest key move, biggest tempo move, smoothest and roughest mix). Last, **a smoother running order**: the same tracks re-sequenced to keep more mixes in key with the same energy arc, drawn as a slope chart (as played above, suggested below, key-coloured blocks, white marks on key clashes, lines joining each track's two places, bright when it moved) with before/after counts and the biggest moves | Hover a column for the mix; click a column or a moment to open it in the inspector and hear it. The column of the selected mix is outlined |
-| **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead). Under it, **time in key**: the set's home key and its share, then minutes in each key as key-coloured bars (top six; the rest summed), with the playing key highlighted | Click a dot to play that track; click a key's bar to play the first track in that key |
+| **How it was mixed** | The DJ's **mixing style**, one of six archetypes (the long blender, the technician, the drop architect, the quick cutter, the key purist, the selector) with the evidence in a sentence; tiles for the median mix length, share in key, share of bass swaps, tempo moves, energy lifts vs. drops and mean **smoothness**; a **mix timeline** where every transition is a column (height = length in bars on a √ scale with 8/16/32-bar guides, a gradient from the outgoing to the incoming track's key color, dashed outline for a key clash); counts of **key moves** and **mix types**; and the set's **signature moments** (longest blend, deepest bass swap, biggest lift, boldest key move, biggest tempo move, smoothest and roughest mix). Last, **a smoother running order**: the same tracks re-sequenced to keep more mixes in key with the same energy arc, drawn as a slope chart (as played above, suggested below, key-colored blocks, white marks on key clashes, lines joining each track's two places, bright when it moved) with before/after counts and the biggest moves | Hover a column for the mix; click a column or a moment to open it in the inspector and hear it. The column of the selected mix is outlined |
+| **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead). Under it, **time in key**: the set's home key and its share, then minutes in each key as key-colored bars (top six; the rest summed), with the playing key highlighted | Click a dot to play that track; click a key's bar to play the first track in that key |
 | **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
-| **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
+| **Energy** | The energy arc of the set, filled per track in its key color, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
-| **Mood map** | Every track placed by **brightness** (the *happy* score plus a little for major keys) and **intensity** (energy with the *aggressive* and *party* scores), the valence × arousal map from music-emotion research. Dots are key-coloured and sized by length, numbered, and joined in play order (solid up to the playing track, dotted after). The cross is the set's own median, so the corners (Euphoric, Intense, Warm, Brooding) mean "more than this set's usual": room recordings pull every score to the middle. Beside it: time in each corner, a sentence on the route ("It opens intense, moves through euphoric and ends warm"), and the biggest swing between two tracks | Hover a dot for the track; click a dot (or Enter on it) to play it; **Biggest swing** plays into that change |
-| **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's colour); the biggest differences in words ("Worship Part 1 is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt** |
-| **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
+| **Mood map** | Every track placed by **brightness** (the *happy* score plus a little for major keys) and **intensity** (energy with the *aggressive* and *party* scores), the valence × arousal map from music-emotion research. Dots are key-colored and sized by length, numbered, and joined in play order (solid up to the playing track, dotted after). The cross is the set's own median, so the corners (Euphoric, Intense, Warm, Brooding) mean "more than this set's usual": room recordings pull every score to the middle. Beside it: time in each corner, a sentence on the route ("It opens intense, moves through euphoric and ends warm"), and the biggest swing between two tracks | Hover a dot for the track; click a dot (or Enter on it) to play it; **Biggest swing** plays into that change |
+| **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's color); the biggest differences in words ("Worship Part 1 is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt** |
+| **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's color, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
 
@@ -141,7 +141,7 @@ and a recent Chrome, Edge, Firefox or Safari.
 3. **Open http://localhost:8000** in your browser.
 
 4. **Drop a recording** of a DJ set onto the page (`.mp3`, `.m4a`, `.wav`,
-   `.flac`, `.ogg`, `.aac` …) and press **Analyse**. The first time, the page
+   `.flac`, `.ogg`, `.aac` …) and press **Analyze**. The first time, the page
    downloads its analysis engine and models (about 35 MB), so it needs an
    internet connection; after that they're cached. A 34-minute set takes
    about a minute on a recent laptop.
@@ -156,7 +156,7 @@ start the server and open the page.
 > come from a web server, even a local one like the command above.
 >
 > **Shortcut:** `./run.sh` does the same as step 2 on port 8778, and also
-> shows sets you analysed with the Python pipeline (below).
+> shows sets you analyzed with the Python pipeline (below).
 
 ### On the internet, for free
 
@@ -196,11 +196,11 @@ headers, adding your own analytics tag, and running inside a larger site, see
 
 Two optional extras:
 
-- **Track names.** Out of the box, tracks are labelled **ID** because
+- **Track names.** Out of the box, tracks are labeled **ID** because
   browsers can't ask Shazam directly. To get real names, run the small
   [naming helper](#naming-tracks-with-the-helper) on your computer; the page
   explains how when you click *Name these IDs*.
-- **The Python pipeline** (below) analyses sets from the command line, adds
+- **The Python pipeline** (below) analyzes sets from the command line, adds
   Shazam names directly, and can turn your sets into demos for the landing
   page.
 
@@ -214,7 +214,7 @@ cd dj-set-analyzer
 python3.12 -m venv venv
 venv/bin/pip install -r requirements.txt
 
-# analyse every recording in this folder
+# analyze every recording in this folder
 # (the ONNX models download on the first run, ~19 MB, no account needed)
 venv/bin/python analyzer/analyze.py --all
 
@@ -285,7 +285,7 @@ relative.
    `window.SET_REPLAY_ASSETS = { essentiaWasm, essentiaCore, ort, ortWasmPath, models }`
    in a script before `js/landing.js` runs. Each library entry may be one URL
    or a list tried in order; `ortWasmPath[i]` pairs with `ort[i]`.
-5. **Demos.** Analyse sets with the Python pipeline, then run:
+5. **Demos.** Analyze sets with the Python pipeline, then run:
 
    ```bash
    venv/bin/python tools/make_demos.py recording-9:worship-part-1 recording-10:worship-part-2
@@ -374,8 +374,8 @@ log errors and, with Chrome's local-network-access prompts, could ask them
 for a permission they have no reason to give.
 
 After that, new analyses name tracks automatically; there's a *Name tracks
-with Shazam* checkbox to switch it off. Sets already analysed get a *Name
-these IDs* button, which re-analyses the stored recording with names and
+with Shazam* checkbox to switch it off. Sets already analyzed get a *Name
+these IDs* button, which re-analyzes the stored recording with names and
 replaces the set.
 
 **How it works**
@@ -392,7 +392,7 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   to `127.0.0.1`, and only fingerprints go to Shazam, exactly as with the
   Python pipeline.
 - **Helper endpoints:** `GET /health` and `POST /identify` (an audio file of
-  up to 8 MB). Lookups are serialised and paced 0.6 s apart, with a 25 s
+  up to 8 MB). Lookups are serialized and paced 0.6 s apart, with a 25 s
   timeout. The helper listens only on `127.0.0.1`.
 - **Permissions:** it answers CORS and Chrome's *Private Network Access*
   preflight (`Access-Control-Allow-Private-Network: true`), so a public https
@@ -562,7 +562,7 @@ visitors bring their own app as above. Calls use the 2026 endpoints
 
 | Option | What it does |
 | --- | --- |
-| `--all` | Analyse every audio file in the project folder |
+| `--all` | Analyze every audio file in the project folder |
 | `--title "…"` | Display title. It's saved to `output/<set>/meta.json` and reused on later runs, including `--all` |
 | `--offline` | Send nothing to Shazam. Uses any probes already cached; otherwise tracks come from the audio alone (all shown as **ID**) |
 | `--bpm-range 160-190` | Fold every tempo into this range, as DJ software does. Default: automatic, style-aware octave choice (see [Tempo](#4-tempo-and-the-octave-problem)) |
@@ -725,7 +725,7 @@ When styles are shown, `music.fuse_styles` multiplies each activation by its
 - a Gaussian falloff (σ = 6 BPM, floor 0.03) outside it
 - 0.15 for styles with no known range
 
-The result is renormalised. This sharpens the styles a great deal on noisy
+The result is renormalized. This sharpens the styles a great deal on noisy
 room audio.
 
 ### 6. Track identification (`identify.py`, Shazam via shazamio)
@@ -743,7 +743,7 @@ room audio.
   After **3 failed probes in a row** (Shazam rate-limiting), probing stops and
   the run continues with what's cached; re-run later to fill the gaps.
 - **Cover art** is downloaded once into `web/data/art/`, so the app works
-  offline afterwards.
+  offline afterward.
 
 ### 7. Where the set is (`setlist.music_span`)
 
@@ -757,21 +757,21 @@ level (its 90th percentile).
 - **Start:** the mirror-image rule.
 
 Track segmentation, energy scaling, drops, Shazam probing and averages all
-use this span. The page greys out the rest.
+use this span. The page grays out the rest.
 
 ### 8. Novelty: where the music changes (`setlist.novelty`)
 
-EffNet embeddings are averaged into 2 s bins and L2-normalised. A cosine
+EffNet embeddings are averaged into 2 s bins and L2-normalized. A cosine
 self-similarity matrix is built from them, and a **Foote checkerboard kernel**
 (±24 s with Gaussian taper) slides along its diagonal. The result is a novelty
-curve, normalised to its 99.5th percentile, that peaks where the music changes
+curve, normalized to its 99.5th percentile, that peaks where the music changes
 character, which is usually a track change.
 
 ### 9. Segmentation into tracks (`setlist.segment`)
 
 1. **Shazam runs.** Consecutive probes that match the same song form a run:
    one played track.
-   - Titles are normalised first, so *Extended Mix*, *Original Mix*,
+   - Titles are normalized first, so *Extended Mix*, *Original Mix*,
      *Radio Edit* and *feat.* credits count as the same song.
    - A lone stray match inside another track (A x A) is dropped.
    - Each run's **start estimate** is the median of `probe time − match
@@ -813,7 +813,7 @@ The **energy curve** (1 Hz) is a weighted sum, smoothed over 8 s:
 
 ### 11. Transitions (`setlist.build`)
 
-For each pair of neighbouring tracks:
+For each pair of neighboring tracks:
 
 - **Swap:** the boundary from step 9.
 - **Mix in:** the incoming track's Shazam start estimate, if it lies within
@@ -829,7 +829,7 @@ first rule that matches wins:
 | Type | Rule |
 | --- | --- |
 | Cut | Mix shorter than 8 s |
-| Into breakdown | Low end afterwards is more than 12 dB below before (the mix lands in the new track's stripped-back section) |
+| Into breakdown | Low end afterward is more than 12 dB below before (the mix lands in the new track's stripped-back section) |
 | Drop swap | Low end before is more than 12 dB below after (the new track's drop arrives at the swap) |
 | Breakdown drop | The low end stays more than 10 dB down for at least 6 s within ±16 s of the swap |
 | Bass swap | A brief low-end dip of at least 8 dB at the swap (one bassline out, the other in) |
@@ -882,7 +882,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 
 | File | Role |
 | --- | --- |
-| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz). Browsers that refuse a 16 kHz context (older Safari allows only 22.05 kHz and up) decode at 44.1 kHz instead, and `resample()` brings it to 16 kHz: a 16-tap windowed-sinc filter with an anti-aliasing cutoff, about 0.2 s per 10 minutes of audio. On Recording 9 that path gives the same tempo and nearly identical track starts. It then plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. The landing page starts this download as soon as files are dropped, before Analyse is pressed, and the analysis reuses it; any caller can follow its progress. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports cancelling (`AbortSignal`), and turns out-of-memory decode failures into readable errors. A worker that crashes mid-run (WebKit has shown WebAssembly "Out of bounds memory access" now and then) is replaced by a fresh one and its range runs once more; only a second crash on the same range fails the analysis, with a clear message. Each range's audio is posted as a copy so it's still there for that retry, and is released once the range is done. A worker that sends nothing for 3 minutes while busy fails the analysis instead of hanging, and the pool is rebuilt for the next file |
+| `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz). Browsers that refuse a 16 kHz context (older Safari allows only 22.05 kHz and up) decode at 44.1 kHz instead, and `resample()` brings it to 16 kHz: a 16-tap windowed-sinc filter with an anti-aliasing cutoff, about 0.2 s per 10 minutes of audio. On Recording 9 that path gives the same tempo and nearly identical track starts. It then plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. The landing page starts this download as soon as files are dropped, before Analyze is pressed, and the analysis reuses it; any caller can follow its progress. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports canceling (`AbortSignal`), and turns out-of-memory decode failures into readable errors. A worker that crashes mid-run (WebKit has shown WebAssembly "Out of bounds memory access" now and then) is replaced by a fresh one and its range runs once more; only a second crash on the same range fails the analysis, with a clear message. Each range's audio is posted as a copy so it's still there for that retry, and is released once the range is done. A worker that sends nothing for 3 minutes while busy fails the analysis instead of hanging, and the pool is rebuilt for the next file |
 | `worker.js` | Loads Essentia.js, ONNX Runtime Web and the models once per worker, then extracts features for ranges |
 | `payload-worker.js` | Builds the set JSON (setlist, transitions, curves) off the main thread, about 0.2 s for a 34-minute set on a laptop and longer on phones, so the page never freezes at the end. The big arrays are transferred, not copied. If no worker can be created, the main thread does it |
 | `extract.js` | The per-range features. Each lives on a fixed global grid (band frames, tempo windows, key windows, 54 s beat chunks, EffNet patches), and a worker only computes grid items that start inside its range, so the parallel ranges join exactly. The beat tracker assumes 44.1 kHz, so its 60 s chunks are upsampled on the fly |
@@ -925,7 +925,7 @@ Python tempo curve. That is now fixed, with a fresh estimator per window.
 
 **Whole-site test in a real browser.** `bash tools/build-site.sh && node
 tools/e2e.mjs [--chrome]` serves the packaged site from a sub-folder, gives
-the landing page's file input the same synthetic set, presses Analyse and
+the landing page's file input the same synthetic set, presses Analyze and
 waits for the result page. Its 27 checks cover:
 - the story, the track change, the 127–139 BPM tempo range and keys 8A → 7A
 - *Copy tracklist* lists each ID with its key and tempo
@@ -961,13 +961,13 @@ demo sets) with identification off: the browser engine and Python both give
 
 **Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
 recording, from drop to result. Dropping both bundled recordings together
-(34 and 94 minutes) took 254 s, analysed in turn. Long sets scale linearly.
+(34 and 94 minutes) took 254 s, analyzed in turn. Long sets scale linearly.
 
 ---
 
 ## The data format
 
-`web/data/sets.json`: one entry per analysed set, naturally sorted (9 before 10):
+`web/data/sets.json`: one entry per analyzed set, naturally sorted (9 before 10):
 
 ```json
 [{ "slug": "recording-9", "title": "Worship Part 1", "file": "Recording 9.m4a",
@@ -985,7 +985,7 @@ recording, from drop to result. Dropping both bundled recordings together
 | `transitions[]` | `from, to, mix_in, swap, mix_out, duration, bars, type, bpm_from, bpm_to, bpm_delta, key_from, key_to, harmonic{label, compatible}, energy_delta, loudness_delta_db, low_dip_db, low_before_db, low_after_db, breakdown_s, style_continuity, sharpness` |
 | `drops[]` | `t, breakdown_start, breakdown_s, depth_db, impact_db` |
 | `beats[]` | Resolved beat times (s) |
-| `curves.wave` | `low`, `mid`, `high` as 0–99 integers at `wave_fps` (8): per-band normalised over the set, with a 1.4 contrast curve |
+| `curves.wave` | `low`, `mid`, `high` as 0–99 integers at `wave_fps` (8): per-band normalized over the set, with a 1.4 contrast curve |
 | `curves.energy` | 1 Hz, 0–1 |
 | `curves.bpm` | `t`, resolved `v`, `raw` (every 10 s) |
 | `curves.novelty` | Every 2 s |
@@ -1011,7 +1011,7 @@ Checkpoints in `output/<slug>/`:
 
 | URL | Loads |
 | --- | --- |
-| `index.html` | The landing page. Analyses dropped files in place and saves them to IndexedDB (`js/store.js`: one record per set, holding the payload and the original `File` as a Blob) |
+| `index.html` | The landing page. Analyzes dropped files in place and saves them to IndexedDB (`js/store.js`: one record per set, holding the payload and the original `File` as a Blob) |
 | `set.html?id=<id>` | A set from this browser's library, played from its stored Blob |
 | `set.html?demo=<slug>` | A bundled demo from `demo/<slug>.json`. Without audio it runs on a virtual clock, so clicking still moves the playhead |
 | `set.html#<slug>` | The local Python server's output (`data/sets.json` + `/audio/<file>`) |
@@ -1025,7 +1025,7 @@ analyses; and **Delete from this browser**.
 A threaded `http.server` on `127.0.0.1` only, for development and the Python
 pipeline:
 
-- serves `web/` with `Cache-Control: no-store`, so re-analysed data shows up on
+- serves `web/` with `Cache-Control: no-store`, so re-analyzed data shows up on
   reload
 - serves `/audio/<file>` from the project folder, with **HTTP Range** support,
   so the browser can seek instantly in long recordings (including `.m4a` files
@@ -1047,11 +1047,11 @@ pipeline:
     and style and mood rows are `<canvas>`, drawn at device pixel ratio.
   - Waveforms take the per-pixel maximum of each band over the frames that
     pixel covers. That keeps a 94-minute set at 8 fps fast at any zoom level.
-  - Track colours are precomputed per track. `colorAt(t)` interpolates between
-    two tracks' colours inside a mix window, which produces the cross-fades.
+  - Track colors are precomputed per track. `colorAt(t)` interpolates between
+    two tracks' colors inside a mix window, which produces the cross-fades.
 - **Camelot wheel:** inline SVG with 24 ring segments (major keys outer, minor
   inner, 12 at the top). Track dots fan out within their key's segment.
-  Connections between keys far apart on the wheel bend towards the centre, so
+  Connections between keys far apart on the wheel bend toward the center, so
   the path reads as a journey.
 - **Playback sync:** a `requestAnimationFrame` loop updates the playheads,
   current track, live mix selection, loop-a-mix, follow-scroll, beat pulse
@@ -1079,7 +1079,7 @@ pipeline:
   which splits the route polyline at the playing track and rings its dot.
   The route sentence takes the dominant corner (by time) of each third of
   the set; "swings widely" / "small steps" come from the mean step length
-  between consecutive tracks on the normalised map.
+  between consecutive tracks on the normalized map.
 - **How it was mixed:** `renderCraft()` draws from `craft.js`'s
   `craftProfile()`. The timeline is HTML (one `<button>` per mix, height in a
   CSS variable), so each column is focusable and clickable; `selectMix()`
@@ -1101,7 +1101,7 @@ pipeline:
   55+, else *bumpy*. Each lost point comes with a reason, and `mixTips()`
   turns the reasons into fixes; `bridgeKeys()` finds keys compatible with
   both sides, else a breadth-first shortest path over in-key moves.
-  `reorder()` scores an order by, per neighbouring pair, the key move (0
+  `reorder()` scores an order by, per neighboring pair, the key move (0
   clean, 0.4 bolder, 1 clash) plus half the tempo step (in 6-BPM units), and,
   per position, 0.06 × the gap between the track's energy and the energy the
   original set had there, so the warm-up / peak / cool-down arc survives. It
@@ -1124,16 +1124,16 @@ pipeline:
 
 ### Design system
 
-- **Colour carries data.** The only accent colours come from the music.
+- **Color carries data.** The only accent colors come from the music.
   `color.js` maps Camelot number *n* to hue `18° + (n−1)·30°` on a perceptual
   **OKLCH** wheel:
   - minor (A) keys are deeper, major (B) keys lighter
   - each key has four tones: deep, base, pale and ink, used for the low, mid
     and high waveform layers and for text
-  - harmonic neighbours therefore get neighbouring hues, and a key clash looks
-    like a jump in colour
+  - harmonic neighbors therefore get neighboring hues, and a key clash looks
+    like a jump in color
 - **Base palette:** a booth-dark violet graphite (`#16151E` page, `#201E2B`
-  panels), paper-white ink (`#EFECF5`), and muted greys for secondary text.
+  panels), paper-white ink (`#EFECF5`), and muted grays for secondary text.
 - **Type:** a single family, **Archivo**, whose *width* axis does the
   expressive work:
   - 125% expanded, black weight, for the set title (rave-flyer energy)
@@ -1159,7 +1159,7 @@ pipeline:
   and reverb, and Shazam matched about a third of the probes. A track heard
   only once is flagged *possible match*. The match is real, but the track may
   only have played briefly, or it may be a near-miss.
-- **Styles are relative.** On room audio the style model leans towards
+- **Styles are relative.** On room audio the style model leans toward
   *Hardcore / Ambient / Experimental*, even after tempo re-weighting. Read
   styles as "this track sounds harder than the last", not as definitive genre
   tags. Shazam's own genre (often just "Dance" or "Electronic") is kept in
@@ -1168,8 +1168,8 @@ pipeline:
   finds about 60% of real track changes (F1 ≈ 0.6 within 20 s on the bundled
   sets). Wider or narrower novelty kernels, style activations and key-change
   signals didn't reliably beat it. `tools/tune_segmentation.py` re-runs that
-  comparison against any Shazam-labelled sets, so the defaults can be revisited
-  as more labelled sets come in. The naming helper anchors tracks properly.
+  comparison against any Shazam-labeled sets, so the defaults can be revisited
+  as more labeled sets come in. The naming helper anchors tracks properly.
 - **Timing precision varies.** Swap points (±a few seconds) and BPM are the
   most reliable numbers. Mix-in and mix-out are estimates, and transition
   types are heuristics built from the low end and loudness.
@@ -1181,14 +1181,14 @@ pipeline:
 
 ---
 
-## Costs and licences
+## Costs and licenses
 
 - **Hosting:** free on any static host. There's no server compute: visitors'
   browsers do the analysis.
 - **Bandwidth:** each visitor downloads about 21 MB of models from your host
   (once per visit, then cached for a year) and about 16 MB of engine
   WebAssembly from jsDelivr (a free CDN). Workers share one copy of each.
-- **Licences:**
+- **Licenses:**
   - **Set Replay's own code is AGPL-3.0** (`LICENSE`), matching Essentia
     and Essentia.js, which it builds on.
   - **Essentia (Python) and Essentia.js are AGPL-3.0**, so a public
@@ -1196,12 +1196,12 @@ pipeline:
     fork, if you change it) does that.
   - **The Discogs-EffNet models are CC BY-NC-SA 4.0**: attribution,
     non-commercial use only, and share-alike. For a commercial site, get a
-    licence from the MTG (`web/models/LICENSE.md`).
+    license from the MTG (`web/models/LICENSE.md`).
   - ONNX Runtime Web is MIT.
 - **Track names:** browsers can't reach Shazam, so the site alone leaves
   nameable **ID**s. With the optional [naming helper](#naming-tracks-with-the-helper),
   each visitor's own computer asks Shazam, which costs nothing and creates no
-  shared rate limits. It's still Shazam's unofficial API, the same grey area
+  shared rate limits. It's still Shazam's unofficial API, the same gray area
   as `shazamio` itself, used for personal lookups. Automatic names for every
   visitor without a helper would need a paid recognition service (e.g.
   ACRCloud or AudD) behind a small relay.
@@ -1213,9 +1213,9 @@ pipeline:
 | Symptom | Cause and fix |
 | --- | --- |
 | `shazam not responding (likely rate-limited)` | Shazam throttles bursts. The run continues with what's cached; re-run in an hour or so and only the missing probes are sent |
-| "No analysed sets yet" | Run `analyzer/analyze.py --all`, then reload |
+| "No analyzed sets yet" | Run `analyzer/analyze.py --all`, then reload |
 | Audio won't play in a background tab | Chrome defers media loading in hidden tabs. Bring the tab to the front, then press play |
-| Old data after re-analysing | Hard-reload. The server already sends `no-store`, but an open page keeps its set list until it's reloaded |
+| Old data after re-analyzing | Hard-reload. The server already sends `no-store`, but an open page keeps its set list until it's reloaded |
 | A set's title won't change | A name set by double-clicking in the browser overrides the analyzer's title. Clear it by double-clicking and deleting the text |
 | Wrong tempo octave | Re-run with `--bpm-range` (e.g. `160-190` for drum & bass, `118-135` for house) |
 | The website behaves like an older version after a deploy | Stale cached JS. Serve HTML/JS/CSS with `Cache-Control: no-cache` (see `web/_headers`), then hard-reload |
@@ -1224,8 +1224,8 @@ pipeline:
 | Helper: “needs Python 3.9 to 3.13” | Install Python 3.12 from python.org and run the helper again. It finds `python3.12` by itself |
 | “The analysis stopped responding” or “The analysis crashed” | A worker died twice on the same part of the recording (one crash is retried automatically), usually from running out of memory on a long set. Close other tabs and try again, or split the recording |
 | Safari private browsing | WebKit won't store files in IndexedDB in private sessions, so Set Replay stores the recording as raw bytes instead, transparently. If even that fails, it saves the analysis without the recording and offers *Add the recording* |
-| “Analysed, but this browser won't store it” | The analysis finished but IndexedDB refused it (private browsing, blocked site data, or a full disk). Press **Download the analysis**. The page warns before you leave while that result is unsaved. Drop the file back in later, or in another browser, to reopen it, then use *Add the recording* |
-| A set from the website is missing on another computer | Sets live in the browser that analysed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
+| “Analyzed, but this browser won't store it” | The analysis finished but IndexedDB refused it (private browsing, blocked site data, or a full disk). Press **Download the analysis**. The page warns before you leave while that result is unsaved. Drop the file back in later, or in another browser, to reopen it, then use *Add the recording* |
+| A set from the website is missing on another computer | Sets live in the browser that analyzed them. Download the analysis (JSON) and drop it onto the landing page elsewhere, then use *Add the recording* |
 
 ---
 
@@ -1251,7 +1251,7 @@ dj-set-analyzer/
 │   ├── js/store.js    # IndexedDB library
 │   ├── js/prefs.js    # set-replay: localStorage key prefix (+ old-key migration)
 │   ├── js/mini.js     # small renderers for the landing page (cached animated ribbon)
-│   ├── js/color.js    # Camelot → OKLCH colour
+│   ├── js/color.js    # Camelot → OKLCH color
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
 │   ├── js/vibe.js     # the set's vibe → keyword chips + Spotify prompt (no DOM)
 │   ├── js/phases.js   # the set's chapters (warm-up, peak, …) and per-chapter slices (no DOM)
@@ -1266,7 +1266,7 @@ dj-set-analyzer/
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
 │   ├── demo/          # bundled demo sets (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages
-│   ├── favicon.svg    # site icon (key-coloured waveform)
+│   ├── favicon.svg    # site icon (key-colored waveform)
 │   ├── serve.py       # local dev server with ranged audio
 │   └── data/          # Python output for the local server (git-ignored)
 ├── netlify.toml       # one-click Netlify deploy (runs tools/build-site.sh)
@@ -1275,13 +1275,13 @@ dj-set-analyzer/
 │   ├── synth.mjs         # the synthetic test set (128 BPM 8A, then 140 BPM 7A)
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
-│   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
+│   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyze → result)
 │   ├── pool-test.mjs     # the worker pool retries a range after a worker crash (stand-in Worker)
 │   ├── analysis-test.mjs # the page analyses (prompt, chapters, mixing, mood map, card, compare) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
-│   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labelled sets
+│   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labeled sets
 ├── requirements.txt
 ├── run.sh             # starts the server (default port 8778)
 └── LICENSE            # AGPL-3.0
@@ -1312,4 +1312,4 @@ in the footer of `web/index.html` at your fork.
 
 The bundled Discogs-EffNet models in `web/models/` are separately licensed
 **CC BY-NC-SA 4.0** by the Music Technology Group (`web/models/LICENSE.md`),
-so commercial use needs a licence from the MTG.
+so commercial use needs a license from the MTG.

@@ -123,7 +123,7 @@ def _save(cache, path):
 
 
 def fetch_art(url, dest):
-    """Download cover art once so the app works offline afterwards."""
+    """Download cover art once so the app works offline afterward."""
     if os.path.exists(dest) or not url:
         return os.path.exists(dest)
     import urllib.request

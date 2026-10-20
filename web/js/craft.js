@@ -185,7 +185,7 @@ export function craftProfile(D) {
   return { stats, style, relations, types, moments, smooth };
 }
 
-/* how a key move is judged, for colouring and legends */
+/* how a key move is judged, for coloring and legends */
 export function relationClass(label) {
   if (label === "Key clash") return "clash";
   if (label === "Unknown") return "unknown";
@@ -195,7 +195,7 @@ export function relationClass(label) {
 
 /* ------------------------------------------------ a smoother running order
    The same tracks, re-sequenced. The cost of an order adds, for each
-   neighbouring pair, the key move (0 clean, 0.4 bolder, 1 clash) and half the
+   neighboring pair, the key move (0 clean, 0.4 bolder, 1 clash) and half the
    tempo step (in units of 6 BPM, capped at 1), and, for each position, how far
    the track's energy is from the energy the original set had at that point
    (×0.06 per energy point), so the arc (warm-up, peak, cool-down) survives.

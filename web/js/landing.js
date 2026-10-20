@@ -113,7 +113,7 @@ async function loadLibrary() {
     <li><a class="card" href="set.html?id=${encodeURIComponent(s.id)}">
       <canvas data-segs='${JSON.stringify(s.segs)}' data-end="${s.set_length || s.duration}"></canvas>
       <h3>${esc(s.title)}</h3>
-      <p>${s.tracks} tracks · ${mins(s.set_length || s.duration)}${s.bpm_avg ? ` · ${Math.round(s.bpm_avg)} BPM` : ""} · analysed ${new Date(s.created).toLocaleDateString([], { month: "short", day: "numeric" })}</p>
+      <p>${s.tracks} tracks · ${mins(s.set_length || s.duration)}${s.bpm_avg ? ` · ${Math.round(s.bpm_avg)} BPM` : ""} · analyzed ${new Date(s.created).toLocaleDateString([], { month: "short", day: "numeric" })}</p>
       <button class="del" data-id="${esc(s.id)}" aria-label="Delete ${esc(s.title)}">Delete</button>
     </a></li>`).join("");
   drawCards($("libList"));
@@ -225,7 +225,7 @@ function renderQueue() {
     if (q.state === "running") state = `${q.stage} · ${Math.round(q.f * 100)}%`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
     if (q.state === "error") state = esc(q.error);
-    if (q.state === "unsaved") state = `Analysed, but ${esc(q.error)}. <button class="ghost dl" data-i="${i}">Download the analysis</button>`;
+    if (q.state === "unsaved") state = `Analyzed, but ${esc(q.error)}. <button class="ghost dl" data-i="${i}">Download the analysis</button>`;
     return `<li class="q-item">
       <div class="q-name"><b>${esc(q.file.name)}</b><span>${mb(q.file.size)}</span></div>
       <div class="q-state${q.state === "error" || q.state === "unsaved" ? " err" : ""}">${state}</div>
@@ -236,8 +236,8 @@ function renderQueue() {
   $("qList").querySelectorAll(".q-x").forEach((b) => b.addEventListener("click", () => { queue.splice(+b.dataset.i, 1); renderQueue(); }));
   $("qList").querySelectorAll(".dl").forEach((b) => b.addEventListener("click", () => downloadPayload(queue[+b.dataset.i].payload)));
   const ready = queue.filter((q) => q.state === "ready").length;
-  $("analyseBtn").disabled = running || !ready;
-  $("analyseBtn").textContent = running ? "Analysing…" : ready > 1 ? `Analyse ${ready} sets` : "Analyse";
+  $("analyzeBtn").disabled = running || !ready;
+  $("analyzeBtn").textContent = running ? "Analyzing…" : ready > 1 ? `Analyze ${ready} sets` : "Analyze";
   $("clearBtn").textContent = running ? "Stop" : "Clear";
   const total = queue.filter((q) => q.state === "ready").reduce((s, q) => s + (q.duration || 0), 0);
   $("qNote").textContent = running
@@ -245,7 +245,7 @@ function renderQueue() {
     : ready ? `Runs on this computer${total ? `, roughly ${Math.max(1, Math.round(total / 3600 * (helperOn && nameTracks ? 10 : 2)))} min of work` : ""}. Nothing is uploaded${helperOn && nameTracks ? "; short clips go to your naming helper" : ""}.` : "";
 }
 
-async function analyseAll() {
+async function analyzeAll() {
   if (running) return;
   running = true;
   renderQueue();
@@ -262,7 +262,7 @@ async function analyseAll() {
     if (q.state !== "ready") continue;
     if (controller.signal.aborted) break;
     q.state = "running"; q.stage = "Starting"; q.f = 0; renderQueue();
-    announce(`Analysing ${q.file.name}. This takes a minute or two.`);
+    announce(`Analyzing ${q.file.name}. This takes a minute or two.`);
     try {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
@@ -277,7 +277,7 @@ async function analyseAll() {
         q.error = /quota/i.test(String(e)) ? "this browser is out of storage space"
           : "this browser won't store it (private browsing, or storage is blocked)";
         console.error(e);
-        announce(`${q.file.name} was analysed but couldn't be saved. Download the analysis to keep it.`);
+        announce(`${q.file.name} was analyzed but couldn't be saved. Download the analysis to keep it.`);
         renderQueue();
         continue;
       }
@@ -289,7 +289,7 @@ async function analyseAll() {
       q.state = "error";
       q.error = (e && e.message) || "Analysis failed";
       console.error(e);
-      announce(`${q.file.name} couldn't be analysed. ${q.error}`);
+      announce(`${q.file.name} couldn't be analyzed. ${q.error}`);
     }
     renderQueue();
   }
@@ -329,7 +329,7 @@ function bindDrop() {
   drop.addEventListener("click", () => input.click());
   drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
   input.addEventListener("change", () => { addFiles(input.files); input.value = ""; });
-  $("analyseBtn").addEventListener("click", analyseAll);
+  $("analyzeBtn").addEventListener("click", analyzeAll);
   $("clearBtn").addEventListener("click", () => {
     if (running) { controller && controller.abort(); toast("Stopping…"); return; }
     queue.splice(0, queue.length); renderQueue();

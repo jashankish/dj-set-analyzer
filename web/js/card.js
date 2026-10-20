@@ -6,7 +6,7 @@
    DOM, so tools/analysis-test.mjs checks it in Node.
    drawCard(ctx, data, keyColor) paints it on a 1080 × 1350 canvas
    (portrait, the shape social apps show whole): title and facts, the
-   energy arc in key colours with the chapters, the vibe radar, mixing
+   energy arc in key colors with the chapters, the vibe radar, mixing
    style / home key / mood route / chapters, keyword chips, and the
    short playlist prompt.
    ============================================================ */
@@ -93,7 +93,7 @@ export function drawCard(ctx, d, keyColor) {
   font(ctx, 28, 500, "condensed"); ctx.fillStyle = INK2;
   ctx.fillText(d.facts.join("  ·  "), PAD, y);
 
-  /* energy arc, filled per track in its key colour, chapters marked */
+  /* energy arc, filled per track in its key color, chapters marked */
   const ex0 = PAD, ex1 = W - PAD, ey0 = y + 40, ey1 = ey0 + 220;
   const [s0, s1] = d.span, L = Math.max(1, s1 - s0), e = d.energy;
   const xt = (t) => ex0 + ((t - s0) / L) * (ex1 - ex0);

@@ -74,7 +74,7 @@ jobs:
           node-version: 22
       - name: Site build
         run: bash tools/build-site.sh
-      - name: Browser end-to-end in ${{ matrix.browser }} (drop → analyse → result → naming)
+      - name: Browser end-to-end in ${{ matrix.browser }} (drop → analyze → result → naming)
         run: |
           npm i --no-save --silent playwright@1.55.0
           npx playwright install --with-deps ${{ matrix.browser }}

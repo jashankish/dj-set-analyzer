@@ -119,7 +119,7 @@ def _q(x, n=2):
 
 
 def _wave(bands, span):
-    """Bands in dB -> 0..99 ints, per-band normalised over the set, a little contrast."""
+    """Bands in dB -> 0..99 ints, per-band normalized over the set, a little contrast."""
     out = {}
     a, b = int(span[0] * setlist.FPS), int(span[1] * setlist.FPS)
     for k in ("low", "mid", "high"):

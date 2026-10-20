@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Turn analysed sets into the bundled demos the hosted site shows.
+Turn analyzed sets into the bundled demos the hosted site shows.
 
   venv/bin/python tools/make_demos.py recording-9:worship-part-1 recording-10:worship-part-2
 
 Reads web/data/sets/<slug>.json (written by analyzer/analyze.py), writes
 web/demo/<demo>.json and web/demo/index.json. Locally cached cover art is
-dropped in favour of the original art URL, and no audio is bundled unless you
+dropped in favor of the original art URL, and no audio is bundled unless you
 pass --audio <demo>=<url> (e.g. a file on your own CDN).
 """
 import argparse

@@ -2,7 +2,7 @@
    Discogs-EffNet was trained on: 512-sample Hann frames at 16 kHz → magnitude
    spectrum → 96 Slaney-mel bands (0–8 kHz, unit_tri) on the power spectrum →
    log10(1 + 10000·x). Calling Essentia through WASM once per 32 ms frame
-   costs more than the maths, so this keeps the hot loop in JS. Checked
+   costs more than the math, so this keeps the hot loop in JS. Checked
    against Essentia.js on real audio: max abs error 6e-5, ~30x faster. */
 import { fft } from "./dsp.js";
 

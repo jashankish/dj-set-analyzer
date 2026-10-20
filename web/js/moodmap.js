@@ -5,7 +5,7 @@
    bright) and arousal (calm ↔ intense). moodMap(D) gives every track
      v  valence = 0.75 · happy + 0.25 · major key
      a  arousal = 0.6 · energy + 0.25 · aggressive + 0.15 · party
-   and, because room recordings compress every score towards the middle,
+   and, because room recordings compress every score toward the middle,
    splits the map at the set's own medians: a quadrant means "brighter /
    more intense than this set's usual", not an absolute label.
    It also returns time per quadrant and a sentence about the route.

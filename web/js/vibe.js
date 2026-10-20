@@ -187,7 +187,7 @@ export function vibeProfile(D, names = {}) {
   let flow;
   if (arc[1] < Math.min(arc[0], arc[2]) - d / 2) flow = { id: "dip", chip: "dips, then builds", say: "start strong, breathe in the middle, then build back up to a big finish" };
   else if (arc[2] > arc[0] + d && arc[2] >= arc[1] - d / 2) flow = { id: "build", chip: "builds to the end", say: "build steadily from a warm-up to a peak at the end" };
-  else if (arc[0] > arc[2] + d && arc[0] >= arc[1] - d / 2) flow = { id: "comedown", chip: "winds down", say: "open at full intensity and wind down towards a calmer finish" };
+  else if (arc[0] > arc[2] + d && arc[0] >= arc[1] - d / 2) flow = { id: "comedown", chip: "winds down", say: "open at full intensity and wind down toward a calmer finish" };
   else if (arc[1] > Math.max(arc[0], arc[2]) + d / 2) flow = { id: "peak", chip: "peaks mid-set", say: "build to a peak in the middle, then ease off" };
   else flow = { id: "steady", chip: "steady and rolling", say: "keep the energy level and rolling from start to finish" };
 

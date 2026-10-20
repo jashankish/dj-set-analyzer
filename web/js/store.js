@@ -1,5 +1,5 @@
 import "./prefs.js";   // slug-prefixed storage keys (migrates old ones)
-/* The visitor's library: analysed sets kept in this browser (IndexedDB),
+/* The visitor's library: analyzed sets kept in this browser (IndexedDB),
    each with its audio file so the replay works on the next visit too.
    Nothing here is ever uploaded. */
 const DB = "set-replay", VERSION = 1, STORE = "sets";
@@ -28,7 +28,7 @@ async function tx(mode, fn) {
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
-/** Save an analysed set with its audio. Returns the new id. */
+/** Save an analyzed set with its audio. Returns the new id. */
 /* Put a record, storing its recording the best way this browser allows:
    as a File/Blob; else as raw bytes (WebKit refuses Blobs in IndexedDB in
    private/ephemeral sessions but takes ArrayBuffers); else without the audio

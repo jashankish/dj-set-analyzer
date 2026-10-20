@@ -1,6 +1,6 @@
 /* Camelot keys on a perceptual hue wheel.
-   Camelot 1..12 walks the wheel in 30° steps, so harmonic neighbours (±1)
-   get neighbouring hues and a key clash reads as a jump in colour.
+   Camelot 1..12 walks the wheel in 30° steps, so harmonic neighbors (±1)
+   get neighboring hues and a key clash reads as a jump in color.
    Minor (A) keys sit deeper, major (B) keys lighter. */
 (function () {
   function oklchToRgb(L, C, hDeg) {

@@ -5,7 +5,7 @@ Score audio-only track segmentation against Shazam-anchored setlists.
   venv/bin/python tools/tune_segmentation.py recording-9 recording-10
 
 For each set it needs output/<slug>/features.npz and web/data/sets/<slug>.json
-(analysed with Shazam). The Shazam-anchored track starts act as ground truth.
+(analyzed with Shazam). The Shazam-anchored track starts act as ground truth.
 It sweeps the audio-only rule (novelty prominence and shortest track) and a
 few novelty variants, then prints F1 (a boundary counts if it falls within
 20 s of a true one).
@@ -16,7 +16,7 @@ Findings on the two bundled sets (Oct 2026), about 30 true boundaries:
   log style activations instead of embeddings   worse (0.55)
   embeddings + key-change novelty               0.56-0.64, not monotonic in the weight,
                                                 so noise rather than a real gain
-Re-run this when more labelled sets exist before changing the defaults in
+Re-run this when more labeled sets exist before changing the defaults in
 analyzer/setlist.py and web/js/engine/setlist.js.
 """
 import json

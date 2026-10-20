@@ -1,7 +1,7 @@
 /* ============================================================
    Set Replay — app
    Three sources, one viewer:
-     set.html?id=<id>      a set analysed in this browser (IndexedDB, with its audio)
+     set.html?id=<id>      a set analyzed in this browser (IndexedDB, with its audio)
      set.html?demo=<slug>  a bundled demo (demo/<slug>.json; audio optional)
      set.html#<slug>       the local Python server (data/sets.json + /audio/<file>)
    Draws the set and keeps every view in step with the audio.
@@ -29,7 +29,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     view: { t0: 0, t1: 1 },
     cur: -1, mix: 0, follow: true, loop: false,
     names: {}, title: null,
-    actx: null, analyser: null, freq: null,
+    actx: null, analyzer: null, freq: null,
     lastBeat: -1, beatAt: 0,
   };
 
@@ -110,7 +110,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     return `<div class="art-gen" style="background:linear-gradient(150deg, ${a}, ${b})"><span>${esc(label)}</span></div>`;
   }
 
-  /* precomputed colours per track */
+  /* precomputed colors per track */
   let TC = [];
   function prepColors() {
     TC = tracks().map((tr) => ({
@@ -118,7 +118,7 @@ import { moodMap, QUADS } from "./moodmap.js";
       pale: keyRgb(keyOf(tr), "pale"), ink: keyRgb(keyOf(tr), "ink"),
     }));
   }
-  /* colour at time t, cross-fading through each mix */
+  /* color at time t, cross-fading through each mix */
   function colorAt(t, tone) {
     const i = trackAt(t);
     const m = mixes();
@@ -153,11 +153,11 @@ import { moodMap, QUADS } from "./moodmap.js";
     document.querySelectorAll(".ribbon-wrap, .desk, .mix, .journey, .player").forEach((el) => (el.hidden = true));
   }
 
-  /* a set analysed in this browser */
+  /* a set analyzed in this browser */
   async function bootLocal(id) {
     S.mode = "local";
     const rec = await getSet(id);
-    if (!rec) return showMissing("This set isn't saved in this browser. Sets live in the browser that analysed them.");
+    if (!rec) return showMissing("This set isn't saved in this browser. Sets live in the browser that analyzed them.");
     S.sets = (await listSets()).map((x) => ({ slug: x.id, title: x.title, keys: x.keys, duration: x.set_length || x.duration, href: `set.html?id=${encodeURIComponent(x.id)}` }));
     S.record = rec;
     renderSetNav();
@@ -329,7 +329,7 @@ import { moodMap, QUADS } from "./moodmap.js";
       parts.push(`It plays in ${words} chapters: ${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}.`);
     }
     const tail = D.duration - (s.set_end || D.duration);
-    if (tail > 60) parts.push(`The recording runs on for another ${fmtDur(Math.round(tail / 60) * 60)} after the music stops; that part is greyed out.`);
+    if (tail > 60) parts.push(`The recording runs on for another ${fmtDur(Math.round(tail / 60) * 60)} after the music stops; that part is grayed out.`);
     return parts.join(" ");
   }
 
@@ -707,12 +707,12 @@ import { moodMap, QUADS } from "./moodmap.js";
     try {
       S.actx = new AudioContext();
       const src = S.actx.createMediaElementSource(audio);
-      S.analyser = S.actx.createAnalyser();
-      S.analyser.fftSize = 4096;
-      S.analyser.smoothingTimeConstant = 0.72;
-      src.connect(S.analyser);
-      S.analyser.connect(S.actx.destination);
-      S.freq = new Uint8Array(S.analyser.frequencyBinCount);
+      S.analyzer = S.actx.createAnalyser();
+      S.analyzer.fftSize = 4096;
+      S.analyzer.smoothingTimeConstant = 0.72;
+      src.connect(S.analyzer);
+      S.analyzer.connect(S.actx.destination);
+      S.freq = new Uint8Array(S.analyzer.frequencyBinCount);
     } catch (e) {
       S.actx = null;
     }
@@ -724,8 +724,8 @@ import { moodMap, QUADS } from "./moodmap.js";
     const col = TC[S.cur] || TC[0];
     const n = 56, gap = 2, bw = (w - gap * (n - 1)) / n;
     let data = null;
-    if (S.analyser && !isPaused()) {
-      S.analyser.getByteFrequencyData(S.freq);
+    if (S.analyzer && !isPaused()) {
+      S.analyzer.getByteFrequencyData(S.freq);
       data = S.freq;
     }
     const sr = S.actx ? S.actx.sampleRate : 48000, bins = S.freq ? S.freq.length : 1;
@@ -1063,7 +1063,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     $("wheelDots").innerHTML = dots;
     $("wheelDots").querySelectorAll("circle").forEach((c) => c.addEventListener("click", () => seek(tracks()[+c.dataset.i].start + 0.05, true)));
     const harmonic = S.D.summary.harmonic_pct;
-    $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighbouring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
+    $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighboring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
     renderKeyTime();
     updateWheel();
   }
@@ -1094,7 +1094,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     if (!S.wheelPts) return;
     const pts = S.wheelPts.filter(Boolean);
     const curve = (a, b) => {
-      // bow long jumps toward the centre so the path reads as a journey
+      // bow long jumps toward the center so the path reads as a journey
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       const d = Math.hypot(a.x - b.x, a.y - b.y);
       const pull = clamp(d / 340, 0, 0.8);
@@ -1487,7 +1487,7 @@ import { moodMap, QUADS } from "./moodmap.js";
   function renderCredits() {
     const D = S.D, c = D.credits;
     const when = new Date(D.analyzed_at);
-    $("credits").innerHTML = `Analysed ${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} from <b>${esc(D.file)}</b>.
+    $("credits").innerHTML = `Analyzed ${when.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} from <b>${esc(D.file)}</b>.
       Beats, tempo and key: ${esc(c.beats_key_tempo)}. Styles and moods: ${esc(c.styles_moods)}. Track names: ${esc(c.identification)}.
       Mix points, types and energy are estimated from the audio, so treat them as a close read rather than ground truth.
       ${S.mode === "local" ? `<span class="c-actions">${S.noAudio ? `<button class="ghost" id="attachBtn">Add the recording</button>` : ""}<button class="ghost" id="exportBtn">Download the analysis (JSON)</button> <button class="ghost" id="deleteBtn">Delete from this browser</button></span>` : ""}`;
@@ -1636,7 +1636,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     }));
     $("cardShare").addEventListener("click", () => cardBlob().then((b) => {
       const file = new File([b], "set-card.png", { type: "image/png" });
-      navigator.share({ files: [file], title: S.title || S.D.title }).catch(() => { /* cancelled */ });
+      navigator.share({ files: [file], title: S.title || S.D.title }).catch(() => { /* canceled */ });
     }));
     $("helpBtn").addEventListener("click", () => ($("keysHelp").hidden = !$("keysHelp").hidden));
     const scrub = $("scrub");

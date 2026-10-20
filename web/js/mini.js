@@ -1,4 +1,4 @@
-/* Small read-only renderers for the landing page: the key-coloured ribbon,
+/* Small read-only renderers for the landing page: the key-colored ribbon,
    key strips for cards, and the Camelot path. Same visual rules as the
    viewer (js/app.js). Uses window.KeyColor from color.js. */
 const { keyRgb } = window.KeyColor;
@@ -14,7 +14,7 @@ export function fit(c) {
 const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const mix = (a, b, r) => a.map((v, i) => Math.round(v + (b[i] - v) * r));
 
-/* colour at time t, cross-fading through mixes */
+/* color at time t, cross-fading through mixes */
 function colorer(P) {
   const T = P.tracks, M = P.transitions;
   const tones = T.map((t) => ({ deep: keyRgb(t.key && t.key.camelot, "deep"), base: keyRgb(t.key && t.key.camelot, "base"), pale: keyRgb(t.key && t.key.camelot, "pale") }));
