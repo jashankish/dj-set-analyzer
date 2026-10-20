@@ -180,6 +180,7 @@ try {
   check("phone: the mixing breakdown names a style", await p3.locator("#craftName").textContent(), (t) => /^The /.test(t));
   await p3.locator(".cc-col").nth(3).tap();
   check("phone: tapping a mix column opens that mix in the inspector", await p3.locator("#mixTitle").textContent(), (t) => /^Mix 4: /.test(t));
+  check("phone: a smoother running order is drawn (two rows of 19)", await p3.locator("#roSvg rect:not(.ro-clash)").count(), (n) => n === 38);
   check("phone: setlist transition rows show smoothness", await p3.locator(".seam-sm").count(), (n) => n === 18);
   check("phone: the inspector scores the mix's smoothness", await p3.locator("#mixNote").textContent(), (t) => /Smoothness \d+ of 100/.test(t));
   await p3.locator('#vibeTarget [data-t="youtube"]').tap();

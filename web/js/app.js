@@ -11,10 +11,10 @@ import { openNamingDialog } from "./naming-ui.js";
 import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt, vibeOffWhole } from "./vibe-ui.js";
 import { cardData, drawCard } from "./card.js";
 import { compareSets, mergePayloads } from "./compare.js";
-import { buildPrompt, AXES } from "./vibe.js";
+import { buildPrompt, AXES, vibeProfile } from "./vibe.js";
 import { findPhases, slicePayload } from "./phases.js";
-import { vibeProfile } from "./vibe.js";
-import { craftProfile, relationClass, mixScore, mixTips } from "./craft.js";
+import { harmonicRelation } from "./engine/music.js";
+import { craftProfile, relationClass, mixScore, mixTips, reorder } from "./craft.js";
 import { moodMap, QUADS } from "./moodmap.js";
 
 (function () {
@@ -1168,7 +1168,32 @@ import { moodMap, QUADS } from "./moodmap.js";
       return `<li><button class="cb-mo" data-j="${x.j}"><b>${esc(x.what)}</b><span>${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span><small>${esc(x.detail)} · at ${fmt(m.swap)}</small></button></li>`;
     }).join("");
     $("craftMoments").querySelectorAll(".cb-mo").forEach((b) => b.addEventListener("click", () => { selectMix(+b.dataset.j, true); playMix(); }));
+    renderReorder();
     markCraft();
+  }
+  /* the same tracks, re-sequenced: a slope chart from the played order to the suggested one */
+  function renderReorder() {
+    const O = reorder(S.D), T = tracks();
+    $("reorder").hidden = !O;
+    if (!O) return;
+    const ord = (k) => `${k}${["th", "st", "nd", "rd"][(k % 100 > 10 && k % 100 < 14) || k % 10 > 3 ? 0 : k % 10]}`;
+    const b = O.before, a = O.after;
+    $("roLine").textContent = O.unchanged
+      ? `The running order is already as smooth as these tracks allow: ${b.clean} of ${O.mixes} mixes land in key.`
+      : `Re-sequenced with the same energy arc, ${a.clean} of ${O.mixes} mixes would land in key (as played: ${b.clean}) and key clashes go from ${b.clash} to ${a.clash}; the average tempo step is ${a.tempo} BPM (was ${b.tempo}).`;
+    const n = O.order.length, w = 1000 / n, pos = Object.fromEntries(O.order.map((tn, i) => [tn, i]));
+    const played = T.filter((t) => keyOf(t)).map((t) => t.n);
+    const clash = (seq) => seq.slice(1).map((tn, i) => harmonicRelation(keyOf(T[seq[i] - 1]), keyOf(T[tn - 1])).compatible === false ? i + 1 : -1).filter((i) => i > 0);
+    let g = "";
+    played.forEach((tn, i) => {
+      const j = pos[tn], moved = i !== j;
+      g += `<line class="ro-link${moved ? " moved" : ""}" x1="${(i + 0.5) * w}" y1="34" x2="${(j + 0.5) * w}" y2="116" vector-effect="non-scaling-stroke"/>`;
+    });
+    const row = (seq, y) => seq.map((tn, i) => `<rect x="${i * w + 1}" y="${y}" width="${w - 2}" height="30" rx="3" fill="${keyColor(keyOf(T[tn - 1]), "base")}"><title>Track ${tn}: ${esc(shortName(T[tn - 1]))} (${keyOf(T[tn - 1])})</title></rect>`).join("") +
+      clash(seq).map((i) => `<rect class="ro-clash" x="${i * w - 2}" y="${y - 4}" width="4" height="38" />`).join("");
+    g += row(played, 4) + row(O.order, 116);
+    $("roSvg").innerHTML = g;
+    $("roMoves").innerHTML = O.moves.slice(0, 3).map((m) => `<li><b>${esc(shortName(T[m.n - 1]))}</b> (track ${m.n}, ${keyOf(T[m.n - 1])}) moves from ${ord(m.from)} to ${ord(m.to)}</li>`).join("");
   }
   function markCraft() {
     document.querySelectorAll(".cc-col").forEach((el) => el.classList.toggle("on", +el.dataset.j === S.mix));

@@ -340,6 +340,16 @@ button { font-family: inherit; color: inherit; }
 .cc-sw.clash { background: none; outline: 2px dashed var(--ink-2); outline-offset: -2px; }
 
 .craft-breaks { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 36px; margin-top: 26px; }
+.reorder { margin-top: 30px; border-top: 1px solid var(--line-soft); padding-top: 20px; }
+.ro-line { margin: 0 0 12px; color: var(--ink-2); font-size: .92rem; max-width: 90ch; }
+.ro-chart { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.ro-lbl { color: var(--faint); font-size: .72rem; font-stretch: 85%; text-transform: uppercase; letter-spacing: .06em; }
+#roSvg { width: 100%; height: 150px; display: block; }
+.ro-link { stroke: var(--line); stroke-width: 1; }
+.ro-link.moved { stroke: var(--ink); stroke-width: 2; opacity: .85; }
+.ro-clash { fill: var(--ink); }
+.ro-moves { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: .88rem; display: grid; gap: 3px; }
+.ro-moves b { font-weight: 600; color: var(--ink); }
 .h3 { margin: 0 0 10px; font-size: .9rem; font-stretch: 108%; font-weight: 700; }
 .cb-list { display: flex; flex-direction: column; gap: 5px; }
 .cb-row { display: grid; grid-template-columns: 112px 1fr 26px; gap: 10px; align-items: center; font-size: .82rem; font-stretch: 88%; }

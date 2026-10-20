@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
-const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
+const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -113,6 +113,17 @@ check("tips: the bumpy mix gets one per problem", mixTips(rough).length, (n) => 
 {
   const D = demo("worship-part-2"), m = D.transitions[12];       // 3A → 8A, the roughest
   check("tips: a clash names tracks from this set on the route", mixTips(m, D.tracks)[0], (t) => /via 4A, 5A, 6A, 7A/.test(t) && /track \d+/.test(t));
+}
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), O = reorder(D);
+  check(`${slug}: the suggested order uses every track once`, [...O.order].sort((a, b) => a - b).join(), (v) => v === D.tracks.map((t) => t.n).join());
+  check(`${slug}: it never adds key clashes`, [O.before.clash, O.after.clash], ([b, a]) => a <= b);
+  check(`${slug}: it's deterministic`, reorder(D).order.join(), (v) => v === O.order.join());
+}
+check("worship-part-2: re-sequencing clears its four key clashes", reorder(demo("worship-part-2")), (O) => O.before.clash === 4 && O.after.clash === 0);
+{
+  const smooth = { tracks: ["8A", "8A", "9A", "9A", "10A"].map((k, i) => ({ n: i + 1, start: i * 200, end: (i + 1) * 200, bpm: 124, energy: 5 + i * 0.5, key: { camelot: k } })) };
+  check("an already-smooth order is left alone", reorder(smooth).unchanged, (u) => u === true);
 }
 check("no transitions, no profile", craftProfile({ tracks: [], transitions: [] }), (v) => v === null);
 

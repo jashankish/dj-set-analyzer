@@ -192,3 +192,53 @@ export function relationClass(label) {
   if (/Two-step|boost|Mood/.test(label)) return "partial";
   return "good";
 }
+
+/* ------------------------------------------------ a smoother running order
+   The same tracks, re-sequenced. The cost of an order adds, for each
+   neighbouring pair, the key move (0 clean, 0.4 bolder, 1 clash) and half the
+   tempo step (in units of 6 BPM, capped at 1), and, for each position, how far
+   the track's energy is from the energy the original set had at that point
+   (×0.06 per energy point), so the arc (warm-up, peak, cool-down) survives.
+   Local search from the original order: move any track to any slot, or swap
+   any two, keep whatever lowers the cost, until nothing does. Deterministic. */
+const KEYCOST = (a, b) => { const c = harmonicRelation(a, b).compatible; return c === true ? 0 : c === "partial" ? 0.4 : c === false ? 1 : 0.5; };
+export function reorder(D) {
+  const T = (D.tracks || []).filter((t) => t.key && t.key.camelot);
+  const n = T.length;
+  if (n < 4) return null;
+  const E = T.map((t) => t.energy || 0);
+  const edge = (a, b) => KEYCOST(a.key.camelot, b.key.camelot) + 0.5 * Math.min(1, Math.abs((a.bpm || 0) - (b.bpm || 0)) / 6);
+  const cost = (o) => {
+    let c = 0;
+    for (let i = 0; i < n; i++) {
+      if (i) c += edge(T[o[i - 1]], T[o[i]]);
+      c += 0.06 * Math.abs(E[o[i]] - E[i]);
+    }
+    return c;
+  };
+  let order = T.map((_, i) => i), best = cost(order);
+  for (let pass = 0, better = true; better && pass < 50; pass++) {
+    better = false;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const moved = order.slice(); moved.splice(j, 0, moved.splice(i, 1)[0]);
+      const swapped = order.slice(); [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+      for (const o of [moved, swapped]) { const c = cost(o); if (c < best - 1e-9) { best = c; order = o; better = true; } }
+    }
+  }
+  const tally = (o) => {
+    let clean = 0, clash = 0, tempo = 0;
+    for (let i = 1; i < n; i++) {
+      const k = KEYCOST(T[o[i - 1]].key.camelot, T[o[i]].key.camelot);
+      if (k === 0) clean++; else if (k === 1) clash++;
+      tempo += Math.abs((T[o[i - 1]].bpm || 0) - (T[o[i]].bpm || 0));
+    }
+    return { clean, clash, tempo: Math.round((tempo / (n - 1)) * 10) / 10 };
+  };
+  const orig = T.map((_, i) => i);
+  const moves = order.map((ti, pos) => ({ n: T[ti].n, from: ti + 1, to: pos + 1, d: Math.abs(pos - ti) })).filter((x) => x.d > 0).sort((a, b) => b.d - a.d);
+  return {
+    order: order.map((i) => T[i].n), before: tally(orig), after: tally(order), mixes: n - 1,
+    moves, unchanged: moves.length === 0,
+  };
+}
