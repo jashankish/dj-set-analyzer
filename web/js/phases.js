@@ -9,7 +9,7 @@
      than max(2.5 min, 10% of the set).
    Each phase is then named from its energy against its neighbours and
    its place in the set, and measured (tempo, energy, styles, moods, keys).
-   No DOM here: tools/vibe-test.mjs runs it in Node.
+   No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */
 
 const mean = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);

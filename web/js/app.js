@@ -11,6 +11,7 @@ import { openNamingDialog } from "./naming-ui.js";
 import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt } from "./vibe-ui.js";
 import { findPhases, slicePayload } from "./phases.js";
 import { vibeProfile } from "./vibe.js";
+import { craftProfile, relationClass } from "./craft.js";
 
 (function () {
   "use strict";
@@ -259,6 +260,7 @@ import { vibeProfile } from "./vibe.js";
     renderRows();
     renderCredits();
     renderPhases();
+    renderCraft();
     mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast });
     drawAll();
     setTrack(0, true);
@@ -864,6 +866,7 @@ import { vibeProfile } from "./vibe.js";
     $("mixStats").innerHTML = stats.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     $("mixNote").textContent = mixSentence(m, A, B);
     document.querySelectorAll(".seam").forEach((el) => el.classList.toggle("sel", +el.dataset.m === S.mix));
+    markCraft();
     drawMix();
     drawRibbon();
     if (scroll) $("mix").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
@@ -1078,6 +1081,59 @@ import { vibeProfile } from "./vibe.js";
     $("wcKey").textContent = keyOf(tr) || "?";
     $("wcKey").setAttribute("fill", keyColor(keyOf(tr), "ink"));
     $("wcSub").textContent = tr.key ? tr.key.name : "key unclear";
+  }
+
+  /* ------------------------------------------------ how it was mixed */
+  function renderCraft() {
+    const C = craftProfile(S.D), M = mixes(), T = tracks();
+    $("craft").hidden = !C || M.length < 2;
+    if ($("craft").hidden) return;
+    const st = C.stats;
+    $("craftName").textContent = C.style.name;
+    $("craftLine").textContent = C.style.line + (C.style.also ? ` A close second: ${C.style.also.replace(/^The /, "the ")}.` : "");
+    const tiles = [
+      ["Median mix", st.medBars ? `${st.medBars} bars` : fmtDur(st.medDur), st.medBars ? `${Math.round(st.medDur)} s` : ""],
+      ["In key", `${st.harmonicPct}%`, st.partialPct ? `+${st.partialPct}% partly` : ""],
+      ["Bass swaps", `${st.bassPct}%`, "of mixes"],
+      ["Tempo moves", String(st.tempoMoves), st.maxBpmDelta ? `max ±${st.maxBpmDelta.toFixed(1)} BPM` : "none"],
+      ["Lifts / drops", `${st.ups} / ${st.downs}`, "energy ±1 or more"],
+    ];
+    $("craftStats").innerHTML = tiles.map(([k, v, sub]) => `<div><dt>${k}</dt><dd>${v}${sub ? `<small>${sub}</small>` : ""}</dd></div>`).join("");
+    // columns: height ∝ √bars so a 64-bar blend doesn't flatten the 8-bar swaps
+    const bars = M.map((m) => m.bars || Math.max(1, Math.round(m.duration / 2)));
+    const top = Math.max(32, ...bars), hgt = (b) => Math.sqrt(b / top);
+    $("craftGrid").innerHTML = [8, 16, 32, 64].filter((b) => b <= top).map((b) => `<div class="cc-line" style="bottom:${(hgt(b) * 100).toFixed(1)}%"><span>${b}</span></div>`).join("");
+    $("craftCols").innerHTML = M.map((m, j) => {
+      const a = keyOf(T[m.from - 1]), b = keyOf(T[m.to - 1]);
+      return `<button class="cc-col ${relationClass(m.harmonic.label)}" role="listitem" data-j="${j}" style="--h:${(hgt(bars[j]) * 100).toFixed(1)}%;--a:${keyColor(a, "base")};--b:${keyColor(b, "base")}" aria-label="Mix ${j + 1}: ${esc(shortName(T[m.from - 1]))} into ${esc(shortName(T[m.to - 1]))}, ${esc(m.type)}, ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)}, ${esc(m.harmonic.label)}"><i></i></button>`;
+    }).join("");
+    const cols = $("craftCols"), tip = $("craftTip");
+    cols.querySelectorAll(".cc-col").forEach((el) => {
+      const j = +el.dataset.j, m = M[j];
+      el.addEventListener("pointerenter", () => {
+        const r = cols.getBoundingClientRect(), c = el.getBoundingClientRect();
+        showTip(tip, c.left - r.left + c.width / 2, r.width,
+          `<span class="t-time">Mix ${j + 1} · ${fmt(m.swap)}</span><span class="t-title">${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span>` +
+          `<span class="t-meta">${esc(m.type)} · ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)} · ${esc(m.key_from || "?")} → ${esc(m.key_to || "?")} ${esc(m.harmonic.label.toLowerCase())}${m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : ""}</span>`, 4);
+      });
+      el.addEventListener("pointerleave", () => (tip.hidden = true));
+      el.addEventListener("click", () => { selectMix(j, true); playMix(); });
+    });
+    const list = (rows, cls) => {
+      const max = Math.max(...rows.map((r) => r.count));
+      return rows.map((r) => `<div class="cb-row ${cls ? cls(r.label) : ""}"><span class="cb-l">${esc(r.label)}</span><span class="cb-bar"><i style="width:${(r.count / max) * 100}%"></i></span><span class="cb-n">${r.count}</span></div>`).join("");
+    };
+    $("craftKeys").innerHTML = list(C.relations, relationClass);
+    $("craftTypes").innerHTML = list(C.types);
+    $("craftMoments").innerHTML = C.moments.map((x) => {
+      const m = M[x.j];
+      return `<li><button class="cb-mo" data-j="${x.j}"><b>${esc(x.what)}</b><span>${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span><small>${esc(x.detail)} · at ${fmt(m.swap)}</small></button></li>`;
+    }).join("");
+    $("craftMoments").querySelectorAll(".cb-mo").forEach((b) => b.addEventListener("click", () => { selectMix(+b.dataset.j, true); playMix(); }));
+    markCraft();
+  }
+  function markCraft() {
+    document.querySelectorAll(".cc-col").forEach((el) => el.classList.toggle("on", +el.dataset.j === S.mix));
   }
 
   /* ------------------------------------------------ chapters */

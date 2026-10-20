@@ -1,6 +1,8 @@
 #!/usr/bin/env node
-/* Checks the Spotify prompt writer (web/js/vibe.js) on the bundled demo sets
-   and on edge cases. No dependencies: node tools/vibe-test.mjs
+/* Checks the page's own analyses on the bundled demo sets and on edge cases:
+   the Spotify prompt writer (web/js/vibe.js), the chapter finder
+   (web/js/phases.js) and the mixing breakdown (web/js/craft.js).
+   No dependencies: node tools/analysis-test.mjs
 
    The demos are phone recordings of drum & bass sets (Sub Focus, Culture
    Shock, Dimension…) that the style model partly hears as "hardcore": the
@@ -13,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
+const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
 const checks = [];
@@ -52,6 +55,23 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
 }
 const flat = { title: "Flat", duration: 600, summary: { bpm_avg: 124, styles: [] }, drops: [], tracks: [0, 1, 2].map((i) => ({ n: i + 1, start: i * 200, end: (i + 1) * 200, identified: false, bpm: 124, energy: 6, key: { camelot: "8A" }, moods: {} })) };
 check("a level set is one chapter", findPhases(flat).length, (n) => n === 1);
+
+/* ---------------- how it was mixed (web/js/craft.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), C = craftProfile(D);
+  check(`${slug}: drum & bass sets read as technicians (bass swaps)`, C.style.id, (id) => id === "technician");
+  check(`${slug}: key moves and mix types each add up to the mix count`, [C.relations.reduce((a, r) => a + r.count, 0), C.types.reduce((a, r) => a + r.count, 0), D.transitions.length], ([a, b, n]) => a === n && b === n);
+  check(`${slug}: harmonic share matches the summary`, [C.stats.harmonicPct, D.summary.harmonic_pct], ([a, b]) => a === b);
+  check(`${slug}: signature moments are distinct mixes`, C.moments.map((m) => m.j), (j) => j.length >= 2 && new Set(j).size === j.length);
+  check(`${slug}: the longest blend is the longest mix`, D.transitions[C.moments[0].j].duration, (d) => d === Math.max(...D.transitions.map((m) => m.duration)));
+}
+const mk = (type, bars, label, compatible, extra = {}) => ({ from: 1, to: 2, type, bars, duration: bars * 1.4, harmonic: { label, compatible }, bpm_delta: 0, energy_delta: 0, low_dip_db: 0, style_continuity: 0.3, ...extra });
+const blender = { tracks: [], drops: [], transitions: [mk("Long blend", 64, "Same key", true), mk("Long blend", 48, "Energy up", true), mk("Blend", 32, "Same key", true), mk("Long blend", 40, "Relative minor", true)] };
+check("long overlapping mixes read as a long blender", craftProfile(blender).style.id, (id) => id === "blender");
+const cutter = { tracks: [], drops: [], transitions: [0, 1, 2, 3].map((i) => mk("Cut", 2, i % 2 ? "Key clash" : "Same key", i % 2 ? false : true)) };
+check("hard cuts read as a quick cutter", craftProfile(cutter).style.id, (id) => id === "cutter");
+check("relationClass sorts key moves", ["Same key", "Mood shift", "Key clash"].map(relationClass), (v) => v.join() === "good,partial,clash");
+check("no transitions, no profile", craftProfile({ tracks: [], transitions: [] }), (v) => v === null);
 
 /* ---------------- pieces */
 check("artistsOf splits co-artists and finds remixers", [...artistsOf("Timewarp (Dimension Remix)", "Sub Focus & Wilkinson").keys()], (a) => a.join("|") === "Sub Focus|Wilkinson|Dimension");

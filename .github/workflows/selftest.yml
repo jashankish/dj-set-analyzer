@@ -38,8 +38,8 @@ jobs:
       - name: Engine self-test on synthetic audio
         run: node tools/selftest.mjs
 
-      - name: Spotify prompt writer and chapter finder on the demo sets
-        run: node tools/vibe-test.mjs
+      - name: Page analyses (Spotify prompt, chapters, mixing) on the demo sets
+        run: node tools/analysis-test.mjs
 
       - name: Site build
         run: bash tools/build-site.sh

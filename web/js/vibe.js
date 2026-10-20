@@ -14,7 +14,7 @@
    drum & bass as "hardcore"), so a genre is only trusted as far as its
    evidence agrees: the model's share, how well the set's tempo fits the
    style, and the genres Shazam reports for the named tracks.
-   No DOM here: tools/vibe-test.mjs runs it in Node.
+   No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */
 import { tempoLikelihood } from "./engine/music.js";
 

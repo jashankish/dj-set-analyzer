@@ -82,6 +82,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, and a one-sentence description | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
+| **How it was mixed** | The DJ's **mixing style**, one of six archetypes (the long blender, the technician, the drop architect, the quick cutter, the key purist, the selector) with the evidence in a sentence; tiles for the median mix length, share in key, share of bass swaps, tempo moves and energy lifts vs. drops; a **mix timeline** where every transition is a column (height = length in bars on a √ scale with 8/16/32-bar guides, a gradient from the outgoing to the incoming track's key colour, dashed outline for a key clash); counts of **key moves** and **mix types**; and the set's **signature moments** (longest blend, deepest bass swap, biggest lift, boldest key move, biggest tempo move) | Hover a column for the mix; click a column or a moment to open it in the inspector and hear it. The column of the selected mix is outlined |
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead) | Click a dot to play that track |
 | **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
@@ -431,7 +432,7 @@ keyword chip that doesn't fit before copying, or add your own direction
 prompt boxes.
 
 **How the prompt is written** (`web/js/vibe.js`, pure functions, tested in
-Node by `tools/vibe-test.mjs`):
+Node by `tools/analysis-test.mjs`):
 
 - **Genres are weighed by agreement, not taken raw.** A phone in a loud room
   makes the style model hear drum & bass as "hardcore" or "gabber". Each
@@ -475,7 +476,7 @@ whole set's leading artists (their chips say so), so Spotify still has names
 to steer by. Each scope remembers its own switched-off chips.
 
 **How chapters are found** (`web/js/phases.js`, also tested by
-`tools/vibe-test.mjs`): each track is a point (energy, tempo), weighted by
+`tools/analysis-test.mjs`): each track is a point (energy, tempo), weighted by
 its length. Dynamic programming finds, for 1 to 5 chapters, the split on
 track boundaries with the least spread inside chapters, where no chapter may
 be shorter than 2.5 minutes or 10% of the set. A chapter is kept only if it
@@ -560,6 +561,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/app.js      viewer: canvases, SVG wheel, playback sync, shortcuts    │
                          │ js/vibe.js     set → vibe fingerprint, keyword chips, Spotify prompt     │
                          │ js/phases.js   chapters: optimal split on track energy + tempo, names   │
+                         │ js/craft.js    mixing style archetype, key-move/type tallies, moments   │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1017,6 +1019,16 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **How it was mixed:** `renderCraft()` draws from `craft.js`'s
+  `craftProfile()`. The timeline is HTML (one `<button>` per mix, height in a
+  CSS variable), so each column is focusable and clickable; `selectMix()`
+  calls `markCraft()` to outline the selected one. Archetype scores, from the
+  transitions alone: *blender* = median bars and share of 32+-bar mixes;
+  *technician* = share of bass swaps (type or a low-end dip of 8 dB+), in-key
+  share and a steady tempo; *drop architect* = share of breakdown/drop mixes;
+  *quick cutter* = cuts and short mixes; *key purist* = in-key share above 60%
+  with no clashes; *selector* = clashes, tempo moves and little shared sound.
+  A runner-up within 80% of the winner is named too.
 - **Chapters:** `openPayload()` runs `findPhases()` once into `S.phases`;
   `renderPhases()` builds the strip (CSS grid with `fr` columns in seconds),
   `drawEnergy()` adds the dashed boundaries, `setTrack()` outlines the
@@ -1165,6 +1177,7 @@ dj-set-analyzer/
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
 │   ├── js/vibe.js     # the set's vibe → keyword chips + Spotify prompt (no DOM)
 │   ├── js/phases.js   # the set's chapters (warm-up, peak, …) and per-chapter slices (no DOM)
+│   ├── js/craft.js    # how it was mixed: style archetype, tallies, signature moments (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
