@@ -498,6 +498,18 @@ button { font-family: inherit; color: inherit; }
 .v-vals dt { color: var(--muted); font-size: .72rem; font-stretch: 85%; }
 .v-vals dd { margin: 0; font-weight: 600; font-stretch: 75%; font-size: 1.05rem; }
 
+.v-fit { margin-top: 20px; display: flex; flex-direction: column; gap: 4px; }
+.v-fit .h3 { margin: 8px 0 4px; }
+.vf-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 24px 1fr 70px 26px; gap: 10px; align-items: center; cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+.vf-row:hover { background: var(--panel); }
+.vf-row:focus-visible { outline: 2px solid var(--focus); }
+.vf-n { color: var(--faint); font-size: .78rem; font-stretch: 75%; text-align: right; }
+.vf-t { font-size: .86rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vf-t small { display: block; color: var(--muted); font-size: .74rem; font-stretch: 85%; }
+.vf-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.05); }
+.vf-bar i { display: block; height: 100%; border-radius: 3px; background: var(--ink-2); }
+.vf-v { text-align: right; color: var(--muted); font-size: .78rem; font-stretch: 75%; }
+.vf-note { margin: 6px 0 0; color: var(--faint); font-size: .74rem; font-stretch: 88%; }
 .v-prompt { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .v-chips { display: flex; flex-direction: column; gap: 8px; }
 .v-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

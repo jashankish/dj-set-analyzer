@@ -6,7 +6,7 @@
    Per-set choices (chips switched off, per scope; own direction; prompt
    length; scope) are kept in localStorage under set-replay:vibe:<slug>.
    ============================================================ */
-import { vibeProfile, buildPrompt, defaultOff, AXES, trust } from "./vibe.js";
+import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit } from "./vibe.js";
 import { slicePayload } from "./phases.js";
 import * as spotify from "./spotify.js";
 
@@ -113,6 +113,23 @@ function updateRadar() {
   if (!ta) return;
   $("vrNow").setAttribute("points", poly(ta));
   $("vrDots").innerHTML = AXES.map(([k], i) => { const [x, y] = pt(i, Math.max(0.03, ta[k])); return `<circle class="vr-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"/>`; }).join("");
+}
+
+/* ------------------------------------------------ most like the set / curveballs */
+function renderFit() {
+  const T = V.Ds.tracks, F = trackFit(V.Ds).sort((a, b) => b.fit - a.fit);
+  const el = $("vibeFit");
+  el.hidden = T.length < 4 || !V.seek;
+  if (el.hidden) return;
+  const row = (f) => {
+    const tr = V.D.tracks[f.n - 1];
+    return `<button class="vf-row" data-t="${tr.start}"><span class="vf-n">${f.n}</span><span class="vf-t">${esc(V.nameOf(tr))}${f.why.length ? `<small>${esc(f.why.join(", "))}</small>` : ""}</span><span class="vf-bar"><i style="width:${Math.round(f.fit * 100)}%"></i></span><span class="vf-v">${Math.round(f.fit * 100)}</span></button>`;
+  };
+  const curve = F.slice(-2).filter((f) => f.fit < 0.7).reverse();
+  el.innerHTML = `<h3 class="h3">Most like the ${V.scope < 0 ? "set" : "chapter"}</h3>${F.slice(0, 3).map(row).join("")}` +
+    (curve.length ? `<h3 class="h3">Curveballs</h3>${curve.map(row).join("")}` : "") +
+    `<p class="vf-note">Fit out of 100: how close a track's feel (the axes above) and styles are to the ${V.scope < 0 ? "whole set" : "chapter"}'s. The song anchors in the prompt are the best-fitting named tracks.</p>`;
+  el.querySelectorAll(".vf-row").forEach((b) => b.addEventListener("click", () => V.seek(+b.dataset.t + 0.05, true)));
 }
 
 /* ------------------------------------------------ chips + prompt */
@@ -289,7 +306,7 @@ export function vibeScope(i) {
   scoped();
   useOff();
   save();
-  renderScope(); renderRadar(); renderChips(); renderPrompt();
+  renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt();
 }
 
 /* the whole-set chips switched off, for the set card */
@@ -311,7 +328,7 @@ export function mountVibe(ctx) {
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
   $("vibeExtra").value = V.extra;
-  renderTarget(); renderScope(); renderRadar(); renderChips(); renderPrompt();
+  renderTarget(); renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt();
   if (!pending) status(notice);
   notice = "";
   if (pending && pending.action === "save") { pending = null; target = TARGETS[0]; renderTarget(); saveToSpotify(); }

@@ -192,6 +192,7 @@ try {
   await p3.locator("#cardClose").tap();
   await p3.waitForFunction(() => document.getElementById("cmpScore").textContent !== "", null, { timeout: 10000 }).catch(() => {});
   check("phone: compares with the other demo and writes a blend prompt", [await p3.locator("#cmpScore").textContent(), await p3.locator("#cmpPrompt").inputValue()], ([s, p]) => +s > 0 && +s <= 100 && /^A .* playlist/.test(p));
+  check("phone: the vibe section lists the most typical tracks and the curveballs", await p3.locator("#vibeFit").textContent(), (t) => t.includes("Most like the set") && t.includes("Curveballs"));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");

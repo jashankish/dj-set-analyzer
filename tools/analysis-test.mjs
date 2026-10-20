@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
+const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
@@ -50,6 +50,20 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
 }
 check("part 2: hardcore (a room-noise artefact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
+
+/* ---------------- how typical each track is (vibe.trackFit) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), F = trackFit(D);
+  check(`${slug}: a fit for every track, 0–1`, F.map((f) => f.fit), (v) => v.length === D.tracks.length && v.every((x) => x >= 0 && x <= 1));
+  const low = [...F].sort((a, b) => a.fit - b.fit)[0];
+  check(`${slug}: the least typical track says why`, low.why, (w) => w.length >= 1);
+  const anchors = vibeProfile(D).anchors.map((a) => a.split(" by ")[0]);
+  const trusted = D.tracks.filter((t) => t.identified && trust(t) >= 0.6);
+  const fitOf = (t) => F[t.n - 1].fit;
+  const med = [...trusted.map(fitOf)].sort((a, b) => a - b)[Math.floor(trusted.length / 2)];
+  check(`${slug}: song anchors fit the set at least as well as the median trusted track`, trusted.filter((t) => anchors.some((a) => t.title.startsWith(a))).map(fitOf), (v) => v.length >= 2 && v.slice(0, 2).every((x) => x >= med - 0.05));
+}
+check("worship-part-1: the noisy opening ID is the curveball", [...trackFit(demo("worship-part-1"))].sort((a, b) => a.fit - b.fit)[0].n, (n) => n === 1);
 
 /* ---------------- chapters (web/js/phases.js) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {

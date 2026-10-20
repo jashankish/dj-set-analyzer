@@ -103,6 +103,43 @@ function trackAxes(tr) {
   };
 }
 
+/* how typical each track is of its set: 1 = the set in miniature.
+   Feel: distance from the set's mean on the vibe axes, in units of the
+   set's own spread (so a steady set notices small departures). Sound:
+   cosine between the track's styles and the set's. fit = 0.6 feel + 0.4 sound.
+   Each track also gets the two axes it departs on most, for the outliers' "why". */
+const FIT_WORDS = {
+  tempo: ["faster", "slower"], energy: ["more energetic", "calmer"], dance: ["more danceable", "less danceable"],
+  party: ["more party-ready", "less party-ready"], aggr: ["more aggressive", "gentler"], happy: ["brighter", "darker"],
+  vocal: ["more vocal", "more instrumental"], minor: ["in a minor key", "in a major key"],
+};
+export function trackFit(D) {
+  const T = D.tracks || [];
+  if (T.length < 3) return T.map((t) => ({ n: t.n, fit: 1, why: [] }));
+  const A = T.map(trackAxes), keys = AXES.map(([k]) => k);
+  const mu = {}, sd = {};
+  keys.forEach((k) => {
+    mu[k] = wmean(T, A.map((a) => a[k])) || 0;
+    sd[k] = Math.max(0.05, Math.sqrt(wmean(T, A.map((a) => (a[k] - mu[k]) ** 2)) || 0));
+  });
+  const setStyles = Object.fromEntries(((D.summary && D.summary.styles) || []).map((s) => [s.style, s.share]));
+  const cos = (a, b) => {
+    let ab = 0, aa = 0, bb = 0;
+    new Set([...Object.keys(a), ...Object.keys(b)]).forEach((k) => { const x = a[k] || 0, y = b[k] || 0; ab += x * y; aa += x * x; bb += y * y; });
+    return aa && bb ? ab / Math.sqrt(aa * bb) : 0.5;
+  };
+  return T.map((t, i) => {
+    const z = keys.map((k) => ({ k, z: (A[i][k] - mu[k]) / sd[k] }));
+    const d = Math.sqrt(mean(z.map((x) => x.z * x.z)));
+    const feel = 1 / (1 + d * d / 2);
+    const sound = cos(Object.fromEntries((t.styles || []).map((s) => [s.style, s.p])), setStyles);
+    const why = z.filter((x) => Math.abs(x.z) >= 1.2 && x.k !== "minor").sort((a, b) => Math.abs(b.z) - Math.abs(a.z)).slice(0, 2)
+      .map((x) => FIT_WORDS[x.k][x.z > 0 ? 0 : 1]);
+    if (sound < 0.35 && t.styles && t.styles[0]) why.push(`more ${say(t.styles[0].style)}`);
+    return { n: t.n, fit: Math.round((0.6 * feel + 0.4 * sound) * 100) / 100, feel, sound, why: why.slice(0, 2) };
+  });
+}
+
 export function vibeProfile(D, names = {}) {
   const s = D.summary || {}, T = D.tracks || [];
   const TA = T.map(trackAxes);
@@ -163,8 +200,10 @@ export function vibeProfile(D, names = {}) {
     if (m.length > 1) artistsOf("", m[0]).forEach((w, a) => bump(a, w));
   });
   const artists = [...credit.entries()].filter(([, w]) => w >= 0.45).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([a]) => a);
+  // the songs to start from: trusted names that sound most like the whole set
+  const FIT = new Map(trackFit(D).map((f) => [f.n, f.fit]));
   const anchors = named.filter((t) => W.get(t) >= 0.6)
-    .map((t) => ({ t, w: W.get(t) * Math.max(1, t.end - t.start) }))
+    .map((t) => ({ t, w: W.get(t) * (FIT.get(t.n) || 0.5) * Math.sqrt(Math.max(30, t.end - t.start)) }))
     .sort((a, b) => b.w - a.w).slice(0, 3)
     .map(({ t }) => `${t.title.replace(/\s*[([](feat|ft|with|extended|original|radio|edit|remaster)[^)\]]*[)\]]/gi, "").trim()} by ${t.artist.split(/\s*(?:,|&|feat\.?|ft\.?)\s*/i)[0]}`);
   const labelW = new Map();
@@ -213,7 +252,7 @@ export function vibeProfile(D, names = {}) {
   if (D.drops && mins && D.drops.length / mins >= 0.4) chip("s:drops", "Sound", "big drops");
   artists.forEach((a, i) => chip(`a:${a}`, "Artists", a, i < 5));
   labels.forEach((l) => chip(`l:${l}`, "Labels", l));
-  anchors.forEach((a, i) => chip(`k:${a}`, "Tracks", a, i < 2, "A named track from the set, for the AI to start from"));
+  anchors.forEach((a, i) => chip(`k:${a}`, "Tracks", a, i < 2, "A trusted, named track that sounds most like the whole set, for the AI to start from"));
   if (era) chip("e:era", "Era", era.chip, true, era.say);
   chip("f:flow", "Flow", flow.chip, true, flow.say);
   /* the mood route from the mood map (relative to the set, so it describes the arc, not a level) */

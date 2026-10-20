@@ -267,7 +267,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     renderCraft();
     renderMoodMap();
     renderCompare();
-    mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast });
+    mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast, seek, nameOf });
     drawAll();
     setTrack(0, true);
     selectMix(0, false);

@@ -473,9 +473,9 @@ Node by `tools/analysis-test.mjs`):
   usually room noise matched to library music). Lead artists count 1,
   co-artists 0.7, remixers 0.9, names in crowded credits 0.5. Names you
   type as `Artist – Title` count fully.
-- **Tracks** to start from: the two (of three offered) named tracks with
-  the most trusted match and the most playing time, as "Wildfire by Sub
-  Focus". AI playlist makers steer hardest on song references, so these
+- **Tracks** to start from: the two (of three offered) named tracks that
+  best combine a trusted match, a high **fit** (below) and playing time, as
+  "Renaissance by Culture Shock". AI playlist makers steer hardest on song references, so these
   carry the set's taste better than any adjective.
 - **Avoid**, measured from what the set is *not*, so the playlist doesn't
   drift: *tracks under N BPM* (N = the set's slowest tempo less ~6, when the
@@ -494,7 +494,14 @@ Node by `tools/analysis-test.mjs`):
   describes the arc rather than an absolute level.
 
 The **vibe fingerprint** radar shows the same numbers the words come from,
-so you can see why the prompt says what it says.
+so you can see why the prompt says what it says. Under it, **Most like the
+set** and **Curveballs** rank the tracks by **fit** (`vibe.trackFit`, out of
+100): 60% feel, from the track's distance to the set's mean on the eight
+axes measured in the set's own spread (so a steady set notices small
+departures), and 40% sound, the cosine between the track's styles and the
+set's. A curveball (fit under 70) says which axes it departs on most
+("calmer, less danceable"). Both lists follow the *Prompt for* scope, and a
+click plays the track.
 
 **One chapter at a time.** A two-hour set often has a warm-up, a peak and a
 come-down that would make three different playlists. Above the chips,
