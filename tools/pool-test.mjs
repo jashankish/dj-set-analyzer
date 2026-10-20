@@ -22,6 +22,7 @@ class FakeWorker {
       const left = plan[m.id] || 0;
       if (left > 0) {
         plan[m.id] = left - 1;
+        if (plan.silent) return;                  // dies without a word (WebKit can do this)
         if (plan.hard) return this.onerror && this.onerror({ message: "Out of bounds memory access", preventDefault() {} });
         return this.onmessage({ data: { type: "error", id: m.id, message: "Out of bounds memory access" } });
       }
@@ -38,9 +39,9 @@ const jobs = () => Array.from({ length: 6 }, (_, i) => ({ audio: new Float32Arra
 const checks = [];
 const check = (name, value, ok) => checks.push([name, JSON.stringify(value), !!ok(value)]);
 
-async function runWith(p, hard = false) {
-  plan = { ...p, hard }; spawned = 0;
-  const pool = new Pool(3);
+async function runWith(p, hard = false, silent = false) {
+  plan = { ...p, hard, silent }; spawned = 0;
+  const pool = new Pool(3, { stallMs: silent ? 60 : 180000 });
   await pool.start({});
   const J = jobs();
   try {
@@ -62,6 +63,11 @@ check("the retried range still gets its full audio", once.lens, (v) => v[2] === 
 
 const hard = await runWith({ 4: 1 }, true);
 check("a hard worker crash (onerror) is retried too", [hard.ok, hard.spawned], ([ok, n]) => ok && n === 4);
+
+const quiet = await runWith({ 3: 1 }, false, true);
+check("a worker that goes silent is replaced and its range retried", [quiet.ok, quiet.ids, quiet.spawned], ([ok, ids, n]) => ok && ids.join() === "0,1,2,3,4,5" && n === 4);
+const quiet2 = await runWith({ 3: 2 }, false, true);
+check("a range whose worker goes silent twice fails with the stall message", [quiet2.ok, quiet2.msg], ([ok, m]) => !ok && /stopped responding/.test(m));
 
 const twice = await runWith({ 1: 2 });
 check("a range that crashes twice fails the run with the error", [twice.ok, twice.msg], ([ok, m]) => !ok && /Out of bounds/.test(m));

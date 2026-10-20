@@ -32,6 +32,20 @@ const require = createRequire(pwDir ? path.join(path.resolve(pwDir), "x.js") : i
 let pw;
 try { pw = require("playwright"); } catch (e) { pw = require("playwright-core"); }
 
+/* wait for the analysis to open its result page; if the queue shows an error
+   instead, or time runs out, fail with what the page says rather than a bare timeout */
+async function waitForResult(pg, consoleErrs) {
+  try {
+    await Promise.race([
+      pg.waitForURL(/set\.html\?id=/, { timeout: 240000 }),
+      pg.waitForSelector(".q-state.err", { timeout: 240000 }).then(async () => { throw new Error("the analysis failed"); }),
+    ]);
+  } catch (e) {
+    const queue = await pg.locator(".q-state").allTextContents().catch(() => []);
+    throw new Error(`${String(e.message).split("\n")[0]} | queue: ${queue.join(" / ") || "—"} | console: ${consoleErrs.slice(-3).join(" / ") || "—"}`);
+  }
+}
+
 /* ---------------- static server: /set-replay/ → dist/set-replay */
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".svg": "image/svg+xml", ".onnx": "application/octet-stream", ".wav": "audio/wav", ".py": "text/x-python", ".md": "text/markdown" };
@@ -71,6 +85,8 @@ const page = await context.newPage();
 const errors = [];
 const where = () => { try { return new URL(page.url()).pathname.split("/").pop() || "index"; } catch (e) { return "?"; } };
 page.on("pageerror", (e) => errors.push(`${where()}: ${String(e)}`));
+const consoleErrs = [];
+page.on("console", (m) => m.type() === "error" && consoleErrs.push(m.text().slice(0, 200)));
 page.on("console", (m) => { if (m.type() === "error") errors.push(`${where()}: ${m.text()}`); });
 
 const checks = [];
@@ -86,7 +102,7 @@ try {
   await page.waitForSelector(".q-item");
   check("queue shows the file", await page.locator(".q-name b").first().textContent(), (t) => t === "set-replay-e2e.wav");
   await page.click("#analyzeBtn");
-  await page.waitForURL(/set\.html\?id=/, { timeout: 240000 });
+  await waitForResult(page, consoleErrs);
   await page.waitForSelector(".trk");
   const story = await page.locator("#story").textContent();
   check("result page tells the story", story.slice(0, 60), (t) => /tracks in \d+ minutes/.test(t));
@@ -240,12 +256,14 @@ try {
   const p2 = await ctx2.newPage();
   const errs2 = [];
   p2.on("pageerror", (e) => errs2.push(String(e)));
+  const consoleErrs2 = [];
+  p2.on("console", (m) => m.type() === "error" && consoleErrs2.push(m.text().slice(0, 200)));
   await p2.goto(BASE);
   await p2.waitForSelector("#nameTracks", { timeout: 10000 });
   check("naming bar finds the helper", await p2.locator("#naming").textContent(), (t) => /connected/i.test(t));
   await p2.setInputFiles("#fileInput", wav);
   await p2.click("#analyzeBtn");
-  await p2.waitForURL(/set\.html\?id=/, { timeout: 240000 });
+  await waitForResult(p2, consoleErrs2);
   await p2.waitForSelector(".trk");
   check("the helper was asked once per probe", asked, (n) => n === probeTimes.length);
   check("story credits the names", (await p2.locator("#story").textContent()).slice(0, 120), (t) => /Shazam named (2|every one)/.test(t));

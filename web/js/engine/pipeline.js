@@ -160,19 +160,20 @@ export class Pool {
     let next = 0;
     return new Promise((resolve, reject) => {
       let active = 0, failed = false;
-      const busy = new Map();           // worker → last time it was heard from
+      const busy = new Map();           // worker → { t: last time it was heard from, id: its range }
       const fail = (err) => {
         if (failed) return;
         failed = true;
         clearInterval(watch);
         reject(err);
       };
-      // a worker that dies without saying so (crash, killed for memory) would otherwise hang the run
+      // a worker that dies without saying so (crash, killed for memory; WebKit can do this
+      // silently) would otherwise hang the run: treat it like a crash, i.e. retry once
       const watch = setInterval(() => {
-        for (const seen of busy.values()) {
-          if (Date.now() - seen > this.stallMs) {
-            fail(new Error("The analysis stopped responding (the browser may have run out of memory). Close other tabs and try again, or try a shorter recording."));
-            return;
+        for (const [w, b] of [...busy.entries()]) {
+          if (Date.now() - b.t > this.stallMs) {
+            retry(w, b.id, new Error("The analysis stopped responding (the browser may have run out of memory). Close other tabs and try again, or try a shorter recording."));
+            if (failed) return;
           }
         }
       }, Math.min(5000, this.stallMs / 2));
@@ -202,11 +203,11 @@ export class Pool {
         }
         const id = again != null ? again : next++, job = jobs[id];
         active++;
-        busy.set(w, Date.now());
+        busy.set(w, { t: Date.now(), id });
         w.onmessage = (e) => {
           const m = e.data;
           if (m.id !== id) return;
-          busy.set(w, Date.now());
+          busy.set(w, { t: Date.now(), id });
           if (m.type === "progress") onJobProgress(id, m.f);
           else if (m.type === "done") { results[id] = m.res; job.audio = null; active--; onJobProgress(id, 1); feed(w); }
           else if (m.type === "error") retry(w, id, new Error(m.message));
