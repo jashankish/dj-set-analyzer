@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
-const { craftProfile, relationClass, mixScore } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
+const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -105,6 +105,14 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   const C = craftProfile(demo(slug));
   check(`${slug}: smoothness per mix and a mean`, [C.smooth.length, C.stats.smooth], ([n, m]) => n === demo(slug).transitions.length && m >= 0 && m <= 100);
   check(`${slug}: the roughest mix is a key clash`, C.moments.find((m) => m.what === "Roughest mix"), (m) => m && /keys clash/.test(m.detail));
+}
+check("bridge: 8A → 9B has a single bridging key (9A or 8B)", bridgeKeys("8A", "9B").direct, (d) => d.includes("9A") && d.includes("8B"));
+check("bridge: 3A → 8A routes in key through 4A…7A", bridgeKeys("3A", "8A").via, (v) => v.join() === "4A,5A,6A,7A");
+check("tips: a seamless mix needs none", mixTips(perfect), (t) => t.length === 0);
+check("tips: the bumpy mix gets one per problem", mixTips(rough).length, (n) => n >= 4);
+{
+  const D = demo("worship-part-2"), m = D.transitions[12];       // 3A → 8A, the roughest
+  check("tips: a clash names tracks from this set on the route", mixTips(m, D.tracks)[0], (t) => /via 4A, 5A, 6A, 7A/.test(t) && /track \d+/.test(t));
 }
 check("no transitions, no profile", craftProfile({ tracks: [], transitions: [] }), (v) => v === null);
 

@@ -13,6 +13,8 @@
    No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */
 
+import { harmonicRelation } from "./engine/music.js";
+
 const median = (xs) => { const s = xs.filter((x) => x != null).sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0);
@@ -56,6 +58,49 @@ export function mixScore(m) {
   const score = Math.round(key + tempo + low + phrase + flow);
   const label = score >= 85 ? "Seamless" : score >= 70 ? "Clean" : score >= 55 ? "Rough edges" : "Bumpy";
   return { score, label, parts: { key, tempo: Math.round(tempo), low: Math.round(low), phrase, flow }, notes };
+}
+
+/* Camelot keys that mix cleanly with both a and b (same key, ±1, relative) */
+const ALL_KEYS = Array.from({ length: 24 }, (_, i) => `${(i % 12) + 1}${i < 12 ? "A" : "B"}`);
+const clean = (a, b) => harmonicRelation(a, b).compatible === true;
+export function bridgeKeys(a, b) {
+  if (!a || !b) return { direct: [], via: null };
+  const direct = ALL_KEYS.filter((k) => k !== a && k !== b && clean(a, k) && clean(k, b));
+  if (direct.length) return { direct, via: null };
+  // no single key: the shortest in-key route around the wheel (breadth-first)
+  const prev = { [a]: null }, queue = [a];
+  while (queue.length) {
+    const k = queue.shift();
+    if (k === b) break;
+    ALL_KEYS.forEach((n) => { if (!(n in prev) && clean(k, n)) { prev[n] = k; queue.push(n); } });
+  }
+  if (!(b in prev)) return { direct: [], via: null };
+  const via = [];
+  for (let k = prev[b]; k && k !== a; k = prev[k]) via.unshift(k);
+  return { direct: [], via };
+}
+
+/* what would have made a mix smoother, in a DJ's terms; tracks lets a
+   key clash point at tracks from this very set that would have bridged it */
+export function mixTips(m, tracks = []) {
+  const sc = mixScore(m), tips = [];
+  if (sc.score >= 85) return tips;
+  const name = (t) => (t.identified ? t.title.replace(/\s*\((feat|ft)\.?[^)]*\)/i, "") : `ID ${t.n}`);
+  if (m.harmonic && m.harmonic.compatible === false) {
+    const { direct, via } = bridgeKeys(m.key_from, m.key_to);
+    if (direct.length) {
+      const fits = tracks.filter((t) => t.n !== m.from && t.n !== m.to && t.key && direct.includes(t.key.camelot)).slice(0, 2);
+      tips.push(`A track in ${direct.join(" or ")} between them would have bridged ${m.key_from} and ${m.key_to}${fits.length ? `, e.g. ${fits.map((t) => `${name(t)} (track ${t.n}, ${t.key.camelot})`).join(" or ")} from this set` : ""}.`);
+    } else if (via) {
+      const fits = tracks.filter((t) => t.n !== m.from && t.n !== m.to && t.key && via.includes(t.key.camelot)).slice(0, 2);
+      tips.push(`${m.key_from} and ${m.key_to} are ${via.length + 1} steps apart on the wheel: going via ${via.join(", ")} keeps every mix in key${fits.length ? ` (${fits.map((t) => `${name(t)}, track ${t.n}, is in ${t.key.camelot}`).join("; ")})` : ""}. Short of that, mixing over drums only (a breakdown or an intro) hides the clash.`);
+    } else tips.push("Mixing over drums only (a breakdown or an intro) hides a key clash.");
+  }
+  if (Math.abs(m.bpm_delta || 0) > 0.5) tips.push(`Ride the pitch across the blend so the ${Math.abs(m.bpm_delta).toFixed(1)} BPM change lands gradually, or match it before the mix.`);
+  if (sc.notes.includes("both bass lines overlap")) tips.push("Cut the outgoing track's lows at the swap, so only one bass line plays at a time.");
+  if (sc.notes.some((n) => /off the phrase/.test(n))) tips.push(`Start the blend on a phrase so it runs ${m.bars < 12 ? "8" : m.bars < 24 ? "16" : "32"} bars.`);
+  if (sc.notes.some((n) => /energy (jumps|drops)/.test(n))) tips.push("Going through a breakdown or straight into the drop would make the energy change feel deliberate.");
+  return tips;
 }
 
 export function craftProfile(D) {

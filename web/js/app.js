@@ -14,7 +14,7 @@ import { compareSets, mergePayloads } from "./compare.js";
 import { buildPrompt, AXES } from "./vibe.js";
 import { findPhases, slicePayload } from "./phases.js";
 import { vibeProfile } from "./vibe.js";
-import { craftProfile, relationClass, mixScore } from "./craft.js";
+import { craftProfile, relationClass, mixScore, mixTips } from "./craft.js";
 import { moodMap, QUADS } from "./moodmap.js";
 
 (function () {
@@ -783,7 +783,7 @@ import { moodMap, QUADS } from "./moodmap.js";
         const bpmd = m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : "";
         html.push(`<li class="seam${i === S.mix ? " sel" : ""}" data-m="${i}" tabindex="0" aria-label="Transition ${i + 1}: ${esc(m.type)}">
           <span class="seam-line" style="background:linear-gradient(${a}, ${b})"></span>
-          <span class="seam-txt"><span class="seam-type">${esc(m.type)}</span><span>${len}</span><span class="${ok}">${esc(m.harmonic.label)}</span>${bpmd ? `<span>${bpmd.slice(3)}</span>` : ""}<span>${fmt(m.swap)}</span></span>
+          <span class="seam-txt"><span class="seam-type">${esc(m.type)}</span><span>${len}</span><span class="${ok}">${esc(m.harmonic.label)}</span>${bpmd ? `<span>${bpmd.slice(3)}</span>` : ""}<span>${fmt(m.swap)}</span><span class="seam-sm" title="Smoothness out of 100">${mixScore(m).score}</span></span>
         </li>`);
       }
     });
@@ -873,6 +873,9 @@ import { moodMap, QUADS } from "./moodmap.js";
     ];
     $("mixStats").innerHTML = stats.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
     const sc = mixScore(m);
+    const tips = mixTips(m, tracks());
+    $("mixTips").hidden = !tips.length;
+    $("mixTips").innerHTML = tips.length ? `<h3 class="h3">How it could be smoother</h3><ul>${tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
     $("mixNote").textContent = `${mixSentence(m, A, B)} Smoothness ${sc.score} of 100${sc.notes.length ? `; points lost for ${sc.notes.join(", ")}` : ", a clean hand-over on every count"}.`;
     document.querySelectorAll(".seam").forEach((el) => el.classList.toggle("sel", +el.dataset.m === S.mix));
     markCraft();

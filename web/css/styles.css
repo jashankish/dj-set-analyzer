@@ -301,6 +301,11 @@ button { font-family: inherit; color: inherit; }
 .mix-stats dd small { color: var(--muted); font-weight: 400; margin-left: 4px; }
 
 .mix-actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mix-tips { grid-column: 1 / -1; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.mix-tips .h3 { margin: 0 0 6px; }
+.mix-tips ul { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: .88rem; display: grid; gap: 4px; max-width: 90ch; }
+.seam-sm { color: var(--muted); }
+.seam-sm::before { content: "◦ "; color: var(--faint); }
 .mix-note { margin: 0 0 0 8px; color: var(--muted); font-size: .86rem; max-width: 70ch; }
 
 /* ---------------------------------------------------------------- how it was mixed */
