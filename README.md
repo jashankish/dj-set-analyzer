@@ -86,6 +86,7 @@ top; its color swatches are the set's track keys in order. Then:
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead). Under it, **time in key**: the set's home key and its share, then minutes in each key as key-colored bars (top six; the rest summed), with the playing key highlighted | Click a dot to play that track; click a key's bar to play the first track in that key |
 | **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
 | **Energy** | The energy arc of the set, filled per track in its key color, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
+| **Drop anatomy** | Every drop overlaid on one chart, lined up at the moment it lands: the bass line (the low band, averaged over a second) from 32 s before to 16 s after, each in its track's key color, with the average drawn bold and the typical breakdown shaded. A sentence and the style (*quick switch-ups* under 10 s, *classic builds* under 18 s, else *long builds*): how often drops come, how long the breakdowns run (in seconds and bars), how far the bass is pulled and how hard it lands. While a drop plays it's highlighted, with a dot riding its curve | Hover a line for that drop; click it, or one of the **biggest drops**, to hear it from 12 s before |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
 | **Mood map** | Every track placed by **brightness** (the *happy* score plus a little for major keys) and **intensity** (energy with the *aggressive* and *party* scores), the valence × arousal map from music-emotion research. Dots are key-colored and sized by length, numbered, and joined in play order (solid up to the playing track, dotted after). The cross is the set's own median, so the corners (Euphoric, Intense, Warm, Brooding) mean "more than this set's usual": room recordings pull every score to the middle. Beside it: time in each corner, a sentence on the route ("It opens intense, moves through euphoric and ends warm"), and the biggest swing between two tracks | Hover a dot for the track; click a dot (or Enter on it) to play it; **Biggest swing** plays into that change |
@@ -609,6 +610,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/moodmap.js  valence × arousal per track, corners, route sentence     │
                          │ js/card.js     the shareable set card: data (pure) + canvas painter     │
                          │ js/compare.js  similarity of two sets, differences, blended payload     │
+                         │ js/drops.js    every drop's bass line aligned at the drop, style, stats  │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1080,6 +1082,10 @@ pipeline:
   waits for the Archivo weights (`document.fonts.load`) so the canvas uses
   the page's typeface, then draws; Download uses `canvas.toBlob`, Share uses
   `navigator.share({ files })` when `navigator.canShare` allows it.
+- **Drop anatomy:** `drops.js`'s `dropAnatomy()` samples `curves.wave.low`
+  every half second around each drop (`PRE` 32 s, `POST` 16 s);
+  `renderDrops()` / `drawDrops()` paint it on a canvas, and `tick()` redraws
+  it when playback enters a drop's window, to move the dot.
 - **Mood map:** `renderMoodMap()` draws `moodmap.js`'s `moodMap()` as
   inline SVG (a 400 × 400 viewBox, domains padded to the data); each dot is a
   focusable `<g role="button">`. `setTrack()` calls `updateMoodMap()`,
@@ -1270,6 +1276,7 @@ dj-set-analyzer/
 │   ├── js/moodmap.js  # the mood map: brightness × intensity per track, route sentence (no DOM)
 │   ├── js/card.js     # the set card: cardData() (no DOM) + drawCard() on a canvas
 │   ├── js/compare.js  # compare two sets; merge them for a blend prompt (no DOM)
+│   ├── js/drops.js    # drop anatomy: each drop's bass line around the drop (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")

@@ -19,6 +19,7 @@ const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, 
 const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
+const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
@@ -157,6 +158,18 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   const off = new Set(["g:Drum n Bass"]);
   check("card: follows the chips switched off on the page", cardData(D, { off }).chips, (c) => !c.includes("drum & bass"));
 }
+
+/* ---------------- drop anatomy (web/js/drops.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), A = dropAnatomy(D);
+  check(`${slug}: one curve per drop, 97 half-second points each`, A.rows.map((r) => r.curve.length), (v) => v.length === D.drops.length && v.every((n) => n === 97));
+  const at = (dt) => A.mean[A.xs.indexOf(dt)];
+  check(`${slug}: on average the bass is lower just before the drop than just after`, [at(-3), at(3)], ([b, a]) => b < a);
+  check(`${slug}: the biggest drop has the largest impact`, A.biggest.impact_db, (x) => x === Math.max(...D.drops.map((d) => d.impact_db)));
+  check(`${slug}: the sentence counts the drops`, A.sentence, (t) => t.startsWith(`${D.drops.length} drops`));
+}
+check("drops: part 1 reads as quick switch-ups, part 2 as classic builds", [dropAnatomy(demo("worship-part-1")).style.id, dropAnatomy(demo("worship-part-2")).style.id], ([a, b]) => a === "switch" && b === "build");
+check("drops: fewer than two drops, no anatomy", dropAnatomy({ drops: [{ t: 10 }], curves: { wave_fps: 8, wave: { low: [1, 2, 3] } } }), (v) => v === null);
 
 /* ---------------- two sets side by side (web/js/compare.js) */
 {
