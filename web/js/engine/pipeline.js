@@ -153,6 +153,7 @@ export class Pool {
     // others don't all download them at once on a first visit
     const first = await spawn();
     this.workers = [first, ...(await Promise.all(Array.from({ length: this.size - 1 }, spawn)))];
+    this.spawn = spawn;                 // to replace a worker that crashed
   }
   run(jobs, onJobProgress) {
     const results = new Array(jobs.length);
@@ -176,14 +177,30 @@ export class Pool {
         }
       }, Math.min(5000, this.stallMs / 2));
       this.abort = () => fail(Object.assign(new Error("Analysis stopped"), { name: "AbortError" }));
-      const feed = (w) => {
+      /* A WASM crash (seen in WebKit as "Out of bounds memory access") can
+         leave one worker's heap broken while the others are fine: replace
+         that worker and give the range one more go before failing the run. */
+      const retry = (w, id, err) => {
         if (failed) return;
-        if (next >= jobs.length) {
+        if (jobs[id].retried || !this.spawn) { fail(err); return; }
+        jobs[id].retried = true;
+        busy.delete(w);
+        w.onmessage = w.onerror = null;
+        w.terminate();
+        this.spawn().then((nw) => {
+          this.workers[this.workers.indexOf(w)] = nw;
+          active--;
+          feed(nw, id);
+        }, () => fail(err));
+      };
+      const feed = (w, again) => {
+        if (failed) return;
+        if (again == null && next >= jobs.length) {
           busy.delete(w);
           if (active === 0) { clearInterval(watch); resolve(results); }
           return;
         }
-        const id = next++, job = jobs[id];
+        const id = again != null ? again : next++, job = jobs[id];
         active++;
         busy.set(w, Date.now());
         w.onmessage = (e) => {
@@ -191,17 +208,19 @@ export class Pool {
           if (m.id !== id) return;
           busy.set(w, Date.now());
           if (m.type === "progress") onJobProgress(id, m.f);
-          else if (m.type === "done") { results[id] = m.res; active--; onJobProgress(id, 1); feed(w); }
-          else if (m.type === "error") fail(new Error(m.message));
+          else if (m.type === "done") { results[id] = m.res; job.audio = null; active--; onJobProgress(id, 1); feed(w); }
+          else if (m.type === "error") retry(w, id, new Error(m.message));
         };
         w.onerror = (e) => {
           if (e.preventDefault) e.preventDefault();
-          fail(new Error(`The analysis crashed${e.message ? ` (${e.message})` : ""}. Try again, or try a shorter recording.`));
+          retry(w, id, new Error(`The analysis crashed${e.message ? ` (${e.message})` : ""}. Try again, or try a shorter recording.`));
         };
         w.onmessageerror = () => fail(new Error("The analysis couldn't pass data between threads. Try again."));
-        w.postMessage({ type: "run", id, ...job }, [job.audio.buffer]);
+        // a copy, so the range is still here if this worker crashes and it has to run again
+        const audio = job.audio.slice();
+        w.postMessage({ type: "run", id, ...job, audio }, [audio.buffer]);
       };
-      this.workers.forEach(feed);
+      this.workers.forEach((w) => feed(w));
     });
   }
   stop() {

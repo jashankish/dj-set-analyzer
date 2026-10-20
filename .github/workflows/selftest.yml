@@ -38,6 +38,9 @@ jobs:
       - name: Engine self-test on synthetic audio
         run: node tools/selftest.mjs
 
+      - name: Worker pool recovers from a crashed worker
+        run: node tools/pool-test.mjs
+
       - name: Page analyses (Spotify prompt, chapters, mixing, mood map, set card, compare) on the demo sets
         run: node tools/analysis-test.mjs
 
