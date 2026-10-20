@@ -8,6 +8,7 @@
    ============================================================ */
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { openNamingDialog } from "./naming-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./vibe-ui.js";
 
 (function () {
   "use strict";
@@ -127,6 +128,7 @@ import { openNamingDialog } from "./naming-ui.js";
   /* ------------------------------------------------ boot */
   async function boot() {
     bindStatic();
+    await vibeAuthReturn();       // back from Spotify's sign-in: restores the set's URL first
     const q = new URLSearchParams(location.search);
     try {
       if (q.get("id")) await bootLocal(q.get("id"));
@@ -253,6 +255,7 @@ import { openNamingDialog } from "./naming-ui.js";
     renderWheel();
     renderRows();
     renderCredits();
+    mountVibe({ D, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast });
     drawAll();
     setTrack(0, true);
     selectMix(0, false);
@@ -611,6 +614,10 @@ import { openNamingDialog } from "./naming-ui.js";
     const L = [];
     if (tr.meta && tr.meta.shazam_url) L.push(`<a href="${esc(tr.meta.shazam_url)}" target="_blank" rel="noopener">Shazam</a>`);
     if (tr.meta && tr.meta.apple_url) L.push(`<a href="${esc(tr.meta.apple_url)}" target="_blank" rel="noopener">Apple Music</a>`);
+    if (tr.identified || S.names[tr.n]) {
+      const q = tr.identified && !S.names[tr.n] ? `${tr.artist} ${tr.title.replace(/\s*[([][^)\]]*[)\]]/g, "")}` : S.names[tr.n];
+      L.push(`<a href="https://open.spotify.com/search/${encodeURIComponent(q)}" target="_blank" rel="noopener">Spotify</a>`);
+    }
     if (tr.meta && (tr.meta.label || tr.meta.released)) L.push(`<span style="color:var(--muted)">${esc([tr.meta.label, tr.meta.released].filter(Boolean).join(", "))}</span>`);
     $("deckLinks").innerHTML = L.join("");
     const nx = tracks()[i + 1], m = mixes()[i];
@@ -620,6 +627,7 @@ import { openNamingDialog } from "./naming-ui.js";
     document.querySelectorAll(".trk").forEach((el) => el.classList.toggle("now", +el.dataset.i === i));
     drawRibbon();
     updateWheel();
+    vibeTrack(i);
   }
 
   function bindRename() {
@@ -636,6 +644,7 @@ import { openNamingDialog } from "./naming-ui.js";
           if (v && v !== (tr.identified ? tr.title : "ID")) S.names[tr.n] = v; else delete S.names[tr.n];
           saveLocal();
           renderSetlist(); renderHeader();
+          vibeNames(S.names, S.title || S.D.title);
           toast(v ? "Track renamed" : "Name cleared");
         }
         setTrack(S.cur, true);
@@ -657,6 +666,7 @@ import { openNamingDialog } from "./naming-ui.js";
         if (save) {
           S.title = v && v !== S.D.title ? v : null;
           saveLocal();
+          vibeNames(S.names, S.title || S.D.title);
           renderSetNav();
           $("sets").querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.slug === S.D.slug ? "true" : "false"));
         }
@@ -1363,6 +1373,7 @@ import { openNamingDialog } from "./naming-ui.js";
     else if (k === "-" || k === "_") zoomAround(focusTime(), 2);
     else if (k === "f" || k === "F") $("followBtn").click();
     else if (k === "?") $("helpBtn").click();
+    else if (k === "c" || k === "C") copyPrompt();
   }
 
   function drawAll() {

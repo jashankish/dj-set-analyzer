@@ -113,6 +113,8 @@ try {
   }
   await page.locator(".seam").first().click();
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
+  check("the vibe section writes a Spotify prompt", await page.locator("#vibePrompt").inputValue(), (t) => /^A .*playlist \(\d+–\d+ BPM\)/.test(t));
+  check("the vibe radar has the whole set and the live track", await page.locator("#vibeRadar .vr-set, #vibeRadar .vr-now").count(), (n) => n === 2);
 
   /* download the analysis, then import it on the landing page */
   const [download] = await Promise.all([page.waitForEvent("download"), page.click("#exportBtn")]);
@@ -163,6 +165,11 @@ try {
   await p3.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.6);
   await p3.waitForTimeout(300);
   check("phone: tapping the ribbon moves the playhead", await p3.locator("#tCur").textContent(), (t) => t !== "0:00");
+  check("phone: the demo's prompt reads as drum & bass, naming Sub Focus", await p3.locator("#vibePrompt").inputValue(), (t) => t.includes("drum & bass") && t.includes("Sub Focus"));
+  await p3.locator('.chip[data-id="a:Sub Focus"]').tap();
+  check("phone: tapping a keyword takes it out of the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => !t.includes("Sub Focus"));
+  await p3.locator("#vibeShort").tap();
+  check("phone: keywords-only prompt fits Spotify's 300 characters", (await p3.locator("#vibePrompt").inputValue()).length, (n) => n > 20 && n <= 300);
   check("phone: no page errors", errs3, (e) => e.length === 0);
   await phone.close();
 } catch (e) {

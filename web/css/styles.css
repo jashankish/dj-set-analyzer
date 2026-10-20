@@ -338,6 +338,68 @@ button { font-family: inherit; color: inherit; }
 }
 .credits a { color: var(--muted); }
 
+/* ---------------------------------------------------------------- vibe → Spotify */
+.vibe { max-width: var(--maxw); margin: 64px auto 0; padding: 0 var(--gut); }
+.v-head { margin-bottom: 18px; }
+.v-body { display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 44px; align-items: start; }
+.v-print { margin: 0; position: relative; }
+.v-print svg { width: 100%; height: auto; display: block; overflow: visible; }
+.vr-ring { fill: none; stroke: var(--line-soft); stroke-width: 1; }
+.vr-spoke { stroke: var(--line-soft); stroke-width: 1; }
+.vr-lbl { font-family: var(--font); font-size: 11px; font-stretch: 85%; fill: var(--muted); dominant-baseline: central; }
+.vr-set { fill-opacity: .42; stroke-width: 2; stroke-linejoin: round; }
+.vr-now { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 4 3; stroke-linejoin: round; transition: all .35s ease; }
+.vr-dot { fill: var(--ink); stroke: var(--bg); stroke-width: 2; }
+.vr-hit { fill: transparent; cursor: help; }
+#vibeTip .t-meta { display: block; }
+.vr-hit:hover { fill: rgba(255,255,255,.03); }
+.v-cap { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; color: var(--muted); font-size: .8rem; font-stretch: 88%; margin-top: 8px; }
+.v-lg { display: inline-flex; align-items: center; gap: 6px; }
+.v-sw { width: 14px; height: 10px; border-radius: 3px; border: 2px solid; opacity: .9; }
+.v-sw-now { background: none; border: 2px dashed var(--ink); }
+.v-vals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 16px 0 0; background: var(--line-soft); border-radius: var(--r-m); overflow: hidden; }
+.v-vals div { background: var(--panel); padding: 7px 10px; }
+.v-vals dt { color: var(--muted); font-size: .72rem; font-stretch: 85%; }
+.v-vals dd { margin: 0; font-weight: 600; font-stretch: 75%; font-size: 1.05rem; }
+
+.v-prompt { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.v-chips { display: flex; flex-direction: column; gap: 8px; }
+.v-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.v-gl { width: 64px; flex: none; color: var(--faint); font-size: .74rem; font-stretch: 85%; text-transform: uppercase; letter-spacing: .06em; }
+.chip {
+  background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px;
+  font-size: .82rem; font-stretch: 90%; cursor: pointer; color: var(--faint); text-decoration: line-through; text-decoration-color: var(--faint);
+}
+.chip[aria-pressed="true"] { color: var(--ink); background: var(--raised); border-color: var(--raised); text-decoration: none; }
+.chip:hover { border-color: var(--muted); }
+.v-form { display: flex; gap: 6px; align-items: center; }
+.v-form [aria-selected="true"] { color: var(--ink); background: var(--raised); border-color: var(--raised); }
+.v-count { margin-left: auto; color: var(--faint); font-size: .78rem; font-stretch: 85%; }
+.v-text {
+  width: 100%; resize: vertical; min-height: 110px; font: inherit; font-size: .95rem; line-height: 1.55;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-m); padding: 12px 14px;
+}
+.v-extra {
+  width: 100%; font: inherit; font-size: .88rem; color: var(--ink); background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 12px;
+}
+.v-text:focus, .v-extra:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.v-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.v-btn { text-decoration: none; display: inline-flex; align-items: center; padding: 8px 14px; }
+.v-actions .ghost { padding: 8px 14px; }
+.v-actions button:disabled { opacity: .5; cursor: progress; }
+.v-status { margin: 0; color: var(--ink-2); font-size: .88rem; min-height: 1.3em; }
+.v-status a, .v-connect a { color: var(--ink); }
+.v-how { margin: 0; padding-left: 20px; color: var(--muted); font-size: .86rem; display: grid; gap: 3px; }
+.v-how b { color: var(--ink-2); font-weight: 600; }
+.v-connect { color: var(--muted); font-size: .86rem; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.v-connect summary { cursor: pointer; color: var(--ink-2); }
+.v-connect p { margin: 8px 0; }
+.v-uri { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.v-uri code { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; color: var(--ink); overflow-wrap: anywhere; }
+.v-idrow { display: flex; gap: 8px; }
+.v-idrow .v-extra { max-width: 340px; }
+
 /* ---------------------------------------------------------------- player */
 .player {
   position: fixed; left: 0; right: 0; bottom: 0; height: var(--player-h); z-index: 20;
@@ -387,6 +449,8 @@ button { font-family: inherit; color: inherit; }
   .deck-art { grid-row: span 3; }
   .deck .spectrum, .deck-styles, .deck-links, .deck-next, .pulse { grid-column: 1 / -1; }
   .journey { grid-template-columns: 1fr; }
+  .v-body { grid-template-columns: 1fr; }
+  .v-print { max-width: 440px; margin: 0 auto; width: 100%; }
   .j-wheel svg { max-width: 420px; margin: 10px auto 0; }
   .mix-body { grid-template-columns: 1fr; }
 }
@@ -406,6 +470,8 @@ button { font-family: inherit; color: inherit; }
   .row { grid-template-columns: 96px 1fr 38px; }
   .p-now, #prevTrack, #helpBtn { display: none; }
   .r-legend .lg-key { display: none; }
+  .v-vals { grid-template-columns: repeat(2, 1fr); }
+  .v-gl { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

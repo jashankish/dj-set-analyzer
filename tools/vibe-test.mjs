@@ -1,0 +1,56 @@
+#!/usr/bin/env node
+/* Checks the Spotify prompt writer (web/js/vibe.js) on the bundled demo sets
+   and on edge cases. No dependencies: node tools/vibe-test.mjs
+
+   The demos are phone recordings of drum & bass sets (Sub Focus, Culture
+   Shock, Dimension…) that the style model partly hears as "hardcore": the
+   prompt must still lead with drum & bass, name the right artists, and
+   leave out the Shazam matches that are clearly wrong (library music). */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
+const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
+
+const checks = [];
+const check = (name, value, ok) => checks.push([name, JSON.stringify(value), !!ok(value)]);
+
+/* ---------------- the demos */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const P = vibeProfile(demo(slug));
+  const { full, short } = buildPrompt(P);
+  check(`${slug}: drum & bass is the lead genre`, P.genres[0].style, (s) => s === "Drum n Bass");
+  check(`${slug}: tempo said as ~175 BPM`, full.match(/around \d+ BPM/)?.[0], (t) => /around 17[5-7] BPM/.test(t || ""));
+  check(`${slug}: Sub Focus is among the artists`, P.artists, (a) => a.includes("Sub Focus"));
+  check(`${slug}: no library-music misfires among the artists`, P.artists, (a) => !a.some((x) => /Sandy Khippal|Elizabeth Franklin|Adriel Fair/.test(x)));
+  check(`${slug}: every axis is 0–1`, AXES.map(([k]) => P.axes[k]), (v) => v.every((x) => x >= 0 && x <= 1));
+  check(`${slug}: one radar outline per track`, P.trackAxes.length, (n) => n === demo(slug).tracks.length);
+  check(`${slug}: short prompt ≤ 300 characters`, short.length, (n) => n > 20 && n <= 300);
+  check(`${slug}: full prompt asks for DJ-set ordering`, full, (t) => t.includes("Order it like a DJ set"));
+  const off = defaultOff(P);
+  off.add("f:flow"); off.add("g:Drum n Bass");
+  const p2 = buildPrompt(P, off, "for a late-night drive");
+  check(`${slug}: switching chips off removes them`, p2.full, (t) => !t.includes("drum & bass") && !t.includes("Order it like"));
+  check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
+}
+check("part 2: hardcore (a room-noise artefact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
+
+/* ---------------- pieces */
+check("artistsOf splits co-artists and finds remixers", [...artistsOf("Timewarp (Dimension Remix)", "Sub Focus & Wilkinson").keys()], (a) => a.join("|") === "Sub Focus|Wilkinson|Dimension");
+check("artistsOf: crowded credits get half weight", [...artistsOf("", "A, B, C & D").values()], (w) => w.every((x) => x === 0.5));
+check("trust: off-genre match is discounted", [trust({ shazam_hits: 1, id_confidence: 0.1, meta: { genre: "New Age" } }), trust({ shazam_hits: 1, id_confidence: 0.1, meta: { genre: "Dance" } })], ([a, b]) => a < b / 2);
+
+/* ---------------- a bare set: no names, no styles, no curves */
+const bare = { title: "Bare", duration: 600, summary: { bpm_avg: 124, bpm_min: 122, bpm_max: 126, styles: [{ style: "Tech House", share: 0.5 }] },
+  tracks: [{ n: 1, start: 0, end: 600, identified: false, bpm: 124, energy: 6, key: { camelot: "8A" }, moods: {} }], drops: [] };
+const PB = vibeProfile(bare);
+const pb = buildPrompt(PB);
+check("bare set: still writes a prompt", pb.full, (t) => /^A driving tech house playlist \(around 124 BPM\)/.test(t));
+check("bare set: no artist sentence", pb.full, (t) => !t.includes("Think"));
+
+let bad = 0;
+for (const [name, v, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"}  ${name}  ${ok ? "" : v}`); if (!ok) bad++; }
+console.log(bad ? `\n${bad} of ${checks.length} checks failed` : `\nall ${checks.length} checks passed`);
+process.exit(bad ? 1 : 0);

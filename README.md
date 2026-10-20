@@ -8,6 +8,8 @@ ask after a night out:
 - How did the DJ get from one track to the next?
 - Did the mixes stay in key?
 - Where were the drops, and where did the energy peak?
+- What would a playlist with this set's sound be? (It writes the prompt for
+  Spotify's Prompted Playlist, and can save the set's tracks to Spotify.)
 
 There are two ways to run it, and both produce the same JSON:
 
@@ -29,18 +31,19 @@ There are two ways to run it, and both produce the same JSON:
 2. [Run it yourself](#run-it-yourself)
 3. [Hosting details](#hosting-details)
 4. [Naming tracks with the helper](#naming-tracks-with-the-helper)
-5. [Command-line options](#command-line-options)
-6. [Architecture](#architecture)
-7. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
-8. [The browser engine](#the-browser-engine)
-9. [The data format](#the-data-format)
-10. [The web app](#the-web-app)
-11. [Accuracy and limits](#accuracy-and-limits)
-12. [Costs and licences](#costs-and-licences)
-13. [Troubleshooting](#troubleshooting)
-14. [Project layout](#project-layout)
-15. [Credits](#credits)
-16. [License](#license)
+5. [Spotify: the set as a playlist prompt](#spotify-the-set-as-a-playlist-prompt)
+6. [Command-line options](#command-line-options)
+7. [Architecture](#architecture)
+8. [The analysis pipeline, step by step](#the-analysis-pipeline-step-by-step)
+9. [The browser engine](#the-browser-engine)
+10. [The data format](#the-data-format)
+11. [The web app](#the-web-app)
+12. [Accuracy and limits](#accuracy-and-limits)
+13. [Costs and licences](#costs-and-licences)
+14. [Troubleshooting](#troubleshooting)
+15. [Project layout](#project-layout)
+16. [Credits](#credits)
+17. [License](#license)
 
 ---
 
@@ -76,13 +79,14 @@ top; its colour swatches are the set's track keys in order. Then:
 | --- | --- | --- |
 | **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set | Double-click the title to rename the set (saved in this browser) |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's colour on the Camelot wheel**. Colours cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterwards) is greyed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
-| **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music links, and what comes next | Double-click an **ID** track's title to name it yourself |
+| **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, and a one-sentence description | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead) | Click a dot to play that track |
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops and the peak marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
+| **Take the vibe to Spotify** | A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, labels, era, flow, length) and the prompt they make | Hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
 
@@ -94,6 +98,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | `M` | Hear the next mix |
 | `+` / `−` | Zoom the ribbon |
 | `F` | Follow playback when zoomed |
+| `C` | Copy the Spotify prompt |
 | `?` | Show the shortcuts |
 
 ---
@@ -294,6 +299,15 @@ relative.
    # or, from another build script: SET_REPLAY_HEAD=my-analytics.html bash tools/build-site.sh
    ```
 
+7. **Saving to Spotify (optional).** The prompt and *Open Spotify* work
+   everywhere with no setup. *Save the set to Spotify* needs a Spotify app's
+   Client ID: put yours on every page with the `--head` option above, e.g. a
+   file containing
+   `<meta name="set-replay-spotify-client-id" content="YOUR_CLIENT_ID">`, and
+   add `https://yoursite.com/set-replay/set.html` as a Redirect URI in the
+   Spotify dashboard. Without it, visitors can paste their own app's Client
+   ID on the page. See [Spotify](#spotify-the-set-as-a-playlist-prompt).
+
 ### Inside a larger site
 
 Set Replay can live in a sub-folder of an existing site (say
@@ -400,6 +414,86 @@ in all three engines, checked on every push.
 
 ---
 
+## Spotify: the set as a playlist prompt
+
+Spotify's **Prompted Playlist** (Premium; launched in New Zealand in December
+2025 and in the US, Canada, the UK, Ireland, Australia and Sweden in early
+2026; English only) builds a playlist from a typed description. The set page
+writes that description for you, from what the analysis measured, in the
+section **Take the vibe to Spotify**.
+
+**Using it:** press **Copy prompt** (or `C`). In the Spotify app, tap
+**Create** (+), then **Prompted Playlist**, and paste. Switch off any
+keyword chip that doesn't fit before copying, or add your own direction
+("for a late-night drive"). *Keywords only* gives a one-line version under
+300 characters, which also suits the older AI Playlist and other services'
+prompt boxes.
+
+**How the prompt is written** (`web/js/vibe.js`, pure functions, tested in
+Node by `tools/vibe-test.mjs`):
+
+- **Genres are weighed by agreement, not taken raw.** A phone in a loud room
+  makes the style model hear drum & bass as "hardcore" or "gabber". Each
+  style's share of the set is multiplied by how well the set's tempo fits it
+  (the same tempo priors as step 4), discounted ×0.6 if it's a "harsh"
+  style that room recordings over-report (unless Shazam backs it), and
+  boosted by Shazam's genre for the named tracks. Up to three genres within
+  45% of the best are switched on. Ambient and experimental are treated as
+  texture ("atmospheric breakdowns", "experimental edges"), not genre.
+- **Tempo:** a word (laid-back → driving → fast → high-tempo) plus "around
+  175 BPM", or a range when the set moves.
+- **Mood** from the duration-weighted model scores: aggressive → *punchy* or
+  *hard-hitting*, happy → *euphoric*, or *dark* when the set is low on happy
+  and mostly in minor keys, party → *clubby* or *rave-ready*, danceability
+  → *relentlessly danceable*, minor-key share → *emotional*.
+- **Sound:** vocal share (*big vocal hooks* / *vocal and instrumental cuts* /
+  *mostly instrumental tracks*), textures, and *big drops* when drops come
+  more than once every 2.5 minutes.
+- **Artists** are the strongest steer for Spotify, so they're chosen with
+  care. Each named track counts by how far its Shazam match can be trusted
+  (repeat hits and confidence, ×0.35 when Shazam files it under a genre that
+  rarely belongs in a DJ set, such as New Age or Soft Rock: those are
+  usually room noise matched to library music). Lead artists count 1,
+  co-artists 0.7, remixers 0.9, names in crowded credits 0.5. Names you
+  type as `Artist – Title` count fully.
+- **Labels** that recur (e.g. RAM Records, Positiva), the **era** of the
+  trusted releases, and the **flow**: the energy arc over the set's thirds,
+  phrased as an ordering instruction ("start strong, breathe in the middle,
+  then build back up to a big finish").
+
+The **vibe fingerprint** radar shows the same numbers the words come from,
+so you can see why the prompt says what it says.
+
+**Save the set to Spotify** creates a private playlist named
+*&lt;set title&gt; · Set Replay* holding the set's named tracks, with the
+keywords as its description. Each track is matched by ISRC first (Shazam
+supplies it), then by title and lead artist; doubtful Shazam matches are
+left out and listed. Spotify has no public API for Prompted Playlist itself,
+so the page can't run the prompt for you. The saved playlist is the seed,
+and the prompt is what you paste.
+
+It signs in with OAuth 2 + PKCE entirely in the browser (`web/js/spotify.js`):
+no secret, no server, scopes `playlist-modify-private playlist-modify-public`,
+and the token lives in `sessionStorage` for the tab. It needs a Spotify
+app's Client ID:
+
+1. Create an app at <https://developer.spotify.com/dashboard> and tick
+   *Web API*.
+2. Add the page's address as a **Redirect URI**, exactly as the page shows
+   it under *Use your own Spotify app*: `https://…/set.html`, or locally
+   `http://127.0.0.1:8778/set.html`. Spotify rejects `localhost`, so open the
+   local site at 127.0.0.1.
+3. Either paste the Client ID on the page (kept in this browser's
+   `localStorage`), or, as the host, ship it in a
+   `<meta name="set-replay-spotify-client-id">` tag (see
+   [Hosting details](#hosting-details)). Then the paste box is hidden.
+
+Since February 2026, a Spotify app in *Development Mode* only works for its
+owner (who needs Premium) and up to five users listed under *User
+Management*. A public site therefore needs Extended Quota from Spotify, or
+visitors bring their own app as above. Calls use the 2026 endpoints
+(`POST /me/playlists`, `POST /playlists/{id}/items`, search with `limit` ≤ 10).
+
 ## Command-line options
 
 `venv/bin/python analyzer/analyze.py [files…] [options]`
@@ -440,6 +534,8 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/engine/     the browser engine (Web Workers, Essentia.js, ORT Web)    │
                          │ js/store.js    the visitor's library in IndexedDB                       │
                          │ js/app.js      viewer: canvases, SVG wheel, playback sync, shortcuts    │
+                         │ js/vibe.js     set → vibe fingerprint, keyword chips, Spotify prompt     │
+                         │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
                          └─────────────────────────────────────────────────────────────────────────┘
@@ -870,7 +966,7 @@ pipeline:
 - accepts only plain names of audio files in the project root; there's no path
   traversal
 
-### Viewer (`web/js/app.js`, about 1,300 lines of vanilla JS, an ES module)
+### Viewer (`web/js/app.js`, about 1,400 lines of vanilla JS, an ES module)
 
 - **State:** one `S` object holds the loaded set, the ribbon view window
   `{t0, t1}`, the current track, the selected mix, and the follow and loop
@@ -896,6 +992,14 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **The vibe section** (`js/vibe-ui.js`): `openPayload()` calls
+  `mountVibe()`, which builds the profile with `vibe.js` and draws the radar
+  as inline SVG; `setTrack()` calls `vibeTrack()` so the dashed outline
+  follows playback, and a rename calls `vibeNames()` (a name typed as
+  `Artist – Title` adds an artist). `boot()` first awaits `vibeAuthReturn()`:
+  when Spotify's sign-in sends the visitor back with `?code=…`, it swaps the
+  code for a token and restores the set's original URL before routing.
+  Chip choices live under `set-replay:vibe:<slug>`.
 - **Your edits:** renamed IDs and set titles are saved in `localStorage`
   under `set-replay:<slug>`. They never touch the analysis files.
 
@@ -1030,6 +1134,9 @@ dj-set-analyzer/
 │   ├── js/mini.js     # small renderers for the landing page (cached animated ribbon)
 │   ├── js/color.js    # Camelot → OKLCH colour
 │   ├── js/naming-ui.js  # the "Want them named?" pop-up
+│   ├── js/vibe.js     # the set's vibe → keyword chips + Spotify prompt (no DOM)
+│   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
+│   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
 │   ├── helper/set-replay-helper.py  # the optional naming helper visitors run
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
@@ -1045,6 +1152,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
+│   ├── vibe-test.mjs     # the Spotify prompt writer on the demo sets and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/

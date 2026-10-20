@@ -148,6 +148,50 @@
     </div>
   </section>
 
+  <!-- the vibe, for a playlist AI -->
+  <section class="vibe" id="vibe" aria-labelledby="vibeH">
+    <div class="v-head">
+      <h2 class="h2" id="vibeH">Take the vibe to Spotify</h2>
+      <p class="j-sub">The set's sound, written as a prompt for Spotify's Prompted Playlist. Switch keywords off to steer it.</p>
+    </div>
+    <div class="v-body">
+      <figure class="v-print">
+        <svg id="vibeRadar" viewBox="-170 -150 340 300" role="img" aria-labelledby="vibeCap"></svg>
+        <div class="tip" id="vibeTip" hidden></div>
+        <figcaption class="v-cap" id="vibeCap"></figcaption>
+        <dl class="v-vals" id="vibeVals"></dl>
+      </figure>
+      <div class="v-prompt">
+        <div class="v-chips" id="vibeChips"></div>
+        <div class="v-form" role="tablist" aria-label="Prompt length">
+          <button class="ghost" role="tab" id="vibeFull" aria-selected="true">Full prompt</button>
+          <button class="ghost" role="tab" id="vibeShort" aria-selected="false">Keywords only</button>
+          <span class="v-count" id="vibeCount"></span>
+        </div>
+        <textarea class="v-text" id="vibePrompt" rows="5" aria-label="Playlist prompt" spellcheck="false"></textarea>
+        <input class="v-extra" id="vibeExtra" type="text" maxlength="160" placeholder="Add your own direction, e.g. “for a late-night drive”" aria-label="Your own direction for the prompt" />
+        <div class="v-actions">
+          <button class="solid" id="vibeCopy">Copy prompt</button>
+          <a class="ghost v-btn" id="vibeOpen" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
+          <button class="ghost" id="vibeSave">Save the set to Spotify</button>
+          <button class="ghost" id="vibeReset" title="Switch the keywords back to the defaults">Reset</button>
+        </div>
+        <p class="v-status" id="vibeStatus" role="status" aria-live="polite"></p>
+        <ol class="v-how">
+          <li>Copy the prompt.</li>
+          <li>In the Spotify app, tap <b>Create</b> (+), then <b>Prompted Playlist</b> (Premium, in English-speaking markets).</li>
+          <li>Paste, then refine it there. <b>Save the set to Spotify</b> also gives you the set's own named tracks as a playlist, with the keywords as its description.</li>
+        </ol>
+        <details class="v-connect" id="vibeConnect">
+          <summary>Use your own Spotify app</summary>
+          <p>Saving to Spotify needs a Spotify app's Client ID. Make one free at <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> (choose <i>Web API</i>), add this exact Redirect URI, then paste the Client ID here. It stays in this browser.</p>
+          <p class="v-uri"><code id="vibeUri"></code> <button class="ghost" id="vibeUriCopy">Copy</button></p>
+          <p class="v-idrow"><input class="v-extra" id="vibeClientId" type="text" placeholder="Client ID" aria-label="Spotify Client ID" spellcheck="false" autocomplete="off" /> <button class="ghost" id="vibeIdSave">Save</button></p>
+        </details>
+      </div>
+    </div>
+  </section>
+
   <footer class="credits" id="credits"></footer>
 
   <!-- player -->
@@ -181,6 +225,7 @@
       <dt>M</dt><dd>Hear the next mix</dd>
       <dt>+ / −</dt><dd>Zoom the set</dd>
       <dt>F</dt><dd>Follow playback</dd>
+      <dt>C</dt><dd>Copy the Spotify prompt</dd>
     </dl>
   </div>
   <div class="toast" id="toast" hidden></div>

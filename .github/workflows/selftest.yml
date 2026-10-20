@@ -38,6 +38,9 @@ jobs:
       - name: Engine self-test on synthetic audio
         run: node tools/selftest.mjs
 
+      - name: Spotify prompt writer on the demo sets
+        run: node tools/vibe-test.mjs
+
       - name: Site build
         run: bash tools/build-site.sh
 
