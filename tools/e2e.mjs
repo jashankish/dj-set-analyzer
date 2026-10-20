@@ -169,6 +169,37 @@ try {
   console.log(`  page errors: ${JSON.stringify(errors).slice(0, 600)}`);
 }
 
+/* ---------------- a video of the set: only its soundtrack is analyzed and kept */
+try {
+  const ctxV = await browser.newContext();
+  const pv = await ctxV.newPage();
+  const errsV = [], consoleV = [];
+  pv.on("pageerror", (e) => errsV.push(String(e)));
+  pv.on("console", (m) => m.type() === "error" && consoleV.push(m.text().slice(0, 200)));
+  await pv.goto(BASE);
+  await pv.waitForSelector("#demoList .card");
+  const naming = pv.locator("#nameTracks");
+  if (await naming.count() && await naming.isChecked()) await naming.uncheck();
+  await pv.setInputFiles("#fileInput", path.join(ROOT, "tools/fixtures/set-replay-e2e.mov"));
+  await pv.waitForSelector(".q-item");
+  check("video: a .mov is accepted into the queue", await pv.locator(".q-name b").first().textContent(), (t) => t === "set-replay-e2e.mov");
+  await pv.click("#analyzeBtn");
+  await waitForResult(pv, consoleV);
+  await pv.waitForSelector(".trk");
+  check("video: the set is found in its soundtrack", await pv.locator(".trk").count(), (n) => n >= 2);
+  check("video: the set keeps the video's name", await pv.locator("#title").textContent(), (t) => t === "set-replay-e2e");
+  const kept = await pv.evaluate(async () => { const b = await (await fetch(document.getElementById("audio").src)).blob(); return [b.type, b.size]; });
+  check("video: what's stored is the extracted audio, not the video", kept, ([type, size]) => type === "audio/mp4" && size > 1e6 && size < fs.statSync(path.join(ROOT, "tools/fixtures/set-replay-e2e.mov")).size);
+  check("video: no page errors", errsV, (e) => e.length === 0);
+  // leave nothing stored: a context closing with a set (and its audio) in IndexedDB can
+  // hold up browser.close() for minutes while the browser cleans up the blobs
+  await pv.goto(BASE);
+  await pv.evaluate(() => new Promise((r) => { const q = indexedDB.deleteDatabase("set-replay"); q.onsuccess = q.onerror = q.onblocked = r; }));
+  await ctxV.close();
+} catch (e) {
+  checks.push(["video flow completed", String(e).split("\n")[0], false]);
+}
+
 /* ---------------- on a phone: 390 x 844 with touch */
 try {
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -274,7 +305,9 @@ try {
 } catch (e) {
   checks.push(["naming flow completed", String(e).split("\n")[0], false]);
 } finally {
-  await browser.close();
+  // every check is in by now; Chrome sometimes takes ~30 s (once ~300 s) to shut down
+  // after the video flow, so don't let teardown hold the run up (the process exit ends it)
+  await Promise.race([browser.close(), new Promise((r) => setTimeout(r, 10000))]);
   server.close();
   mock.close();
   fs.rmSync(wav, { force: true });

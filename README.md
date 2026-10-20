@@ -53,6 +53,9 @@ There are two ways to run it, and both produce the same JSON:
 
 - **Drop zone:** a large panel that is itself a waveform of a demo set. Drop
   one or more recordings (or click to choose them) and press **Analyze**.
+  A **video** of a set works too (MP4 or MOV, what phones record): only its
+  soundtrack is taken out and analyzed, and only that audio is kept for
+  playback, so an hour of 1080p video (5–8 GB) costs about 60 MB of storage.
   Each file shows its progress, and **Stop** cancels the run. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
@@ -892,6 +895,7 @@ JSON (next section). `web/data/sets.json` is rebuilt after every run.
 | File | Role |
 | --- | --- |
 | `pipeline.js` | Decodes with `OfflineAudioContext` (mono 16 kHz). Browsers that refuse a 16 kHz context (older Safari allows only 22.05 kHz and up) decode at 44.1 kHz instead, and `resample()` brings it to 16 kHz: a 16-tap windowed-sinc filter with an anti-aliasing cutoff, about 0.2 s per 10 minutes of audio. On Recording 9 that path gives the same tempo and nearly identical track starts. It then plans 2-minute ranges. It downloads the models **once** on the main thread, showing "Downloading the analysis models · 12 of 21 MB", and hands the bytes to every worker. The landing page starts this download as soon as files are dropped, before Analyze is pressed, and the analysis reuses it; any caller can follow its progress. It starts one worker first, so the WebAssembly libraries are cached before the rest of the pool (cores − 1, at most 6) starts; on a first visit the downloads therefore don't multiply by the number of workers. It then merges the ranges and builds the payload, supports canceling (`AbortSignal`), and turns out-of-memory decode failures into readable errors. A worker that crashes mid-run (WebKit has shown WebAssembly "Out of bounds memory access" now and then) is replaced by a fresh one and its range runs once more; only a second crash on the same range fails the analysis, with a clear message. Each range's audio is posted as a copy so it's still there for that retry, and is released once the range is done. A worker that sends nothing for 3 minutes while busy (WebKit can end a worker without any error event) is treated the same way: replaced, and its range retried once; a second stall on that range fails the analysis instead of hanging. The pool is rebuilt for the next file |
+| `demux.js` | Takes the soundtrack out of a video without loading the video. MP4 and MOV are ISO media files whose `moov` box indexes every chunk of every track, so it walks the top-level boxes with small `Blob.slice()` reads, reads only `moov`, finds the AAC sound track (`hdlr` = `soun`, sample entry `mp4a`), works out each audio chunk's place and length from `stsc`/`stsz`/`stco` (or `co64`), and writes a new audio-only `.m4a` (`ftyp` + a `moov` holding just that track with its chunk offsets rewritten + an `mdat` of those chunks). No re-encoding, so the audio packets are identical; a 5-minute 1080p MOV (587 MB) gives a 5 MB M4A in ~70 ms. QuickTime describes AAC with a version 1 or 2 sound entry (the `esds` inside a `wave` box), which WebKit won't decode, so that entry is rewritten into the ISO version 0 form. Anything else (WebM, fragmented MP4, PCM sound) returns `null` and the whole file is decoded as before, with a clear message if it's over 1.5 GB. `analyzeFile()` calls it for any video and hands the M4A back through `onAudio`, which the landing page stores instead of the video |
 | `worker.js` | Loads Essentia.js, ONNX Runtime Web and the models once per worker, then extracts features for ranges |
 | `payload-worker.js` | Builds the set JSON (setlist, transitions, curves) off the main thread, about 0.2 s for a 34-minute set on a laptop and longer on phones, so the page never freezes at the end. The big arrays are transferred, not copied. If no worker can be created, the main thread does it |
 | `extract.js` | The per-range features. Each lives on a fixed global grid (band frames, tempo windows, key windows, 54 s beat chunks, EffNet patches), and a worker only computes grid items that start inside its range, so the parallel ranges join exactly. The beat tracker assumes 44.1 kHz, so its 60 s chunks are upsampled on the fly |
@@ -1295,6 +1299,8 @@ dj-set-analyzer/
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyze → result)
 │   ├── pool-test.mjs     # the worker pool retries a range after a worker crash or stall (stand-in Worker)
+│   ├── demux-test.mjs    # the video soundtrack extractor on fixtures/set-replay-e2e.mov
+│   ├── fixtures/set-replay-e2e.mov  # the synthetic test set as a 2.4 MB video (H.264 + AAC, QuickTime sound entry)
 │   ├── analysis-test.mjs # the page analyses (prompt, chapters, mixing, mood map, card, compare) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python

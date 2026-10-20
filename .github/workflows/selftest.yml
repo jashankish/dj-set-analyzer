@@ -41,6 +41,9 @@ jobs:
       - name: Worker pool recovers from a crashed worker
         run: node tools/pool-test.mjs
 
+      - name: Video soundtrack extractor on a real MOV
+        run: node tools/demux-test.mjs
+
       - name: Page analyses (Spotify prompt, chapters, mixing, mood map, set card, compare) on the demo sets
         run: node tools/analysis-test.mjs
 

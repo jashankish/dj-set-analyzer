@@ -173,7 +173,7 @@ async function showStorage(count) {
 /* ------------------------------------------------ the queue */
 /* phones and low-memory devices: long sets may not fit while decoding */
 const LOW_MEMORY = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (navigator.deviceMemory && navigator.deviceMemory <= 4);
-const AUDIO_EXT = /\.(m4a|mp3|wav|flac|aac|ogg|oga|opus|aif|aiff|webm|mp4)$/i;
+const AUDIO_EXT = /\.(m4a|mp3|wav|flac|aac|ogg|oga|opus|aif|aiff|webm|mp4|m4v|mov|qt|mkv)$/i;
 const queue = [];
 let controller = null;        // {file, state: "ready"|"running"|"done"|"error", f, stage, id, error, duration}
 let running = false;
@@ -193,7 +193,7 @@ function addFiles(list) {
   let skipped = 0;
   for (const f of list) {
     if (/\.json$/i.test(f.name) || f.type === "application/json") { importJson(f); continue; }
-    if (!(f.type.startsWith("audio/") || AUDIO_EXT.test(f.name))) { skipped++; continue; }
+    if (!(f.type.startsWith("audio/") || f.type.startsWith("video/") || AUDIO_EXT.test(f.name))) { skipped++; continue; }
     if (queue.some((q) => q.file.name === f.name && q.file.size === f.size)) continue;
     const item = { file: f, state: "ready", f: 0, stage: "" };
     queue.push(item);
@@ -268,9 +268,10 @@ async function analyzeAll() {
         signal: controller.signal,
         identify: helperOn && nameTracks && helperWanted() && !!(await helperStatus()),
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
+        onAudio: (a) => { q.audio = a; },              // a video: keep its soundtrack, not the video
       });
       try {
-        q.id = await saveSet(payload, q.file);
+        q.id = await saveSet(payload, q.audio || q.file);
       } catch (e) {
         // the analysis worked; don't throw it away because the browser won't store it
         q.state = "unsaved"; q.payload = payload; q.f = 1;

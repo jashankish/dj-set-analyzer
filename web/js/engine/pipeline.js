@@ -13,6 +13,7 @@ import { buildPayload } from "./payload.js";
 import { SR, FPS } from "./extract.js";
 import { musicSpan } from "./setlist.js";
 import { identifyClips } from "./naming.js";
+import { isVideo, extractAudio } from "./demux.js";
 
 const RANGE = 120;          // seconds per job (a multiple of 10)
 const LOOKAHEAD = 72;       // longest window any feature reads past its start (beats: 60 s)
@@ -286,10 +287,22 @@ function buildInWorker(F, classes, meta) {
 
 /* ------------------------------------------------ the whole thing */
 let pool = null;
-export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange, signal, identify = false } = {}) {
+export async function analyzeFile(file, { onProgress = () => {}, onAudio = () => {}, title, bpmRange, signal, identify = false } = {}) {
   const say = (stage, f) => onProgress({ stage, f });
   const check = () => { if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" }); };
-  say("Decoding audio", 0);
+  const source = file;                       // names and titles come from what was dropped
+  if (isVideo(file)) {
+    // take just the soundtrack out (no re-encoding, no loading the video); onAudio
+    // hands it back so the caller stores a few MB of audio rather than the video
+    say("Extracting the audio from the video", 0);
+    const audioOnly = await extractAudio(file).catch(() => null);
+    if (audioOnly) { file = audioOnly; onAudio(audioOnly); }
+    else if (file.size > 1.5e9) {
+      throw new Error(`“${file.name}” is too big for the browser to read whole, and its audio couldn't be taken out on its own (it isn't an MP4 or MOV with AAC sound). Save its audio as an M4A or MP3 and drop that instead.`);
+    }
+  }
+  check();
+  say("Decoding audio", 0.01);
   let y;
   try {
     y = await decode(file);
@@ -342,7 +355,7 @@ export async function analyzeFile(file, { onProgress = () => {}, title, bpmRange
   }
   say("Building the setlist", 0.98);
   const meta = {
-    slug: slugify(file.name), title: title || file.name.replace(/\.[^.]+$/, ""), file: file.name,
+    slug: slugify(source.name), title: title || source.name.replace(/\.[^.]+$/, ""), file: source.name,
     bpmRange, source: "browser", probes,
   };
   let payload = await buildInWorker(F, classes, meta);

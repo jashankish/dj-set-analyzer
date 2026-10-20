@@ -14,6 +14,7 @@ import { compareSets, mergePayloads } from "./compare.js";
 import { buildPrompt, AXES, vibeProfile } from "./vibe.js";
 import { findPhases, slicePayload } from "./phases.js";
 import { harmonicRelation } from "./engine/music.js";
+import { isVideo, extractAudio } from "./engine/demux.js";
 import { craftProfile, relationClass, mixScore, mixTips, reorder } from "./craft.js";
 import { moodMap, QUADS } from "./moodmap.js";
 import { dropAnatomy, PRE, POST } from "./drops.js";
@@ -1518,10 +1519,11 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
     if (S.mode !== "local") return;
     if (S.noAudio) {
       $("attachBtn").addEventListener("click", () => {
-        const input = Object.assign(document.createElement("input"), { type: "file", accept: "audio/*,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff" });
+        const input = Object.assign(document.createElement("input"), { type: "file", accept: "audio/*,video/mp4,video/quicktime,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff,.mp4,.mov,.m4v" });
         input.onchange = async () => {
-          const f = input.files[0];
+          let f = input.files[0];
           if (!f) return;
+          if (isVideo(f)) f = (await extractAudio(f).catch(() => null)) || f;   // keep the soundtrack, not the video
           await attachAudio(S.D.slug, f);
           location.reload();
         };
