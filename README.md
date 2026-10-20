@@ -89,6 +89,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
 | **Mood map** | Every track placed by **brightness** (the *happy* score plus a little for major keys) and **intensity** (energy with the *aggressive* and *party* scores), the valence × arousal map from music-emotion research. Dots are key-coloured and sized by length, numbered, and joined in play order (solid up to the playing track, dotted after). The cross is the set's own median, so the corners (Euphoric, Intense, Warm, Brooding) mean "more than this set's usual": room recordings pull every score to the middle. Beside it: time in each corner, a sentence on the route ("It opens intense, moves through euphoric and ends warm"), and the biggest swing between two tracks | Hover a dot for the track; click a dot (or Enter on it) to play it; **Biggest swing** plays into that change |
+| **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's colour); the biggest differences in words ("Worship Part 1 is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt** |
 | **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's colour, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set** or a chapter to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
@@ -593,6 +594,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/craft.js    mixing style archetype, key-move/type tallies, moments   │
                          │ js/moodmap.js  valence × arousal per track, corners, route sentence     │
                          │ js/card.js     the shareable set card: data (pure) + canvas painter     │
+                         │ js/compare.js  similarity of two sets, differences, blended payload     │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1050,6 +1052,14 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **Compare:** `renderCompare()` lists the other sets of the current source
+  (`S.sets`); `loadPayload()` fetches the chosen one the same way the page
+  loaded this one (IndexedDB, `demo/`, or `data/sets/`). `compare.js`'s
+  `compareSets()` scores it, and `mergePayloads()` joins the two (tracks
+  renumbered, the second set's times, drops and energy shifted after the
+  first, summary re-weighted by length) so `vibe.js` writes the blend prompt
+  with no special case. The choice is kept under
+  `set-replay:compare:<slug>`.
 - **Set card:** `card.js` splits into `cardData()` (pure: gathers the
   card's words and numbers from `vibe.js`, `craft.js`, `moodmap.js` and
   `phases.js`) and `drawCard()` (paints a 1080 × 1350 canvas). `openCard()`
@@ -1224,6 +1234,7 @@ dj-set-analyzer/
 │   ├── js/craft.js    # how it was mixed: style archetype, tallies, signature moments (no DOM)
 │   ├── js/moodmap.js  # the mood map: brightness × intensity per track, route sentence (no DOM)
 │   ├── js/card.js     # the set card: cardData() (no DOM) + drawCard() on a canvas
+│   ├── js/compare.js  # compare two sets; merge them for a blend prompt (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
@@ -1241,7 +1252,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
-│   ├── analysis-test.mjs # the page analyses (Spotify prompt, chapters, mixing, mood map, set card) on the demos and edge cases
+│   ├── analysis-test.mjs # the page analyses (prompt, chapters, mixing, mood map, card, compare) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/

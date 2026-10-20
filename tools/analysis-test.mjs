@@ -19,6 +19,7 @@ const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, 
 const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
+const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
 const checks = [];
@@ -106,6 +107,24 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("card: the prompt is the keywords-only one (≤ 300)", C.prompt.length, (n) => n > 20 && n <= 300);
   const off = new Set(["g:Drum n Bass"]);
   check("card: follows the chips switched off on the page", cardData(D, { off }).chips, (c) => !c.includes("drum & bass"));
+}
+
+/* ---------------- two sets side by side (web/js/compare.js) */
+{
+  const A = demo("worship-part-1"), B = demo("worship-part-2");
+  const C = compareSets(A, B), self = compareSets(A, A);
+  check("compare: a set against itself scores 100", self.score, (s) => s === 100);
+  check("compare: the two demos (same DJ, same genre) score high", C.score, (s) => s >= 70 && s < 100);
+  check("compare: every part is 0–1", Object.values(C.parts).filter((v) => v != null), (v) => v.every((x) => x >= 0 && x <= 1));
+  check("compare: both demos share drum & bass and Sub Focus", [C.genres.both, C.artists], ([g, a]) => g.includes("Drum n Bass") && a.includes("Sub Focus"));
+  check("compare: differences are sentences naming the first set", C.diffs, (d) => d.length >= 1 && d.every((x) => x.endsWith(".")));
+  check("compare: score is symmetric", compareSets(B, A).score, (s) => s === C.score);
+  const M = mergePayloads(A, B);
+  check("blend: all tracks, renumbered in order", M.tracks.map((t) => t.n), (n) => n.length === A.tracks.length + B.tracks.length && n.every((x, i) => x === i + 1));
+  check("blend: the second set's tracks come after the first's", M.tracks[A.tracks.length].start, (t) => t >= M.tracks[A.tracks.length - 1].end - 1);
+  check("blend: length is both sets' length", M.summary.set_length, (l) => Math.abs(l - A.summary.set_length - B.summary.set_length) < 1);
+  check("blend: style shares stay a distribution", M.summary.styles.reduce((s, x) => s + x.share, 0), (x) => x > 0.5 && x <= 1.0001);
+  check("blend: writes one prompt naming both sets' artists", buildPrompt(vibeProfile(M)).full, (t) => t.includes("drum & bass") && t.includes("Sub Focus") && t.includes("Culture Shock"));
 }
 
 /* ---------------- pieces */

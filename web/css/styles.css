@@ -450,6 +450,30 @@ button { font-family: inherit; color: inherit; }
 .mm-jump { align-self: flex-start; }
 .mm-note { margin: 0; color: var(--faint); font-size: .78rem; font-stretch: 88%; max-width: 62ch; }
 
+/* ---------------------------------------------------------------- compare */
+.compare { max-width: var(--maxw); margin: 64px auto 0; padding: 0 var(--gut); }
+.cmp-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.cmp-pick { color: var(--muted); font-size: .86rem; font-stretch: 90%; display: inline-flex; gap: 8px; align-items: center; }
+.cmp-pick select {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-s); padding: 5px 10px; max-width: 260px;
+}
+.cmp-body { display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 44px; align-items: start; }
+.cmp-radar { margin: 0; }
+.cmp-radar svg { width: 100%; height: auto; display: block; overflow: visible; }
+.cmp-b { fill: none; stroke-width: 2.5; stroke-dasharray: 5 4; stroke-linejoin: round; }
+.cmp-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.cmp-score { margin: 0; display: flex; align-items: baseline; gap: 12px; }
+.cmp-score b { font-size: 3.4rem; font-weight: 800; font-stretch: 70%; line-height: 1; }
+.cmp-score span { color: var(--ink-2); font-size: .95rem; }
+.cmp-parts { display: flex; flex-direction: column; gap: 5px; max-width: 520px; }
+.cmp-parts .cb-row { grid-template-columns: 140px 1fr 30px; }
+.cmp-diffs { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: .92rem; display: grid; gap: 4px; }
+.cmp-shared { margin: 0; color: var(--muted); font-size: .86rem; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cmp-blend { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+.cmp-blend .h3 { margin: 0; }
+@media (max-width: 1080px) { .cmp-body { grid-template-columns: 1fr; } .cmp-radar { max-width: 420px; } }
+
 /* ---------------------------------------------------------------- vibe → Spotify */
 .vibe { max-width: var(--maxw); margin: 64px auto 0; padding: 0 var(--gut); }
 .v-head { margin-bottom: 18px; }

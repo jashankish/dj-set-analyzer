@@ -202,6 +202,31 @@
     </div>
   </section>
 
+  <!-- two sets side by side -->
+  <section class="compare" id="compare" aria-labelledby="cmpH" hidden>
+    <div class="c-head cmp-head">
+      <h2 class="h2" id="cmpH">Compare with another set</h2>
+      <label class="cmp-pick">with <select id="cmpSel" aria-label="Set to compare with"></select></label>
+    </div>
+    <div class="cmp-body" id="cmpBody" hidden>
+      <figure class="cmp-radar">
+        <svg id="cmpRadar" viewBox="-170 -150 340 300" role="img" aria-label="Both sets' vibe fingerprints, overlaid"></svg>
+        <figcaption class="v-cap" id="cmpCap"></figcaption>
+      </figure>
+      <div class="cmp-side">
+        <p class="cmp-score"><b id="cmpScore"></b><span id="cmpVerdict"></span></p>
+        <div class="cmp-parts" id="cmpParts"></div>
+        <ul class="cmp-diffs" id="cmpDiffs"></ul>
+        <p class="cmp-shared" id="cmpShared"></p>
+        <div class="cmp-blend">
+          <h3 class="h3">One playlist for both</h3>
+          <textarea class="v-text" id="cmpPrompt" rows="6" aria-label="Blend prompt for both sets" spellcheck="false"></textarea>
+          <div class="v-actions"><button class="solid" id="cmpCopy">Copy blend prompt</button><span class="card-note">Both sets joined end to end, then written up like a single set</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- the vibe, for a playlist AI -->
   <section class="vibe" id="vibe" aria-labelledby="vibeH">
     <div class="v-head">

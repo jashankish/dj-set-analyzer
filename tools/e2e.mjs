@@ -190,6 +190,8 @@ try {
   await p3.waitForTimeout(600);
   check("phone: the set card draws (dialog open, canvas filled)", await p3.evaluate(() => [document.getElementById("cardDlg").open, document.getElementById("cardCanvas").toDataURL().length]), ([o, n]) => o && n > 50000);
   await p3.locator("#cardClose").tap();
+  await p3.waitForFunction(() => document.getElementById("cmpScore").textContent !== "", null, { timeout: 10000 }).catch(() => {});
+  check("phone: compares with the other demo and writes a blend prompt", [await p3.locator("#cmpScore").textContent(), await p3.locator("#cmpPrompt").inputValue()], ([s, p]) => +s > 0 && +s <= 100 && /^A .* playlist/.test(p));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");
