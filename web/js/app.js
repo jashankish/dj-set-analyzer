@@ -8,7 +8,7 @@
    ============================================================ */
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { openNamingDialog } from "./naming-ui.js";
-import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt, vibeOffWhole } from "./vibe-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt, vibeOffWhole, spotifySave, takePending } from "./vibe-ui.js";
 import { cardData, drawCard } from "./card.js";
 import { compareSets, mergePayloads } from "./compare.js";
 import { buildPrompt, AXES, vibeProfile } from "./vibe.js";
@@ -1173,7 +1173,7 @@ import { moodMap, QUADS } from "./moodmap.js";
   }
   /* the same tracks, re-sequenced: a slope chart from the played order to the suggested one */
   function renderReorder() {
-    const O = reorder(S.D), T = tracks();
+    const O = (S.order = reorder(S.D, { pinEnds: $("roPin").checked })), T = tracks();
     $("reorder").hidden = !O;
     if (!O) return;
     const ord = (k) => `${k}${["th", "st", "nd", "rd"][(k % 100 > 10 && k % 100 < 14) || k % 10 > 3 ? 0 : k % 10]}`;
@@ -1194,6 +1194,19 @@ import { moodMap, QUADS } from "./moodmap.js";
     g += row(played, 4) + row(O.order, 116);
     $("roSvg").innerHTML = g;
     $("roMoves").innerHTML = O.moves.slice(0, 3).map((m) => `<li><b>${esc(shortName(T[m.n - 1]))}</b> (track ${m.n}, ${keyOf(T[m.n - 1])}) moves from ${ord(m.from)} to ${ord(m.to)}</li>`).join("");
+    $("roPin").onchange = renderReorder;
+    $("roSave").onclick = saveOrder;
+    if (takePending("order")) saveOrder();
+  }
+  /* the named tracks, in the suggested order, as a Spotify playlist */
+  function saveOrder() {
+    const T = tracks(), say = (h) => ($("roStatus").innerHTML = h);
+    spotifySave({
+      tracks: S.order.order.map((n) => T[n - 1]), names: S.names,
+      name: `${S.title || S.D.title} · smoother order · Set Replay`,
+      description: `The tracks of ${S.title || S.D.title}, re-sequenced: ${S.order.after.clean} of ${S.order.mixes} mixes in key.`,
+      say, btn: $("roSave"), pending: { action: "order" },
+    });
   }
   function markCraft() {
     document.querySelectorAll(".cc-col").forEach((el) => el.classList.toggle("on", +el.dataset.j === S.mix));
@@ -1302,7 +1315,16 @@ import { moodMap, QUADS } from "./moodmap.js";
     g += `<polygon class="cmp-b" points="${poly(C.axes.b)}" style="stroke:${keyColor(kb, "ink")}"/>`;
     $("cmpRadar").innerHTML = g;
     $("cmpCap").innerHTML = `<span class="v-lg"><i class="v-sw" style="background:${keyColor(ka, "base")};border-color:${keyColor(ka, "ink")}"></i>${esc(ta)}</span><span class="v-lg"><i class="v-sw v-sw-now" style="border-color:${keyColor(kb, "ink")}"></i>${esc(tb)}</span>`;
-    $("cmpPrompt").value = buildPrompt(vibeProfile(mergePayloads(S.D, B, `${ta} + ${tb}`))).full;
+    const M = mergePayloads(S.D, B, `${ta} + ${tb}`), blend = buildPrompt(vibeProfile(M));
+    $("cmpPrompt").value = blend.full;
+    const saveBlend = () => spotifySave({
+      tracks: M.tracks, names: S.names,                  // the first set's own names; its track numbers are unchanged
+      name: `${ta} + ${tb} · Set Replay`, description: blend.short,
+      say: (h) => ($("cmpStatus").innerHTML = h), btn: $("cmpSave"), pending: { action: "blend", slug },
+    });
+    $("cmpSave").onclick = saveBlend;
+    const p = takePending("blend");
+    if (p && p.slug === slug) saveBlend();
   }
 
   /* ------------------------------------------------ set card */

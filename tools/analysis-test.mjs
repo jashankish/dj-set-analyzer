@@ -120,6 +120,11 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: it never adds key clashes`, [O.before.clash, O.after.clash], ([b, a]) => a <= b);
   check(`${slug}: it's deterministic`, reorder(D).order.join(), (v) => v === O.order.join());
 }
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), pin = reorder(D), free = reorder(D, { pinEnds: false });
+  check(`${slug}: by default the opener and closer stay put`, [pin.order[0], pin.order.at(-1)], ([a, z]) => a === 1 && z === D.tracks.length);
+  check(`${slug}: freeing the ends never makes the order worse`, [free.cost, pin.cost], ([f, p]) => f <= p + 1e-9);
+}
 check("worship-part-2: re-sequencing clears its four key clashes", reorder(demo("worship-part-2")), (O) => O.before.clash === 4 && O.after.clash === 0);
 {
   const smooth = { tracks: ["8A", "8A", "9A", "9A", "10A"].map((k, i) => ({ n: i + 1, start: i * 200, end: (i + 1) * 200, bpm: 124, energy: 5 + i * 0.5, key: { camelot: k } })) };

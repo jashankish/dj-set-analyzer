@@ -200,9 +200,10 @@ export function relationClass(label) {
    the track's energy is from the energy the original set had at that point
    (×0.06 per energy point), so the arc (warm-up, peak, cool-down) survives.
    Local search from the original order: move any track to any slot, or swap
-   any two, keep whatever lowers the cost, until nothing does. Deterministic. */
+   any two, keep whatever lowers the cost, until nothing does. Deterministic.
+   pinEnds (the default) keeps the opening and closing tracks where they were. */
 const KEYCOST = (a, b) => { const c = harmonicRelation(a, b).compatible; return c === true ? 0 : c === "partial" ? 0.4 : c === false ? 1 : 0.5; };
-export function reorder(D) {
+export function reorder(D, { pinEnds = true } = {}) {
   const T = (D.tracks || []).filter((t) => t.key && t.key.camelot);
   const n = T.length;
   if (n < 4) return null;
@@ -216,15 +217,26 @@ export function reorder(D) {
     }
     return c;
   };
-  let order = T.map((_, i) => i), best = cost(order);
-  for (let pass = 0, better = true; better && pass < 50; pass++) {
-    better = false;
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      if (i === j) continue;
-      const moved = order.slice(); moved.splice(j, 0, moved.splice(i, 1)[0]);
-      const swapped = order.slice(); [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
-      for (const o of [moved, swapped]) { const c = cost(o); if (c < best - 1e-9) { best = c; order = o; better = true; } }
+  const search = (start, lo, hi) => {
+    let order = start, best = cost(order);
+    for (let pass = 0, better = true; better && pass < 50; pass++) {
+      better = false;
+      for (let i = lo; i < hi; i++) for (let j = lo; j < hi; j++) {
+        if (i === j) continue;
+        const moved = order.slice(); moved.splice(j, 0, moved.splice(i, 1)[0]);
+        const swapped = order.slice(); [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
+        for (const o of [moved, swapped]) { const c = cost(o); if (c < best - 1e-9) { best = c; order = o; better = true; } }
+      }
     }
+    return { order, best };
+  };
+  const pinned = search(T.map((_, i) => i), 1, n - 1);
+  let { order } = pinned;
+  if (!pinEnds) {
+    // free ends: search from the played order and from the pinned answer, keep the cheaper,
+    // so freeing the ends can never come out worse than keeping them
+    const a = search(T.map((_, i) => i), 0, n), b = search(pinned.order, 0, n);
+    order = (a.best <= b.best ? a : b).order;
   }
   const tally = (o) => {
     let clean = 0, clash = 0, tempo = 0;
@@ -239,6 +251,6 @@ export function reorder(D) {
   const moves = order.map((ti, pos) => ({ n: T[ti].n, from: ti + 1, to: pos + 1, d: Math.abs(pos - ti) })).filter((x) => x.d > 0).sort((a, b) => b.d - a.d);
   return {
     order: order.map((i) => T[i].n), before: tally(orig), after: tally(order), mixes: n - 1,
-    moves, unchanged: moves.length === 0,
+    moves, unchanged: moves.length === 0, pinEnds, cost: Math.round(cost(order) * 1000) / 1000,
   };
 }

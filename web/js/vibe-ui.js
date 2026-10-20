@@ -180,10 +180,10 @@ export async function copyPrompt() {
 const status = (html) => ($("vibeStatus").innerHTML = html);
 
 /* the tracks worth sending: named ones Shazam is fairly sure of, plus the visitor's own names */
-function exportTracks() {
+function exportTracks(trackList, names = {}) {
   const out = [], doubtful = [];
-  V.Ds.tracks.forEach((tr) => {
-    const own = V.names[tr.n];
+  trackList.forEach((tr) => {
+    const own = names[tr.n];
     if (own && !tr.identified) {
       const m = String(own).split(/\s+[–—-]\s+/);
       out.push(m.length > 1 ? { n: tr.n, artist: m[0], title: m.slice(1).join(" - ") } : { n: tr.n, title: own });
@@ -195,43 +195,58 @@ function exportTracks() {
   return { out, doubtful };
 }
 
-async function saveToSpotify() {
+/* Save named tracks to a new Spotify playlist. Shared by this section, the
+   two-set blend and the suggested running order (app.js): `say` shows status
+   where the button is, `pending` is what to resume after Spotify's sign-in. */
+export async function spotifySave({ tracks: trackList, names = {}, name, description, say, btn, pending }) {
   if (!spotify.clientId()) {
+    $("vibeConnect").hidden = false;
     $("vibeConnect").open = true;
-    $("vibeClientId").focus();
-    status("To save to Spotify, add a Spotify app's Client ID first (it takes two minutes, steps below).");
+    say(pending.action === "save" ? "To save to Spotify, add a Spotify app's Client ID first (it takes two minutes, steps below)."
+      : "To save to Spotify, add a Spotify app's Client ID first: see <b>Use your own Spotify app</b> in the Spotify section below.");
+    if (pending.action === "save") $("vibeClientId").focus();
     return;
   }
   if (!spotify.canRedirect()) {
-    status(`Spotify only signs in on <b>https</b> pages or <b>http://127.0.0.1</b>. Open this page at <a href="${esc(location.href.replace("//localhost", "//127.0.0.1"))}">127.0.0.1</a> instead of localhost.`);
+    say(`Spotify only signs in on <b>https</b> pages or <b>http://127.0.0.1</b>. Open this page at <a href="${esc(location.href.replace("//localhost", "//127.0.0.1"))}">127.0.0.1</a> instead of localhost.`);
     return;
   }
   if (!spotify.token()) {
-    status("Taking you to Spotify to sign in…");
-    try { await spotify.beginAuth({ action: "save" }); } catch (e) { status(esc(e.message)); }
+    say("Taking you to Spotify to sign in…");
+    try { await spotify.beginAuth(pending); } catch (e) { say(esc(e.message)); }
     return;
   }
-  const { out, doubtful } = exportTracks();
-  if (!out.length) { status("None of this set's tracks are named yet, so there's nothing to look up. The prompt still works on its own."); return; }
-  const btn = $("vibeSave");
-  btn.disabled = true;
+  const { out, doubtful } = exportTracks(trackList, names);
+  if (!out.length) { say("None of these tracks are named yet, so there's nothing to look up. The prompt still works on its own."); return; }
+  if (btn) btn.disabled = true;
   try {
-    const name = V.scope < 0 ? `${V.title} · Set Replay` : `${V.title} · ${V.phases[V.scope].label} · Set Replay`;
-    const r = await spotify.savePlaylist({ name, description: prompt().short, tracks: out }, (m) => status(esc(m)));
+    const r = await spotify.savePlaylist({ name, description, tracks: out }, (m) => say(esc(m)));
     const miss = r.missed.length ? ` Not on Spotify: ${r.missed.map((t) => esc([t.artist, t.title].filter(Boolean).join(" – "))).join("; ")}.` : "";
     const skip = doubtful.length ? ` Left out ${doubtful.length} doubtful Shazam match${doubtful.length > 1 ? "es" : ""}.` : "";
-    status(`Saved <b>${r.found.length}</b> track${r.found.length === 1 ? "" : "s"} to <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(name)}</a>.${miss}${skip} Open it in Spotify and use the prompt to grow it.`);
+    say(`Saved <b>${r.found.length}</b> track${r.found.length === 1 ? "" : "s"} to <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(name)}</a>.${miss}${skip} Open it in Spotify and use the prompt to grow it.`);
   } catch (e) {
-    if (e.status === 401) status("The Spotify session ran out. Press <b>Save the set to Spotify</b> again to sign back in.");
-    else if (e.status === 403) status("Spotify refused: in Development Mode an app only serves the users listed in its dashboard (up to five). Add your Spotify account under <i>User Management</i>.");
-    else status(`Saving failed: ${esc(e.message)}`);
+    if (e.status === 401) say("The Spotify session ran out. Press the button again to sign back in.");
+    else if (e.status === 403) say("Spotify refused: in Development Mode an app only serves the users listed in its dashboard (up to five). Add your Spotify account under <i>User Management</i>.");
+    else say(`Saving failed: ${esc(e.message)}`);
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
+}
+/* after Spotify's sign-in: the save that was waiting, if it's this kind */
+export function takePending(action) {
+  if (!pending || pending.action !== action) return null;
+  const p = pending; pending = null;
+  return p;
+}
+
+function saveToSpotify() {
+  const name = V.scope < 0 ? `${V.title} · Set Replay` : `${V.title} · ${V.phases[V.scope].label} · Set Replay`;
+  return spotifySave({ tracks: V.Ds.tracks, names: V.names, name, description: prompt().short, say: status, btn: $("vibeSave"), pending: { action: "save" } });
 }
 
 /* ------------------------------------------------ wiring */
-let bound = false, pending = null, notice = "";
+let bound = false, notice = "";
+let pending = null;
 function bind() {
   if (bound) return;
   bound = true;

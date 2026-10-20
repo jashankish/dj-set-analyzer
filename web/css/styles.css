@@ -348,6 +348,8 @@ button { font-family: inherit; color: inherit; }
 .ro-link { stroke: var(--line); stroke-width: 1; }
 .ro-link.moved { stroke: var(--ink); stroke-width: 2; opacity: .85; }
 .ro-clash { fill: var(--ink); }
+.ro-pin { display: inline-flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: .86rem; cursor: pointer; }
+#roStatus, #cmpStatus { margin-top: 8px; }
 .ro-moves { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: .88rem; display: grid; gap: 3px; }
 .ro-moves b { font-weight: 600; color: var(--ink); }
 .h3 { margin: 0 0 10px; font-size: .9rem; font-stretch: 108%; font-weight: 700; }
