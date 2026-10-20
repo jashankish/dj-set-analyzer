@@ -26,8 +26,8 @@ There are two ways to run it, and both produce the same JSON:
 ## Contents
 
 1. [What you get](#what-you-get)
-2. [Quick start](#quick-start)
-3. [Hosting it on your site](#hosting-it-on-your-site)
+2. [Run it yourself](#run-it-yourself)
+3. [Hosting details](#hosting-details)
 4. [Naming tracks with the helper](#naming-tracks-with-the-helper)
 5. [Command-line options](#command-line-options)
 6. [Architecture](#architecture)
@@ -98,20 +98,105 @@ top; its colour swatches are the set's track keys in order. Then:
 
 ---
 
-## Quick start
+## Run it yourself
 
-**The website, locally:** any static server works. For example:
+Set Replay is just a folder of web pages (`web/`). There's no server code, no
+database and no account to create. All the analysis happens in the browser of
+whoever opens the page.
 
-```bash
-cd dj-set-analyzer
-./run.sh            # → http://localhost:8778 (also serves the Python output)
-# or: python3 -m http.server 8000 --directory web
-```
+### On your own computer (about 2 minutes)
 
-Open the page, drop a recording in, and press **Analyse**. A 34-minute set
-takes about a minute on an Apple M4.
+You need **Python 3**, which is already installed on macOS and Linux
+(on Windows, get it from [python.org](https://www.python.org/downloads/)),
+and a recent Chrome, Edge, Firefox or Safari.
 
-**The Python pipeline** needs macOS or Linux, **Python 3.12**, and **ffmpeg**
+1. **Get the code.** Either clone it:
+
+   ```bash
+   git clone https://github.com/jashankish/dj-set-analyzer.git
+   cd dj-set-analyzer
+   ```
+
+   or, without git, click **Code → Download ZIP** on GitHub, unzip it, and
+   open a terminal in the unzipped folder.
+
+2. **Start a local web server** for the `web` folder:
+
+   ```bash
+   python3 -m http.server 8000 --directory web
+   ```
+
+   (On Windows, type `py` instead of `python3`.)
+
+3. **Open http://localhost:8000** in your browser.
+
+4. **Drop a recording** of a DJ set onto the page (`.mp3`, `.m4a`, `.wav`,
+   `.flac`, `.ogg`, `.aac` …) and press **Analyse**. The first time, the page
+   downloads its analysis engine and models (about 35 MB), so it needs an
+   internet connection; after that they're cached. A 34-minute set takes
+   about a minute on a recent laptop.
+
+5. **To stop the server**, press `Ctrl+C` in the terminal.
+
+Your sets are saved in that browser, so they're still there next time you
+start the server and open the page.
+
+> **Why not just double-click `index.html`?** Browsers don't run this kind
+> of page (JavaScript modules and web workers) from `file://`, so it has to
+> come from a web server, even a local one like the command above.
+>
+> **Shortcut:** `./run.sh` does the same as step 2 on port 8778, and also
+> shows sets you analysed with the Python pipeline (below).
+
+### On the internet, for free
+
+Any service that hosts static files works. Pick one:
+
+**Netlify** (easiest; no settings to type):
+
+1. [Fork](https://github.com/jashankish/dj-set-analyzer/fork) this repository
+   to your GitHub account.
+2. Sign in to [Netlify](https://app.netlify.com), choose **Add new site →
+   Import an existing project**, and pick your fork.
+3. Press **Deploy**. The included `netlify.toml` tells Netlify how to build
+   it, and a minute later the site is live at a `*.netlify.app` address.
+
+**Cloudflare Pages:**
+
+1. Fork this repository.
+2. In the Cloudflare dashboard, go to **Workers & Pages → Create → Pages →
+   Connect to Git** and pick your fork.
+3. Set **Build command** to `bash tools/build-site.sh` and **Build output
+   directory** to `dist/set-replay`, then press **Save and Deploy**.
+
+**Any other web host** (your own server, shared hosting, an S3 bucket …):
+
+1. Build the upload folder (needs `bash`, so macOS, Linux or WSL on Windows):
+
+   ```bash
+   bash tools/build-site.sh
+   ```
+
+2. Upload the **contents** of `dist/set-replay/` to your host, either to the
+   top level of a site or to a sub-folder such as `/set-replay/`. Both work.
+
+That's all: there's nothing to run or pay for on the server. For cache
+headers, adding your own analytics tag, and running inside a larger site, see
+[Hosting details](#hosting-details).
+
+Two optional extras:
+
+- **Track names.** Out of the box, tracks are labelled **ID** because
+  browsers can't ask Shazam directly. To get real names, run the small
+  [naming helper](#naming-tracks-with-the-helper) on your computer; the page
+  explains how when you click *Name these IDs*.
+- **The Python pipeline** (below) analyses sets from the command line, adds
+  Shazam names directly, and can turn your sets into demos for the landing
+  page.
+
+### Advanced: the Python pipeline
+
+This needs macOS or Linux, **Python 3.12**, and **ffmpeg**
 on your `PATH` (`brew install ffmpeg python@3.12`).
 
 ```bash
@@ -141,7 +226,7 @@ Then open `http://localhost:8778/set.html`. Timings on an Apple M4:
 
 ---
 
-## Hosting it on your site
+## Hosting details
 
 `web/` is the entire website: plain files, with no build step, no backend and
 no environment variables. Copy the folder anywhere. It works at a domain root
