@@ -114,6 +114,10 @@ try {
   await page.locator(".seam").first().click();
   check("a transition row opens the mix inspector", await page.locator("#mixTitle").textContent(), (t) => /^Mix 1: /.test(t));
   check("the vibe section writes a Spotify prompt", await page.locator("#vibePrompt").inputValue(), (t) => /^A .*playlist \(\d+–\d+ BPM\)/.test(t));
+  await page.click("#cardBtn");
+  const [cardFile] = await Promise.all([page.waitForEvent("download"), page.click("#cardDl")]);
+  check("the set card downloads as a PNG", cardFile.suggestedFilename(), (n) => n.endsWith("set card.png"));
+  await page.click("#cardClose");
   check("one mix is too few for the mixing breakdown, so it hides", await page.locator("#craft").isHidden(), (h) => h === true);
   check("two tracks are too few for the mood map, so it hides", await page.locator("#moodmap").isHidden(), (h) => h === true);
   check("a 3-minute set is one chapter, so the chapters strip hides", await page.locator("#phases").evaluate((el) => el.closest(".j-block").hidden), (h) => h === true);
@@ -182,6 +186,10 @@ try {
   check("phone: the AI-chat prompt asks for a track list", await p3.locator("#vibePrompt").inputValue(), (t) => t.startsWith("Make me a playlist of about"));
   await p3.locator('#vibeTarget [data-t="spotify"]').tap();
   check("phone: time in key names the home key", await p3.locator(".kt-home").textContent(), (t) => /^Home key \d+[AB]/.test(t));
+  await p3.locator("#cardBtn").tap();
+  await p3.waitForTimeout(600);
+  check("phone: the set card draws (dialog open, canvas filled)", await p3.evaluate(() => [document.getElementById("cardDlg").open, document.getElementById("cardCanvas").toDataURL().length]), ([o, n]) => o && n > 50000);
+  await p3.locator("#cardClose").tap();
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");

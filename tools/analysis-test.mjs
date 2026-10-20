@@ -18,6 +18,7 @@ const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES } = await i
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const { craftProfile, relationClass } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
+const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
 
 const checks = [];
@@ -92,6 +93,20 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: the route sentence names where it opens and ends`, M.sentence, (t) => /opens \w+.* ends \w+|stays \w+/.test(t));
 }
 check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: {} }, { n: 2, moods: {} }] }), (v) => v === null);
+
+/* ---------------- the set card's contents (web/js/card.js) */
+{
+  const D = demo("worship-part-2"), C = cardData(D, { title: "My night" });
+  check("card: uses the visitor's title", C.title, (t) => t === "My night");
+  check("card: facts are length, tracks, tempo, in-key share", C.facts, (f) => f.length === 4 && f[1] === "19 tracks" && /BPM/.test(f[2]) && /% in key/.test(f[3]));
+  check("card: home key is 4A F minor", C.home, (h) => h.key === "4A" && /F minor/.test(h.name) && h.pct > 20);
+  check("card: carries the mixing style, mood route and chapters", [C.style, C.route, C.chapters.length], ([s, r, n]) => /^The /.test(s) && / → /.test(r) && n >= 2);
+  check("card: chips lead with the trusted genre and stay ≤ 9", C.chips, (c) => c[0] === "drum & bass" && c.length <= 9);
+  check("card: radar has 8 axes in 0–1", C.axes, (a) => a.length === 8 && a.every((x) => x.v >= 0 && x.v <= 1));
+  check("card: the prompt is the keywords-only one (≤ 300)", C.prompt.length, (n) => n > 20 && n <= 300);
+  const off = new Set(["g:Drum n Bass"]);
+  check("card: follows the chips switched off on the page", cardData(D, { off }).chips, (c) => !c.includes("drum & bass"));
+}
 
 /* ---------------- pieces */
 check("artistsOf splits co-artists and finds remixers", [...artistsOf("Timewarp (Dimension Remix)", "Sub Focus & Wilkinson").keys()], (a) => a.join("|") === "Sub Focus|Wilkinson|Dimension");

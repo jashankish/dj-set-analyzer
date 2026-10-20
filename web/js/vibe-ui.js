@@ -292,6 +292,12 @@ export function vibeScope(i) {
   renderScope(); renderRadar(); renderChips(); renderPrompt();
 }
 
+/* the whole-set chips switched off, for the set card */
+export function vibeOffWhole() {
+  if (!V) return undefined;
+  return V.offs && V.offs["-1"] ? new Set(V.offs["-1"]) : V.scope < 0 ? V.off : undefined;
+}
+
 /* app.js → here */
 export function mountVibe(ctx) {
   bind();

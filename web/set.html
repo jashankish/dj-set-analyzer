@@ -23,6 +23,7 @@
       <dl class="facts" id="facts"></dl>
     </div>
     <p class="story" id="story">Loading the set…</p>
+    <div class="top-actions"><button class="ghost" id="cardBtn" title="One image of the set to share (K)">Set card</button></div>
   </header>
 
   <!-- the whole set, coloured by key -->
@@ -277,8 +278,18 @@
       <dt>+ / −</dt><dd>Zoom the set</dd>
       <dt>F</dt><dd>Follow playback</dd>
       <dt>C</dt><dd>Copy the Spotify prompt</dd>
+      <dt>K</dt><dd>Open the set card</dd>
     </dl>
   </div>
+  <dialog class="card-dlg" id="cardDlg" aria-labelledby="cardH">
+    <div class="card-head"><h2 class="h2" id="cardH">Set card</h2><button class="ghost" id="cardClose">Close</button></div>
+    <canvas id="cardCanvas" width="1080" height="1350" role="img" aria-label="The set card: a summary image of this set"></canvas>
+    <div class="v-actions">
+      <button class="solid" id="cardDl">Download PNG</button>
+      <button class="ghost" id="cardShare" hidden>Share…</button>
+      <span class="card-note">1080 × 1350, made in your browser</span>
+    </div>
+  </dialog>
   <div class="toast" id="toast" hidden></div>
 
   <script src="js/color.js"></script>

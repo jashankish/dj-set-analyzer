@@ -77,7 +77,7 @@ top; its colour swatches are the set's track keys in order. Then:
 
 | Part of the page | What it shows | What you can do |
 | --- | --- | --- |
-| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser) |
+| **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser). **Set card** (or `K`) opens a shareable 1080 × 1350 image of the set: title and facts, the energy arc in key colours with its chapters, the vibe radar, mixing style, home key, mood route, keyword chips and the short playlist prompt. **Download PNG**, or **Share…** where the browser can share files (phones). It uses your title and the whole-set chips you left on |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's colour on the Camelot wheel**. Colours cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterwards) is greyed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyser, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
@@ -102,6 +102,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | `+` / `−` | Zoom the ribbon |
 | `F` | Follow playback when zoomed |
 | `C` | Copy the Spotify prompt |
+| `K` | Open the set card |
 | `?` | Show the shortcuts |
 
 ---
@@ -591,6 +592,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/phases.js   chapters: optimal split on track energy + tempo, names   │
                          │ js/craft.js    mixing style archetype, key-move/type tallies, moments   │
                          │ js/moodmap.js  valence × arousal per track, corners, route sentence     │
+                         │ js/card.js     the shareable set card: data (pure) + canvas painter     │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1048,6 +1050,12 @@ pipeline:
   - The spectrum uses a Web Audio `AnalyserNode` that is created on the first
     play, since browsers require a user gesture.
   - When paused, views update on `seeked` / `timeupdate` instead.
+- **Set card:** `card.js` splits into `cardData()` (pure: gathers the
+  card's words and numbers from `vibe.js`, `craft.js`, `moodmap.js` and
+  `phases.js`) and `drawCard()` (paints a 1080 × 1350 canvas). `openCard()`
+  waits for the Archivo weights (`document.fonts.load`) so the canvas uses
+  the page's typeface, then draws; Download uses `canvas.toBlob`, Share uses
+  `navigator.share({ files })` when `navigator.canShare` allows it.
 - **Mood map:** `renderMoodMap()` draws `moodmap.js`'s `moodMap()` as
   inline SVG (a 400 × 400 viewBox, domains padded to the data); each dot is a
   focusable `<g role="button">`. `setTrack()` calls `updateMoodMap()`,
@@ -1215,6 +1223,7 @@ dj-set-analyzer/
 │   ├── js/phases.js   # the set's chapters (warm-up, peak, …) and per-chapter slices (no DOM)
 │   ├── js/craft.js    # how it was mixed: style archetype, tallies, signature moments (no DOM)
 │   ├── js/moodmap.js  # the mood map: brightness × intensity per track, route sentence (no DOM)
+│   ├── js/card.js     # the set card: cardData() (no DOM) + drawCard() on a canvas
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
@@ -1232,7 +1241,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyse → result)
-│   ├── analysis-test.mjs # the page analyses (Spotify prompt, chapters, mixing, mood map) on the demos and edge cases
+│   ├── analysis-test.mjs # the page analyses (Spotify prompt, chapters, mixing, mood map, set card) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/

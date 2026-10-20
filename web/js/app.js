@@ -8,7 +8,8 @@
    ============================================================ */
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { openNamingDialog } from "./naming-ui.js";
-import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt } from "./vibe-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt, vibeOffWhole } from "./vibe-ui.js";
+import { cardData, drawCard } from "./card.js";
 import { findPhases, slicePayload } from "./phases.js";
 import { vibeProfile } from "./vibe.js";
 import { craftProfile, relationClass } from "./craft.js";
@@ -1216,6 +1217,18 @@ import { moodMap, QUADS } from "./moodmap.js";
     $("mmSvg").querySelectorAll(".mm-pt").forEach((el) => el.classList.toggle("now", +el.dataset.i === k));
   }
 
+  /* ------------------------------------------------ set card */
+  async function openCard() {
+    const dlg = $("cardDlg");
+    if (!dlg.open) dlg.showModal();
+    // the canvas only uses Archivo once those weights are loaded
+    try { await Promise.all(["400 25px Archivo", "700 20px Archivo", "900 74px Archivo"].map((f) => document.fonts.load(f))); } catch (e) { /* system font */ }
+    const c = $("cardCanvas");
+    drawCard(c.getContext("2d"), cardData(S.D, { title: S.title || S.D.title, names: S.names, off: vibeOffWhole() }), keyColor);
+    $("cardShare").hidden = !(navigator.canShare && navigator.canShare({ files: [new File([""], "x.png", { type: "image/png" })] }));
+  }
+  const cardBlob = () => new Promise((res) => $("cardCanvas").toBlob(res, "image/png"));
+
   /* ------------------------------------------------ chapters */
   function renderPhases() {
     const P = S.phases, T = tracks();
@@ -1525,6 +1538,18 @@ import { moodMap, QUADS } from "./moodmap.js";
       $("followBtn").setAttribute("aria-pressed", String(S.follow));
     });
     $("copyBtn").addEventListener("click", copyTracklist);
+    $("cardBtn").addEventListener("click", openCard);
+    $("cardClose").addEventListener("click", () => $("cardDlg").close());
+    $("cardDl").addEventListener("click", () => cardBlob().then((b) => {
+      const url = URL.createObjectURL(b);
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${(S.title || S.D.title).replace(/[^\w\- ]+/g, "")} - set card.png` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }));
+    $("cardShare").addEventListener("click", () => cardBlob().then((b) => {
+      const file = new File([b], "set-card.png", { type: "image/png" });
+      navigator.share({ files: [file], title: S.title || S.D.title }).catch(() => { /* cancelled */ });
+    }));
     $("helpBtn").addEventListener("click", () => ($("keysHelp").hidden = !$("keysHelp").hidden));
     const scrub = $("scrub");
     const scrubTo = (e) => { const r = scrub.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * S.D.duration, false); };
@@ -1568,6 +1593,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     else if (k === "f" || k === "F") $("followBtn").click();
     else if (k === "?") $("helpBtn").click();
     else if (k === "c" || k === "C") copyPrompt();
+    else if (k === "k" || k === "K") openCard();
   }
 
   function drawAll() {
