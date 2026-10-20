@@ -181,6 +181,7 @@ try {
   await p3.locator('#vibeTarget [data-t="chat"]').tap();
   check("phone: the AI-chat prompt asks for a track list", await p3.locator("#vibePrompt").inputValue(), (t) => t.startsWith("Make me a playlist of about"));
   await p3.locator('#vibeTarget [data-t="spotify"]').tap();
+  check("phone: time in key names the home key", await p3.locator(".kt-home").textContent(), (t) => /^Home key \d+[AB]/.test(t));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");

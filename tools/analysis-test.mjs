@@ -40,10 +40,11 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: keeps the tempo floor (nothing under 170 BPM)`, full, (t) => t.includes("Leave out tracks under 170 BPM"));
   check(`${slug}: short prompt words the avoids as "no …"`, short, (t) => t.includes("no tracks under 170 BPM") && !t.includes("no anything"));
   check(`${slug}: a discounted hard style is offered to avoid, but off`, P.chips.filter((c) => c.id === "x:hard").map((c) => c.on), (v) => v.length === 1 && v[0] === false);
+  check(`${slug}: the mood route becomes an ordering line`, full, (t) => /Let the mood move as the set does: (open .+ and end .+|keep the mood .+ throughout)\./.test(t));
   const off = defaultOff(P);
-  off.add("f:flow"); off.add("g:Drum n Bass");
+  off.add("f:flow"); off.add("f:mood"); off.add("g:Drum n Bass");
   const p2 = buildPrompt(P, off, "for a late-night drive");
-  check(`${slug}: switching chips off removes them`, p2.full, (t) => !t.includes("drum & bass") && !t.includes("Order it like"));
+  check(`${slug}: switching chips off removes them`, p2.full, (t) => !t.includes("drum & bass") && !t.includes("Order it like") && !t.includes("Let the mood"));
   check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
 }
 check("part 2: hardcore (a room-noise artefact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));

@@ -17,6 +17,7 @@
    No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */
 import { tempoLikelihood } from "./engine/music.js";
+import { moodMap } from "./moodmap.js";
 
 /* Discogs style → how listeners (and Spotify) say it */
 const SAY = {
@@ -215,6 +216,17 @@ export function vibeProfile(D, names = {}) {
   anchors.forEach((a, i) => chip(`k:${a}`, "Tracks", a, i < 2, "A named track from the set, for the AI to start from"));
   if (era) chip("e:era", "Era", era.chip, true, era.say);
   chip("f:flow", "Flow", flow.chip, true, flow.say);
+  /* the mood route from the mood map (relative to the set, so it describes the arc, not a level) */
+  const mm = moodMap(D);
+  const SAYQ = { intense: "dark and driving", euphoric: "euphoric", warm: "warmer and calmer", brooding: "dark and brooding" };
+  let mood = null;
+  if (mm) {
+    const route = mm.thirds.filter((q, i) => !i || q !== mm.thirds[i - 1]);
+    mood = route.length === 1
+      ? { chip: `${route[0]} throughout`, say: `keep the mood ${SAYQ[route[0]]} throughout` }
+      : { chip: route.join(" → "), say: `open ${SAYQ[route[0]]}${route.length > 2 ? `, turn ${SAYQ[route[1]]},` : ""} and end ${SAYQ[route[route.length - 1]]}` };
+    chip("f:mood", "Flow", mood.chip, true, `the mood map's route: ${mood.say}`);
+  }
   const songs = Math.max(15, Math.min(50, Math.round(mins / 3.5)));
   chip("n:len", "Length", `about ${songs} songs`, false);
 
@@ -225,7 +237,7 @@ export function vibeProfile(D, names = {}) {
   if (ax.aggr <= 0.15) chip("x:aggr", "Avoid", "harsh, aggressive tracks", true, `aggression is only ${Math.round(ax.aggr * 100)}%`);
   if (ruledOut.length) chip("x:hard", "Avoid", list(ruledOut.slice(0, 2)), false, "the style model heard these, but tempo and Shazam didn't back them up: switch on if they're wrong for this set");
 
-  return { title: D.title, bpm, songs, anchors, ruledOut, axes: ax, trackAxes: TA, arc, flow, era, artists, labels, genres, textures, chips };
+  return { title: D.title, bpm, songs, mood, anchors, ruledOut, axes: ax, trackAxes: TA, arc, flow, era, artists, labels, genres, textures, chips };
 }
 
 /* default off-set: the chips that start switched off */
@@ -256,6 +268,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
   if (songs.length) parts.push(`Start from songs like ${list(songs)}.`);
   if (avoid.length) parts.push(`Leave out ${list(avoid)}.`);
   if (one("f:flow")) parts.push(`Order it like a DJ set: ${P.flow.say}.`);
+  if (one("f:mood")) parts.push(`Let the mood move as the set does: ${P.mood.say}.`);
   if (one("n:len")) parts.push(`${cap(one("n:len").text)}.`);
   if (x) parts.push(/[.!?]$/.test(x) ? x : `${x}.`);
   const full = parts.join(" ").replace(/\s+/g, " ").trim();

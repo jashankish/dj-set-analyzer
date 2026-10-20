@@ -83,7 +83,7 @@ top; its colour swatches are the set's track keys in order. Then:
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change and swap time | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, and a one-sentence description | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
 | **How it was mixed** | The DJ's **mixing style**, one of six archetypes (the long blender, the technician, the drop architect, the quick cutter, the key purist, the selector) with the evidence in a sentence; tiles for the median mix length, share in key, share of bass swaps, tempo moves and energy lifts vs. drops; a **mix timeline** where every transition is a column (height = length in bars on a √ scale with 8/16/32-bar guides, a gradient from the outgoing to the incoming track's key colour, dashed outline for a key clash); counts of **key moves** and **mix types**; and the set's **signature moments** (longest blend, deepest bass swap, biggest lift, boldest key move, biggest tempo move) | Hover a column for the mix; click a column or a moment to open it in the inspector and hear it. The column of the selected mix is outlined |
-| **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead) | Click a dot to play that track |
+| **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead). Under it, **time in key**: the set's home key and its share, then minutes in each key as key-coloured bars (top six; the rest summed), with the playing key highlighted | Click a dot to play that track; click a key's bar to play the first track in that key |
 | **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
 | **Energy** | The energy arc of the set, filled per track in its key colour, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
@@ -485,7 +485,11 @@ Node by `tools/analysis-test.mjs`):
 - **Labels** that recur (e.g. RAM Records, Positiva), the **era** of the
   trusted releases, and the **flow**: the energy arc over the set's thirds,
   phrased as an ordering instruction ("start strong, breathe in the middle,
-  then build back up to a big finish").
+  then build back up to a big finish"), and the **mood route** from the mood
+  map: the dominant corner of each third, as "Let the mood move as the set
+  does: open dark and driving, turn euphoric, and end warmer and calmer"
+  (or "keep the mood … throughout"). It's relative to the set, so it
+  describes the arc rather than an absolute level.
 
 The **vibe fingerprint** radar shows the same numbers the words come from,
 so you can see why the prompt says what it says.

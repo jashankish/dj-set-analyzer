@@ -1055,7 +1055,31 @@ import { moodMap, QUADS } from "./moodmap.js";
     $("wheelDots").querySelectorAll("circle").forEach((c) => c.addEventListener("click", () => seek(tracks()[+c.dataset.i].start + 0.05, true)));
     const harmonic = S.D.summary.harmonic_pct;
     $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighbouring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
+    renderKeyTime();
     updateWheel();
+  }
+  /* minutes in each key, under the wheel; the top one is the set's home key */
+  function renderKeyTime() {
+    const [s0, s1] = span(), time = {}, first = {};
+    tracks().forEach((tr) => {
+      const k = keyOf(tr);
+      if (!k) return;
+      time[k] = (time[k] || 0) + Math.max(0, Math.min(tr.end, s1) - Math.max(tr.start, s0));
+      if (first[k] == null) first[k] = tr.start;
+    });
+    const rows = Object.entries(time).sort((a, b) => b[1] - a[1]);
+    const total = rows.reduce((a, [, t]) => a + t, 0) || 1;
+    if (!rows.length) { $("keyTime").innerHTML = ""; return; }
+    const shown = rows.slice(0, 6), rest = rows.slice(6);
+    const name = (k) => (tracks().find((t) => keyOf(t) === k) || {}).key?.name || "";
+    const [hk, ht] = rows[0];
+    $("keyTime").innerHTML = `<p class="kt-home">Home key <b style="color:${keyColor(hk, "ink")}">${hk}</b> ${esc(name(hk))}: ${Math.round((100 * ht) / total)}% of the set, across ${rows.length} key${rows.length > 1 ? "s" : ""}</p>` +
+      shown.map(([k, t]) => `<button class="kt-row" data-k="${k}" data-t="${first[k]}" aria-label="${k}, ${fmtDur(Math.round(t))}: play the first track in this key">
+        <span class="kt-k" style="background:${keyColor(k, "base")}">${k}</span>
+        <span class="kt-bar"><i style="width:${((100 * t) / ht).toFixed(1)}%;background:${keyColor(k, "base")}"></i></span>
+        <span class="kt-v">${Math.round(t / 60)} min</span></button>`).join("") +
+      (rest.length ? `<p class="kt-rest">+ ${rest.map(([k]) => k).join(", ")} (${Math.round(rest.reduce((a, [, t]) => a + t, 0) / 60)} min)</p>` : "");
+    $("keyTime").querySelectorAll(".kt-row").forEach((b) => b.addEventListener("click", () => seek(+b.dataset.t + 0.05, true)));
   }
   function updateWheel() {
     if (!S.wheelPts) return;
@@ -1084,6 +1108,7 @@ import { moodMap, QUADS } from "./moodmap.js";
     $("wcKey").textContent = keyOf(tr) || "?";
     $("wcKey").setAttribute("fill", keyColor(keyOf(tr), "ink"));
     $("wcSub").textContent = tr.key ? tr.key.name : "key unclear";
+    $("keyTime").querySelectorAll(".kt-row").forEach((b) => b.classList.toggle("now", b.dataset.k === keyOf(tr)));
   }
 
   /* ------------------------------------------------ how it was mixed */

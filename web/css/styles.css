@@ -367,6 +367,18 @@ button { font-family: inherit; color: inherit; }
 .wheel-dot.now { stroke: var(--ink); stroke-width: 2.5; }
 .wheel-center { font-family: var(--font); fill: var(--ink); text-anchor: middle; }
 
+.keytime { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.kt-home { margin: 0 0 6px; color: var(--ink-2); font-size: .86rem; font-stretch: 90%; }
+.kt-home b { font-weight: 750; font-stretch: 80%; }
+.kt-row { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 38px 1fr 48px; gap: 10px; align-items: center; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.kt-row:hover, .kt-row.now { background: var(--panel); }
+.kt-row:focus-visible { outline: 2px solid var(--focus); }
+.kt-k { font-size: .74rem; font-weight: 750; font-stretch: 80%; color: #16151E; text-align: center; border-radius: 3px; padding: 1px 0; }
+.kt-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.05); }
+.kt-bar i { display: block; height: 100%; border-radius: 4px; }
+.kt-v { text-align: right; font-size: .8rem; font-stretch: 75%; color: var(--muted); }
+.kt-row.now .kt-v { color: var(--ink); }
+.kt-rest { margin: 2px 0 0; color: var(--faint); font-size: .76rem; font-stretch: 85%; }
 .j-curves { display: flex; flex-direction: column; gap: 30px; min-width: 0; }
 .j-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
 .j-head .j-sub { margin: 0; }
