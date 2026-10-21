@@ -9,7 +9,7 @@
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { isVideo, extractAudio } from "./engine/demux.js";
 import { openNamingDialog } from "./naming-ui.js";
-import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./vibe-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt, vibeHere } from "./vibe-ui.js";
 import { findPhases } from "./phases.js";
 import { mixScore, mixTips } from "./craft.js";
 import { PRE, POST } from "./drops.js";
@@ -668,7 +668,9 @@ import { balanceSection } from "./sections/balance-ui.js";
       L.push(`<a href="https://open.spotify.com/search/${encodeURIComponent(q)}" target="_blank" rel="noopener">Spotify</a>`);
     }
     if (tr.meta && (tr.meta.label || tr.meta.released)) L.push(`<span style="color:var(--muted)">${esc([tr.meta.label, tr.meta.released].filter(Boolean).join(", "))}</span>`);
+    L.push(`<button class="deck-vibe" type="button" title="A Spotify prompt for this track and one either side">Playlist like this part</button>`);
     $("deckLinks").innerHTML = L.join("");
+    $("deckLinks").querySelector(".deck-vibe").addEventListener("click", () => { vibeHere(i); $("vibe").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); });
     $("deckLinks").querySelectorAll(".deck-clue").forEach((b) => b.addEventListener("click", () => seek(tracks()[+b.dataset.n - 1].start + 0.05, true)));
     const nx = tracks()[i + 1], m = mixes()[i];
     $("deckNext").innerHTML = nx && m ? `Next: <b>${esc(nameOf(nx))}</b>, ${esc(m.type.toLowerCase())} at ${fmt(m.swap)}` : "Last track of the set";

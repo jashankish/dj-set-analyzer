@@ -15,7 +15,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit, promptStrength, occasions } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
-const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
+const { findPhases, slicePayload, around } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
@@ -203,6 +203,16 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- a prompt for the part around a moment (phases.around) */
+{
+  const D = demo("worship-part-2"), p = around(D, 8);
+  check("around: track index 8 spans tracks 8–10, centered on 9", [p.from, p.to, p.center, p.label], ([a, b, c, l]) => a === 8 && b === 10 && c === 9 && l === "Tracks 8–10");
+  check("around: the span is measured like a chapter (styles, keys)", [p.styles.length, p.keys.length, p.end > p.start], ([s, k, ok]) => s > 0 && k > 0 && ok);
+  check("around: the first and last tracks clamp to two", [around(D, 0).label, around(D, 99).label], ([a, b]) => a === "Tracks 1–2" && b === "Tracks 18–19");
+  const P = vibeProfile(slicePayload(D, p));
+  check("around: the prompt for a moment keeps the set's genre", buildPrompt(P).full, (t) => /drum & bass/.test(t));
 }
 
 /* ---------------- frequency balance (web/js/balance.js) */

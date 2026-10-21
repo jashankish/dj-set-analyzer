@@ -140,6 +140,19 @@ function measure(D, p) {
   p.drops = (D.drops || []).filter((d) => d.t >= p.start && d.t < p.end).length;
 }
 
+/* a short stretch around track index i (it and one either side), measured like a
+   phase, so a prompt can be written for "this part" of the set */
+export function around(D, i) {
+  const T = D.tracks || [];
+  if (!T.length) return null;
+  const c = Math.max(0, Math.min(T.length - 1, i | 0));
+  const a = T[Math.max(0, c - 1)], b = T[Math.min(T.length - 1, c + 1)];
+  const s0 = (D.summary && D.summary.set_start) || 0, s1 = (D.summary && D.summary.set_end) || D.duration;
+  const p = { from: a.n, to: b.n, center: T[c].n, start: Math.max(a.start, s0), end: Math.min(b.end, s1), label: a.n === b.n ? `Track ${a.n}` : `Tracks ${a.n}–${b.n}` };
+  measure(D, p);
+  return p;
+}
+
 /* a payload cut down to one phase, so vibe.js can write a prompt for just that part */
 export function slicePayload(D, p) {
   const T = D.tracks.filter((t) => t.n >= p.from && t.n <= p.to);

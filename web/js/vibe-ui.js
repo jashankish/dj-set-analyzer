@@ -7,7 +7,7 @@
    length; scope) are kept in localStorage under set-replay:vibe:<slug>.
    ============================================================ */
 import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions } from "./vibe.js";
-import { slicePayload } from "./phases.js";
+import { slicePayload, around } from "./phases.js";
 import * as spotify from "./spotify.js";
 
 const $ = (id) => document.getElementById(id);
@@ -34,11 +34,13 @@ const K_TARGET = "set-replay:vibe-target";
 let target = TARGETS[0];
 try { target = TARGETS.find((t) => t.id === localStorage.getItem(K_TARGET)) || TARGETS[0]; } catch (e) { /* private mode */ }
 
-let V = null;      // { D, phases, scope, Ds, P, Pall, offs, off, extra, form, names, title, cur, keyColor, toast }
+let V = null;      // { D, phases, scope, here, Ds, P, Pall, offs, off, extra, form, names, title, cur, keyColor, toast }
+// scope: -1 the whole set, 0… a chapter, HERE the few tracks around a moment (V.here, from around())
+const HERE = -2;
 
 function storeKey() { return `set-replay:vibe:${V.D.slug}`; }
 function save() {
-  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope, range: V.range })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope, here: V.here && V.here.center, range: V.range })); } catch (e) { /* private mode */ }
 }
 function restore() {
   try { return JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch (e) { return null; }
@@ -126,9 +128,10 @@ function renderFit() {
     return `<button class="vf-row" data-t="${tr.start}"><span class="vf-n">${f.n}</span><span class="vf-t">${esc(V.nameOf(tr))}${f.why.length ? `<small>${esc(f.why.join(", "))}</small>` : ""}</span><span class="vf-bar"><i style="width:${Math.round(f.fit * 100)}%"></i></span><span class="vf-v">${Math.round(f.fit * 100)}</span></button>`;
   };
   const curve = F.slice(-2).filter((f) => f.fit < 0.7).reverse();
-  el.innerHTML = `<h3 class="h3">Most like the ${V.scope < 0 ? "set" : "chapter"}</h3>${F.slice(0, 3).map(row).join("")}` +
+  const part = V.scope === -1 ? "set" : V.scope === HERE ? "part" : "chapter";
+  el.innerHTML = `<h3 class="h3">Most like the ${part}</h3>${F.slice(0, 3).map(row).join("")}` +
     (curve.length ? `<h3 class="h3">Curveballs</h3>${curve.map(row).join("")}` : "") +
-    `<p class="vf-note">Fit out of 100: how close a track's feel (the axes above) and styles are to the ${V.scope < 0 ? "whole set" : "chapter"}'s. The song anchors in the prompt are the best-fitting named tracks.</p>`;
+    `<p class="vf-note">Fit out of 100: how close a track's feel (the axes above) and styles are to the ${part === "set" ? "whole set" : part}'s. The song anchors in the prompt are the best-fitting named tracks.</p>`;
   el.querySelectorAll(".vf-row").forEach((b) => b.addEventListener("click", () => V.seek(+b.dataset.t + 0.05, true)));
 }
 
@@ -253,7 +256,8 @@ export function takePending(action) {
 }
 
 function saveToSpotify() {
-  const name = V.scope < 0 ? `${V.title} · Set Replay` : `${V.title} · ${V.phases[V.scope].label} · Set Replay`;
+  const part = V.scope === -1 ? null : V.scope === HERE ? V.here.label : V.phases[V.scope].label;
+  const name = part ? `${V.title} · ${part} · Set Replay` : `${V.title} · Set Replay`;
   return spotifySave({ tracks: V.Ds.tracks, names: V.names, name, description: prompt().short, say: status, btn: $("vibeSave"), pending: { action: "save" } });
 }
 
@@ -273,7 +277,7 @@ function bind() {
   });
   $("vibeScope").addEventListener("click", (e) => {
     const b = e.target.closest("button");
-    if (b) vibeScope(+b.dataset.i);
+    if (b) +b.dataset.i === HERE ? vibeHere(V.cur) : vibeScope(+b.dataset.i);
   });
   $("vibeFull").addEventListener("click", () => { V.form = "full"; save(); renderPrompt(); });
   $("vibeShort").addEventListener("click", () => { V.form = "short"; save(); renderPrompt(); });
@@ -313,15 +317,16 @@ function bind() {
 
 }
 
-/* the part of the set the prompt is about: the whole set (-1) or one chapter */
-const scopeName = () => (V.scope < 0 ? "Whole set" : esc(V.phases[V.scope].label));
+/* the part of the set the prompt is about: the whole set, one chapter, or the tracks around a moment */
+const part = () => (V.scope === HERE ? V.here : V.phases[V.scope]);
+const scopeName = () => (V.scope === -1 ? "Whole set" : esc(part().label));
 function scoped() {
-  const p = V.phases[V.scope];
+  const p = part();
   V.Ds = p ? slicePayload(V.D, p) : V.D;
   const inScope = new Set(V.Ds.tracks.map((t) => String(t.n)));
   V.P = p ? vibeProfile(V.Ds, Object.fromEntries(Object.entries(V.names).filter(([n]) => inScope.has(n)))) : V.Pall;
   if (p) {
-    // a chapter with few named tracks borrows the set's leading artists, so Spotify still has names to go on
+    // a chapter (or a moment) with few named tracks borrows the set's leading artists, so Spotify still has names to go on
     const have = V.P.chips.filter((c) => c.group === "Artists");
     const add = V.Pall.chips.filter((c) => c.group === "Artists" && c.on && !have.some((h) => h.id === c.id)).slice(0, Math.max(0, 4 - have.length));
     if (have.length < 3 && add.length) {
@@ -334,26 +339,37 @@ function scoped() {
 function useOff() {
   const k = String(V.scope);
   V.off = V.offs[k] ? new Set(V.offs[k]) : defaultOff(V.P);
+  // a few tracks have no arc to follow: no running order, mood route or set length by default
+  if (!V.offs[k] && V.scope === HERE) ["f:flow", "f:mood", "n:len"].forEach((id) => V.off.add(id));
 }
 function renderScope() {
   const el = $("vibeScope");
-  el.hidden = V.phases.length < 2;
-  el.innerHTML = [`<span class="v-gl">Prompt for</span><button class="ghost" role="tab" data-i="-1" aria-selected="${V.scope < 0}">Whole set</button>`,
-    ...V.phases.map((p, i) => `<button class="ghost" role="tab" data-i="${i}" aria-selected="${V.scope === i}" title="Tracks ${p.from}–${p.to}">${esc(p.label)}</button>`)].join("");
+  el.hidden = V.D.tracks.length < 3;
+  const here = V.scope === HERE;
+  el.innerHTML = [`<span class="v-gl">Prompt for</span><button class="ghost" role="tab" data-i="-1" aria-selected="${V.scope === -1}">Whole set</button>`,
+    ...(V.phases.length > 1 ? V.phases.map((p, i) => `<button class="ghost" role="tab" data-i="${i}" aria-selected="${V.scope === i}" title="Tracks ${p.from}–${p.to}">${esc(p.label)}</button>`) : []),
+    `<button class="ghost v-here" role="tab" data-i="${HERE}" aria-selected="${here}" title="The track playing now and one either side${here ? `. Press again to move it to where you are now` : ""}">Around now${here ? ` · ${esc(V.here.label.replace(/^Tracks? /, ""))}` : ""}</button>`].join("");
 }
 export function vibeScope(i) {
   if (!V) return;
-  V.scope = i >= 0 && i < V.phases.length ? i : -1;
+  V.scope = i >= 0 && i < V.phases.length ? i : i === HERE && V.here ? HERE : -1;
   scoped();
   useOff();
   save();
   renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt(); renderOccasions();
 }
 
+/* a prompt for the tracks around track index i (the deck's "Playlist like this part") */
+export function vibeHere(i) {
+  if (!V) return;
+  V.here = around(V.D, i);
+  vibeScope(V.here ? HERE : -1);
+}
+
 /* the whole-set chips switched off, for the set card */
 export function vibeOffWhole() {
   if (!V) return undefined;
-  return V.offs && V.offs["-1"] ? new Set(V.offs["-1"]) : V.scope < 0 ? V.off : undefined;
+  return V.offs && V.offs["-1"] ? new Set(V.offs["-1"]) : V.scope === -1 ? V.off : undefined;
 }
 
 /* app.js → here */
@@ -362,7 +378,8 @@ export function mountVibe(ctx) {
   const Pall = vibeProfile(ctx.D, ctx.names);
   V = { phases: [], ...ctx, Pall, P: Pall, Ds: ctx.D, cur: Math.max(0, ctx.cur || 0) };
   const saved = restore();
-  V.scope = saved && saved.scope != null && saved.scope < V.phases.length ? saved.scope : -1;
+  V.here = saved && saved.scope === HERE && saved.here ? around(ctx.D, ctx.D.tracks.findIndex((t) => t.n === saved.here)) : null;
+  V.scope = saved && saved.scope === HERE && V.here ? HERE : saved && saved.scope != null && saved.scope >= 0 && saved.scope < V.phases.length ? saved.scope : -1;
   scoped();
   V.offs = (saved && saved.offs) || {};
   useOff();

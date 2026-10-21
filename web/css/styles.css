@@ -286,6 +286,9 @@ button { font-family: inherit; color: inherit; }
 .deck-links a:hover { color: var(--ink); }
 .deck-links { flex-wrap: wrap; }
 .deck-clue { flex-basis: 100%; text-align: left; color: var(--ink-2); font-size: .84rem; }
+.deck-vibe { flex: 0 0 auto; background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-2); font: inherit; font-size: .82rem; padding: 4px 12px; cursor: pointer; }
+.deck-vibe::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #1ED760; margin-right: 7px; vertical-align: 1px; }
+.deck-vibe:hover { color: var(--ink); border-color: var(--ink-2); }
 .deck-next { border-top: 1px solid var(--line-soft); padding-top: 12px; color: var(--muted); font-size: .86rem; }
 .deck-next b { color: var(--ink); font-weight: 600; }
 
