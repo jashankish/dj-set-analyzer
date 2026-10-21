@@ -2,7 +2,7 @@
 /* Accessibility check: runs axe-core (WCAG 2.1 A and AA rules) over the
    landing page and a demo's set page, in a desktop and a phone viewport.
 
-     npm i --no-save playwright@1.55.0 axe-core@4.14.0
+     npm i --no-save playwright@1.55.0 axe-core@4.14.0 jsqr@1.4.0   (jsqr: for tools/e2e.mjs)
      bash tools/build-site.sh && node tools/a11y.mjs [--chrome] [--pw DIR]
 
    Serves dist/set-replay/ like tools/e2e.mjs, scrolls each page to the bottom
@@ -39,10 +39,10 @@ const browser = await chromium.launch(args.includes("--chrome") ? { channel: "ch
 let total = 0;
 for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]]) {
   const ctx = await browser.newContext({ viewport, reducedMotion: "reduce" });
-  for (const url of ["index.html", "set.html?demo=worship-part-2"]) {
+  for (const url of ["index.html", "set.html?demo=worship-part-2", `prompt.html#${new URLSearchParams({ t: "spotify", p: "A dark, high-tempo drum & bass playlist" })}`]) {
     const page = await ctx.newPage();
     await page.goto(BASE + url);
-    await page.waitForSelector(url.startsWith("set") ? ".trk" : "#demoList .card");
+    await page.waitForSelector(url.startsWith("set") ? ".trk" : url.startsWith("prompt") ? "#how li" : "#demoList .card");
     // scroll through so lazy sections (the running order) draw, then back up
     await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 600) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); } scrollTo(0, 0); });
     await page.waitForTimeout(400);

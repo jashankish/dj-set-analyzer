@@ -208,6 +208,16 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
 }
 
+/* ---------------- send to your phone (web/js/handoff.js) */
+{
+  const { promptLink } = await import(pathToFileURL(path.join(ROOT, "web/js/handoff.js")));
+  const text = "A dark drum & bass playlist – Think “Sub Focus” & 1991. 100% vocal?";
+  const L = promptLink(text, "apple", new URL("https://example.com/sets/set.html?demo=x#vibe"));
+  const u = new URL(L.data), q = new URLSearchParams(u.hash.slice(1));
+  check("handoff: a link to prompt.html next to the page, the prompt in its fragment only", [L.kind, u.pathname, u.search, q.get("p") === text, q.get("t")], ([k, p, s, ok, t]) => k === "link" && p === "/sets/prompt.html" && s === "" && ok && t === "apple");
+  check("handoff: on localhost the code carries the text itself", [promptLink(text, "spotify", new URL("http://127.0.0.1:8791/set.html")), promptLink(text, "spotify", new URL("http://localhost/set.html"))], (v) => v.every((x) => x.kind === "text" && x.data === text));
+}
+
 /* ---------------- vocal map (web/js/vocals.js) */
 {
   const D = demo("worship-part-2"), V = vocalMap(D);

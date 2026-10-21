@@ -8,6 +8,7 @@
    ============================================================ */
 import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions } from "./vibe.js";
 import { slicePayload, around } from "./phases.js";
+import { promptLink, qrSvg } from "./handoff.js";
 import * as spotify from "./spotify.js";
 
 const $ = (id) => document.getElementById(id);
@@ -19,7 +20,7 @@ const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Tracks", "Labels"
    only Spotify can also take a saved playlist from this page. */
 const TARGETS = [
   { id: "spotify", name: "Spotify", open: "https://open.spotify.com/", where: "Prompted Playlist in Spotify",
-    steps: ["Copy the prompt.", "In the Spotify app, tap <b>Create</b> (+), then <b>Prompted Playlist</b> (Premium; English; in the US, Canada, the UK, Ireland, Australia, New Zealand and Sweden).",
+    steps: ["Copy the prompt, or use <b>Send to your phone</b>: Prompted Playlist is made in the phone app.", "In the Spotify app, go to <b>Your Library</b>, tap <b>Create</b>, then <b>Prompted Playlist</b> (Premium, in English; a beta, so it may not be on your account yet). Pick daily or weekly refresh if you like.",
       "Paste, then refine it there. <b>Save the set to Spotify</b> also gives you the set's own named tracks as a playlist, with the keywords as its description."] },
   { id: "youtube", name: "YouTube Music", open: "https://music.youtube.com/", where: "YouTube Music's AI playlist",
     steps: ["Copy the prompt.", "In the YouTube Music app, open <b>Library</b>, tap <b>New</b>, then choose the <b>AI playlist</b> option (Premium, in the US and some other markets).", "Paste it, then adjust the playlist there."] },
@@ -191,6 +192,29 @@ export async function copyPrompt() {
   V.toast(ok ? `Prompt copied. Paste it into ${target.where}` : "Select the prompt and copy it");
 }
 
+/* the prompt as it stands (with any edits) as a QR code: Prompted Playlist is made in the phone app */
+async function sendToPhone() {
+  const L = promptLink($("vibePrompt").value, target.id);
+  const dlg = $("phoneDlg");
+  $("phoneQr").innerHTML = "";
+  $("phoneLine").textContent = "";
+  dlg.showModal();
+  try {
+    const Q = await qrSvg(L.data);
+    $("phoneQr").innerHTML = Q.svg;
+    // whole pixels per module: fractional ones come out uneven, and some cameras then miss the code
+    const k = Math.max(2, Math.floor(Math.min(320, innerWidth * 0.8) / Q.size));
+    $("phoneQr").style.width = $("phoneQr").style.height = `${k * Q.size}px`;
+    $("phoneQr").querySelector("svg").setAttribute("aria-label", L.kind === "link" ? "QR code: a link that opens this prompt on your phone" : "QR code holding the prompt's text");
+    const app = target.id === "chat" ? "your AI assistant" : `the ${target.name} app`;
+    $("phoneLine").innerHTML = L.kind === "link"
+      ? `Point your phone's camera at the code. It opens the prompt with a <b>Copy</b> button; then paste it into ${esc(app)}. The prompt travels in the link itself: nothing is uploaded.`
+      : `Point your phone's camera at the code: it holds the prompt's text (this page is running on this computer, so a link wouldn't reach your phone). Copy it there, then paste it into ${esc(app)}.`;
+  } catch (e) {
+    $("phoneLine").textContent = "Couldn't make the code. Copy the prompt and send it to yourself instead.";
+  }
+}
+
 /* ------------------------------------------------ Spotify */
 const status = (html) => ($("vibeStatus").innerHTML = html);
 
@@ -297,6 +321,9 @@ function bind() {
   });
   $("vibePrompt").addEventListener("input", () => ($("vibeCount").textContent = `${$("vibePrompt").value.length} characters`));
   $("vibeCopy").addEventListener("click", copyPrompt);
+  $("vibePhone").addEventListener("click", sendToPhone);
+  $("phoneClose").addEventListener("click", () => $("phoneDlg").close());
+  $("phoneDlg").addEventListener("click", (e) => { if (e.target === $("phoneDlg")) $("phoneDlg").close(); });
   $("vibeCopyAll").addEventListener("click", async () => {
     const ok = await copyText(`${V.title}: ${V.phases.length} playlists, one per chapter\n\n${chapterPrompts()}`);
     V.toast(ok ? `${V.phases.length} prompts copied: make one playlist from each` : "Couldn't copy");

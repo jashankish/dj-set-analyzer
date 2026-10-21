@@ -79,7 +79,7 @@ jobs:
         run: bash tools/build-site.sh
       - name: Browser end-to-end in ${{ matrix.browser }} (drop → analyze → result → naming)
         run: |
-          npm i --no-save --silent playwright@1.55.0 axe-core@4.14.0
+          npm i --no-save --silent playwright@1.55.0 axe-core@4.14.0 jsqr@1.4.0
           npx playwright install --with-deps ${{ matrix.browser }}
           # chromium runs in the runner's Google Chrome (what visitors use; it decodes AAC,
           # which Playwright's open-source Chromium can't), the others in Playwright's builds

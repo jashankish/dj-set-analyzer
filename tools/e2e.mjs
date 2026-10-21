@@ -10,7 +10,9 @@
    play/pause, Space, the mix inspector, download + import and two-click delete,
    and finally naming through a stand-in naming helper with known answers. Uses Playwright's
    Chromium (npx playwright install chromium), or with --chrome your installed
-   Chrome. Always a fresh temporary profile. Exits non-zero on failure. */
+   Chrome. Always a fresh temporary profile. Exits non-zero on failure. With jsqr
+   installed next to Playwright (npm i --no-save jsqr@1.4.0), it also decodes the
+   Send-to-your-phone QR code. */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -312,6 +314,30 @@ try {
   await p3.locator("#vibeCopyAll").click();
   await p3.waitForTimeout(300);
   check("phone: Copy a prompt per chapter copies one for each chapter", [await p3.locator("#vibeCopyAll").isVisible(), await p3.locator("#toast").textContent()], ([v, t]) => v && /^2 prompts copied|^Couldn't copy/.test(t));
+  // Send to your phone: a QR code that decodes to the prompt (served from 127.0.0.1: the text itself;
+  // from a real host: a link to prompt.html carrying it in the fragment)
+  let jsQR = null;
+  try { jsQR = require("jsqr"); } catch (e) { /* not installed: decode check skipped */ }
+  const want = await p3.locator("#vibePrompt").inputValue();
+  await p3.locator("#vibePhone").click();
+  await p3.waitForSelector("#phoneQr svg", { timeout: 8000 }).catch(() => {});
+  if (jsQR) {
+    const png = await p3.locator("#phoneQr").screenshot();
+    const img = await p3.evaluate(async (b64) => {
+      const bm = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+      const c = new OffscreenCanvas(bm.width, bm.height), g = c.getContext("2d");
+      g.drawImage(bm, 0, 0);
+      return { w: bm.width, h: bm.height, d: Array.from(g.getImageData(0, 0, bm.width, bm.height).data) };
+    }, png.toString("base64"));
+    const code = jsQR(Uint8ClampedArray.from(img.d), img.w, img.h);
+    const got = code && (code.data.startsWith("http") ? new URLSearchParams(new URL(code.data).hash.slice(1)).get("p") : code.data);
+    check("phone: Send to your phone shows a QR code that decodes to the prompt", [got === want, code && code.data.slice(0, 60)], ([ok]) => ok);
+  } else check("phone: Send to your phone shows a QR code", await p3.locator("#phoneQr svg").count(), (n) => n === 1);
+  await p3.locator("#phoneClose").click();
+  const pp = await phone.newPage();
+  await pp.goto(`${BASE}prompt.html#${new URLSearchParams({ t: "spotify", p: "dark drum & bass – like Sub Focus" })}`);
+  check("prompt.html shows the prompt from its link, with Copy and Open Spotify", [await pp.locator("#p").inputValue(), await pp.locator("#h").textContent(), await pp.locator("#open").textContent()], ([t, h, o]) => t === "dark drum & bass – like Sub Focus" && h === "Your Spotify playlist prompt" && o === "Open Spotify");
+  await pp.close();
   check("phone: the vocal map tags every track", [await p3.locator("#vocTracks .voc-pill").count(), await p3.locator("#vocLine").textContent()], ([n, t]) => n === 19 && /^Vocals in \d+% of the set/.test(t));
   check("phone: pacing gives a typical track's play time", await p3.locator("#paceLine").textContent(), (t) => /A typical track plays \d+:\d\d/.test(t));
   check("phone: the set shape names its closest shape", await p3.locator("#shapeLine").textContent(), (t) => /^Closest to wind-down \(\d+% match\)/.test(t));

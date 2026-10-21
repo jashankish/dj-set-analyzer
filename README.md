@@ -583,6 +583,18 @@ prompt per chapter** copies them all at once, numbered with each chapter's
 name and tracks (each with the chips switched off in that chapter, or its
 defaults), to make one playlist from each.
 
+**Send to your phone.** Spotify makes Prompted Playlists in its phone app
+(Your Library → Create → Prompted Playlist; Premium, English, a beta), so a
+prompt written on a computer has to get there. *Send to your phone* shows a
+QR code of the prompt as it stands, edits included (`handoff.js`, with the
+vendored MIT [qrcode-generator](web/js/vendor/README.md), loaded on first
+use). It encodes a link to `prompt.html` next to the page with the prompt in
+the URL **fragment**, which the phone never sends to any server; that page
+shows it with a big **Copy prompt** button, **Open Spotify** (or the chosen
+service) and the steps. Served from localhost, where a phone can't follow
+the link, the code holds the prompt's text instead. Each module is drawn at
+a whole number of pixels, since uneven modules trip some cameras.
+
 **Or just this part.** Heard a stretch you'd like a whole playlist of? The
 deck's **Playlist like this part** button (or *Around now* in *Prompt for*)
 writes the prompt from the playing track and one either side:
@@ -1390,6 +1402,7 @@ dj-set-analyzer/
 ├── web/               # the website: deploy this folder
 │   ├── index.html     # landing: drop zone, queue, library, demos
 │   ├── set.html       # the replay
+│   ├── prompt.html    # a prompt sent to your phone (read from the link's fragment)
 │   ├── css/styles.css, css/landing.css
 │   ├── js/app.js      # viewer: state, ribbon, deck, setlist, mix inspector, wheel, playback
 │   ├── js/sections/   # one module per analysis section (mixing, mood map, compare, card, chapters,
@@ -1411,6 +1424,8 @@ dj-set-analyzer/
 │   ├── js/tracklist.js   # tracklist as text, YouTube chapters, 1001Tracklists and a CUE sheet (no DOM)
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
+│   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
+│   ├── js/vendor/        # qrcode.js (qrcode-generator 2.0.4, MIT), loaded on first use
 │   ├── js/vocals.js      # vocal map: where the singing is, per window and per track (no DOM)
 │   ├── js/pacing.js      # pacing: each track's time in the set, the quickest stretch, the trend (no DOM)
 │   ├── js/shape.js       # set shape: the energy arc scored against seven classic shapes (no DOM)

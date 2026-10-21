@@ -385,6 +385,7 @@
         <div class="v-actions">
           <button class="solid" id="vibeCopy">Copy prompt</button>
           <a class="ghost v-btn" id="vibeOpen" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>
+          <button class="ghost" id="vibePhone" title="A QR code that opens the prompt on your phone, where Prompted Playlist is">Send to your phone</button>
           <button class="ghost" id="vibeCopyAll" hidden title="One prompt for each chapter, numbered, to make a playlist from each">Copy a prompt per chapter</button>
           <button class="ghost" id="vibeSave">Save the set to Spotify</button>
           <button class="ghost" id="vibeReset" title="Switch the keywords back to the defaults">Reset</button>
@@ -448,6 +449,11 @@
       <button class="ghost" id="cardShare" hidden>Share…</button>
       <span class="card-note">1080 × 1350, made in your browser</span>
     </div>
+  </dialog>
+  <dialog class="card-dlg phone-dlg" id="phoneDlg" aria-labelledby="phoneH">
+    <div class="card-head"><h2 class="h2" id="phoneH">Send to your phone</h2><button class="ghost" id="phoneClose">Close</button></div>
+    <div class="phone-qr" id="phoneQr"></div>
+    <p class="phone-line" id="phoneLine"></p>
   </dialog>
   <div class="toast" id="toast" hidden></div>
 
