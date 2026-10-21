@@ -69,6 +69,14 @@ There are two ways to run it, and both produce the same JSON:
   heading shows how much browser storage the library uses (each set keeps
   its recording, so typically 40–150 MB), and it suggests deleting old sets
   once usage passes 80% of what the browser allows.
+- **Your taste, across your sets:** with two or more sets saved, one playlist
+  prompt for the sound they share (`taste.js`: the sets joined end to end with
+  `compare.mergePayloads`, written up by `vibe.js` without the per-set flow
+  lines), beside the numbers behind it: sets, hours and tracks, the tempo
+  range, home keys, genres and the artists who keep coming back. **Copy
+  prompt** / **Open Spotify**. With fewer than two saved, it shows the same
+  across the demo sets (*One playlist from several sets*), loaded only when
+  the section comes near the screen.
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. Under it, **And there's more on every set**:
   nine cards (the playlist prompt, highlights, the review, how it was mixed,
@@ -1385,6 +1393,7 @@ dj-set-analyzer/
 │   ├── js/tracklist.js   # tracklist as text, YouTube chapters, 1001Tracklists and a CUE sheet (no DOM)
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
+│   ├── js/taste.js       # one prompt across every set saved here: the sound they share (no DOM)
 │   ├── js/roles.js       # what each track does in the set: Peak, Lift, Breather, Curveball, Key bridge… (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save

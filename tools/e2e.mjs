@@ -181,6 +181,8 @@ try {
   await page.setInputFiles("#fileInput", exported);
   await page.waitForFunction(() => document.querySelectorAll("#libList .card").length === 2, null, { timeout: 10000 });
   check("dropping the .setreplay.json imports it", await page.locator("#libList .card").count(), (n) => n === 2);
+  await page.waitForFunction(() => !document.getElementById("taste").hidden && document.getElementById("tasteText").textContent.length > 20, null, { timeout: 8000 }).catch(() => {});
+  check("with two sets saved, the landing writes one prompt across them", [await page.locator("#tasteTitle").textContent(), await page.locator("#tasteText").textContent()], ([h, t]) => h === "Your taste, across your sets" && /^A .* playlist/.test(t));
   fs.rmSync(exported, { force: true });
 
   /* deleting takes two clicks */
@@ -250,6 +252,9 @@ try {
   await p3.goto(BASE);
   await p3.waitForSelector("#demoList .card");
   check("phone: landing has no sideways scroll", await overflow(), (px) => px <= 0);
+  await p3.locator("#taste").scrollIntoViewIfNeeded();
+  await p3.waitForFunction(() => document.getElementById("tasteText").textContent.length > 20, null, { timeout: 8000 }).catch(() => {});
+  check("phone: with no sets saved, the landing shows one prompt across the demos", [await p3.locator("#tasteTitle").textContent(), await p3.locator("#tasteText").textContent()], ([h, t]) => h === "One playlist from several sets" && /drum & bass/.test(t));
   check("phone: the landing page links nine features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 9 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
   await p3.goto(BASE + "set.html?demo=worship-part-2");
   await p3.waitForSelector(".trk");

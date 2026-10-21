@@ -109,6 +109,12 @@ export async function updatePayload(id, patch) {
 }
 
 /** Lightweight listing (no audio) for menus, newest first. */
+/** Every saved set's analysis (no audio), newest first: for views across the library. */
+export async function listPayloads() {
+  const all = await tx("readonly", (s) => s.getAll());
+  return (all || []).sort((a, b) => b.created - a.created).map((r) => ({ id: r.id, title: r.title, payload: r.payload }));
+}
+
 export async function listSets() {
   const all = await tx("readonly", (s) => s.getAll());
   return (all || []).sort((a, b) => b.created - a.created).map((r) => ({

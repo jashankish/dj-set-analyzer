@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { taste } = await import(pathToFileURL(path.join(ROOT, "web/js/taste.js")));
 const { roles } = await import(pathToFileURL(path.join(ROOT, "web/js/roles.js")));
 const { review } = await import(pathToFileURL(path.join(ROOT, "web/js/review.js")));
 const { similarity, idClues } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
@@ -200,6 +201,16 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- taste across sets (web/js/taste.js) */
+{
+  const both = ["worship-part-1", "worship-part-2"].map((s) => ({ title: s, payload: demo(s) }));
+  const T = taste(both);
+  check("taste: two sets, their hours and every track", [T.sets, Math.round(T.hours * 60), T.tracks], ([n, m, t]) => n === 2 && m === Math.round((demo("worship-part-1").summary.set_length + demo("worship-part-2").summary.set_length) / 60) && t === 32);
+  check("taste: artists from both sets (Sub Focus, Culture Shock)", T.artists, (a) => a.includes("Sub Focus") && a.includes("Culture Shock"));
+  check("taste: the prompt keeps the shared sound and drops the per-set flow lines", T.prompt.full, (t) => /drum & bass/.test(t) && !/Order it like a DJ set|Let the mood move/.test(t));
+  check("taste: one set isn't enough", taste(both.slice(0, 1)), (v) => v === null);
 }
 
 /* ---------------- track roles (web/js/roles.js) */

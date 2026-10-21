@@ -1,7 +1,8 @@
 /* Landing page: drop zone, analysis queue, the visitor's library, demos and
    the live teaser. Analysis runs in this browser (engine/pipeline.js). */
 import { drawRibbonFast, drawStrip, drawWheel } from "./mini.js";
-import { listSets, deleteSet, saveSet, importSet, storageEstimate } from "./store.js";
+import { listSets, listPayloads, deleteSet, saveSet, importSet, storageEstimate } from "./store.js";
+import { taste } from "./taste.js";
 import { helperStatus, helperWanted } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
 
@@ -118,6 +119,7 @@ async function loadLibrary() {
     </a></li>`).join("");
   drawCards($("libList"));
   showStorage(sets.length);
+  showTaste(sets.length);
   $("libList").querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
     e.preventDefault(); e.stopPropagation();
     // deleting also removes the saved recording, so it takes a second click
@@ -135,6 +137,53 @@ async function loadLibrary() {
     announce("Set deleted.");
     loadLibrary();
   }));
+}
+
+/* ------------------------------------------------ your taste, across your sets */
+/* Two or more saved sets: one prompt for the sound they share. Fewer: the same
+   across the two demo sets, fetched only when the section comes near the screen. */
+let tasteWatch = null;
+async function showTaste(count) {
+  if (tasteWatch) { tasteWatch.disconnect(); tasteWatch = null; }
+  if (count >= 2) {
+    let entries = [];
+    try { entries = await listPayloads(); } catch (e) { /* storage unavailable */ }
+    entries = entries.map((e) => ({ ...e, title: titleOf(e.id, e.title) }));
+    renderTaste(taste(entries), `From the ${entries.length} sets saved in this browser: the sound they share, as one playlist prompt.`, "Your taste, across your sets");
+    return;
+  }
+  const load = async () => {
+    try {
+      const idx = await (await fetch("demo/index.json")).json();
+      const entries = await Promise.all(idx.slice(0, 4).map(async (d) => ({ title: d.title, payload: await (await fetch(`demo/${encodeURIComponent(d.slug)}.json`)).json() })));
+      renderTaste(taste(entries), `Here, across the ${entries.length} demo sets. Analyze two or more of your own and this becomes yours.`, "One playlist from several sets");
+    } catch (e) { /* no demos bundled */ }
+  };
+  if (!("IntersectionObserver" in window)) { load(); return; }
+  $("taste").hidden = false;                       // so it can be watched; empty until loaded
+  tasteWatch = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) { tasteWatch.disconnect(); tasteWatch = null; load(); } }, { rootMargin: "400px 0px" });
+  tasteWatch.observe($("taste"));
+}
+function titleOf(id, fallback) {
+  try { return (JSON.parse(localStorage.getItem(`set-replay:${id}`) || "null") || {}).title || fallback; } catch (e) { return fallback; }
+}
+function renderTaste(T, sub, title) {
+  $("taste").hidden = !T;
+  if (!T) return;
+  $("tasteTitle").textContent = title;
+  $("tasteSub").textContent = sub;
+  const facts = [
+    ["Sets", `${T.sets}`, `${T.hours >= 1 ? `${T.hours.toFixed(1)} hours` : `${Math.round(T.hours * 60)} min`}, ${T.tracks} tracks`],
+    ["Tempo", T.bpm ? (T.bpm[0] === T.bpm[1] ? `${T.bpm[0]} BPM` : `${T.bpm[0]}–${T.bpm[1]} BPM`) : "—", "average per set"],
+    ["Home keys", T.keys.join(" · ") || "—", "most time spent in"],
+    ["Genres", T.genres.join(", ") || "—", "trusted across the sets"],
+    ["Artists", T.artists.slice(0, 4).join(", ") || "—", "who keep coming back"],
+  ];
+  $("tasteFacts").innerHTML = facts.map(([k, v, s]) => `<div><dt>${k}</dt><dd>${esc(v)}<small>${esc(s)}</small></dd></div>`).join("");
+  $("tasteText").textContent = T.prompt.full;
+  $("tasteCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(T.prompt.full); toast("Prompt copied. Paste it into Prompted Playlist in Spotify"); } catch (e) { toast("Select the prompt and copy it"); }
+  };
 }
 
 /* ------------------------------------------------ naming helper (optional) */
