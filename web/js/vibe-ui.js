@@ -6,7 +6,7 @@
    Per-set choices (chips switched off, per scope; own direction; prompt
    length; scope) are kept in localStorage under set-replay:vibe:<slug>.
    ============================================================ */
-import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit } from "./vibe.js";
+import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions } from "./vibe.js";
 import { slicePayload } from "./phases.js";
 import * as spotify from "./spotify.js";
 
@@ -156,7 +156,18 @@ function renderTarget() {
   $("vibeConnect").hidden = target.id !== "spotify" || !!spotify.hostClientId();
   $("vibeHow").innerHTML = target.steps.map((s) => `<li>${s}</li>`).join("");
 }
+function renderStrength() {
+  const S = promptStrength(V.P, V.off);
+  $("vibeStrength").innerHTML = `<span class="vs-k">How well this prompt pins the set down</span>
+    <span class="vs-bar">${S.parts.map((p) => `<i style="flex:${p.weight}" class="${p.got >= 1 ? "on" : p.got > 0 ? "half" : ""}" title="${esc(p.label)}"></i>`).join("")}</span>
+    <span class="vs-v"><b>${S.score}</b> ${S.label}</span>
+    ${S.tip ? `<span class="vs-tip">To get closer: ${esc(S.tip)}.</span>` : ""}`;
+}
+function renderOccasions() {
+  $("vibeOcc").innerHTML = `<span class="v-gl">Ideas</span>` + occasions(V.P).map((o) => `<button class="chip" aria-pressed="${V.extra === o}" data-o="${esc(o)}">${esc(o)}</button>`).join("");
+}
 function renderPrompt() {
+  renderStrength();
   const p = prompt(), text = V.form === "short" ? p.short : p.full;
   $("vibePrompt").value = text;
   $("vibeCount").textContent = `${text.length} characters`;
@@ -265,7 +276,14 @@ function bind() {
   });
   $("vibeFull").addEventListener("click", () => { V.form = "full"; save(); renderPrompt(); });
   $("vibeShort").addEventListener("click", () => { V.form = "short"; save(); renderPrompt(); });
-  $("vibeExtra").addEventListener("input", () => { V.extra = $("vibeExtra").value; save(); renderPrompt(); });
+  $("vibeExtra").addEventListener("input", () => { V.extra = $("vibeExtra").value; save(); renderPrompt(); renderOccasions(); });
+  $("vibeOcc").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    V.extra = V.extra === b.dataset.o ? "" : b.dataset.o;      // a second click takes it out again
+    $("vibeExtra").value = V.extra;
+    save(); renderPrompt(); renderOccasions();
+  });
   $("vibePrompt").addEventListener("input", () => ($("vibeCount").textContent = `${$("vibePrompt").value.length} characters`));
   $("vibeCopy").addEventListener("click", copyPrompt);
   $("vibeOpen").addEventListener("click", () => { copyText($("vibePrompt").value).then((ok) => ok && V.toast(`Prompt copied. Paste it into ${target.where}`)); });
@@ -322,7 +340,7 @@ export function vibeScope(i) {
   scoped();
   useOff();
   save();
-  renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt();
+  renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt(); renderOccasions();
 }
 
 /* the whole-set chips switched off, for the set card */
@@ -344,7 +362,7 @@ export function mountVibe(ctx) {
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
   $("vibeExtra").value = V.extra;
-  renderTarget(); renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt();
+  renderTarget(); renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt(); renderOccasions();
   if (!pending) status(notice);
   notice = "";
   if (pending && pending.action === "save") { pending = null; target = TARGETS[0]; renderTarget(); saveToSpotify(); }

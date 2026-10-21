@@ -436,6 +436,18 @@ section **Take the vibe to Spotify**.
 **Using it:** press **Copy prompt** (or `C`). In the Spotify app, tap
 **Create** (+), then **Prompted Playlist**, and paste.
 
+**How well the prompt pins the set down.** Above the prompt, a meter
+(`vibe.promptStrength`) scores what it gives a playlist AI to go on, out of
+100: artists 25 (full at three), genre 20, songs 20 (full at two), tempo 10,
+mood 10, flow 10, things to avoid 5. Each part is one segment of the bar, and
+the biggest gap becomes a tip, e.g. "only 1 artist: switch more of the set's
+artists back on, or name more of its IDs". Under your own direction,
+**Ideas** (`vibe.occasions`) suggest where the playlist fits, from the set's
+character: *for a run* (energetic at 118+ BPM), *for the gym*, *for a
+pre-party*, *for a late-night drive* (dark, minor-key), *to focus to*
+(instrumental, gentle), *for the after-hours* (atmospheric)… One tap adds it
+to the prompt, a second takes it out.
+
 **Other services.** *Send to* picks where the prompt goes; each choice
 changes the steps shown, the *Open* button and the copy message, and is
 remembered in this browser:

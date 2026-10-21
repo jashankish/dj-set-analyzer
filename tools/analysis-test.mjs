@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
+const { vibeProfile, buildPrompt, defaultOff, artistsOf, trust, AXES, trackFit, promptStrength, occasions } = await import(pathToFileURL(path.join(ROOT, "web/js/vibe.js")));
 const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, "web/js/phases.js")));
 const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
@@ -53,6 +53,17 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: own direction is appended`, p2.full, (t) => t.endsWith("for a late-night drive."));
 }
 check("part 2: hardcore (a room-noise artifact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
+
+/* ---------------- prompt strength and occasion ideas */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const P = vibeProfile(demo(slug));
+  check(`${slug}: the default prompt pins the set down strongly`, promptStrength(P), (S) => S.score >= 85 && S.label === "Strong" && S.tip === null);
+  const off = defaultOff(P); P.chips.filter((c) => c.group === "Artists" || c.group === "Tracks").forEach((c) => off.add(c.id));
+  const weak = promptStrength(P, off);
+  check(`${slug}: with no artists or songs it drops, and the tip is about switching artists back on`, weak, (S) => S.score <= 55 && /switch some back on/.test(S.tip));
+  check(`${slug}: occasion ideas are 1–4 phrases that complete "a playlist …"`, occasions(P), (o) => o.length >= 1 && o.length <= 4 && o.every((x) => /^(for|to) /.test(x)));
+}
+check("occasions: a fast, energetic set suggests a run", occasions(vibeProfile(demo("worship-part-2"))), (o) => o.includes("for a run"));
 
 /* ---------------- how typical each track is (vibe.trackFit) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {
@@ -230,6 +241,7 @@ const PB = vibeProfile(bare);
 const pb = buildPrompt(PB);
 check("bare set: still writes a prompt", pb.full, (t) => /^A driving tech house playlist \(around 124 BPM\)/.test(t));
 check("bare set: no artist sentence", pb.full, (t) => !t.includes("Think"));
+check("strength: a bare set without names suggests naming IDs", promptStrength(vibeProfile(bare)).tip, (t) => /name some of the set's IDs/.test(t));
 
 let bad = 0;
 for (const [name, v, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"}  ${name}  ${ok ? "" : v}`); if (!ok) bad++; }

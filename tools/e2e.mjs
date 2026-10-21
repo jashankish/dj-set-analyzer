@@ -292,6 +292,11 @@ try {
   await p3.locator('#pnav button[data-to="vibe"]').tap();
   await p3.waitForTimeout(1200);
   check("phone: tapping a section jumps there and marks it current", await p3.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
+  check("phone: the prompt strength meter rates the demo's prompt", await p3.locator("#vibeStrength .vs-v").textContent(), (t) => /^\d+ (Strong|Good|Loose|Vague)$/.test(t.trim()));
+  const idea = await p3.locator("#vibeOcc .chip").first().textContent();
+  await p3.locator("#vibeOcc .chip").first().tap();
+  check("phone: tapping an idea adds it to the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => t.endsWith(`${idea}.`) || t.includes(idea));
+  await p3.locator("#vibeOcc .chip").first().tap();
   check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
   await p3.locator(".ph-vibe").last().tap();
   check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");

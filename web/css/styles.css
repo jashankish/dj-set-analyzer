@@ -590,6 +590,18 @@ button { font-family: inherit; color: inherit; }
 }
 .chip[aria-pressed="true"] { color: var(--ink); background: var(--raised); border-color: var(--raised); text-decoration: none; }
 .chip:hover { border-color: var(--muted); }
+.v-strength { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: center; font-size: .82rem; }
+.vs-k { color: var(--muted); font-stretch: 88%; }
+.vs-bar { display: flex; gap: 3px; height: 8px; min-width: 120px; }
+.vs-bar i { border-radius: 2px; background: rgba(255,255,255,.07); }
+.vs-bar i.half { background: linear-gradient(90deg, var(--ink-2) 50%, rgba(255,255,255,.07) 50%); }
+.vs-bar i.on { background: var(--ink-2); }
+.vs-v { font-stretch: 85%; color: var(--ink-2); white-space: nowrap; }
+.vs-v b { font-size: 1rem; font-weight: 700; font-stretch: 75%; color: var(--ink); }
+.vs-tip { grid-column: 1 / -1; color: var(--muted); font-size: .8rem; font-stretch: 90%; }
+.v-occ .chip[aria-pressed="false"] { text-decoration: none; color: var(--ink-2); border-style: dashed; }
+.v-occ { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: -6px; }
+@media (max-width: 720px) { .v-strength { grid-template-columns: 1fr auto; } .vs-k { grid-column: 1 / -1; } }
 .v-form { display: flex; gap: 6px; align-items: center; }
 .v-form [aria-selected="true"] { color: var(--ink); background: var(--raised); border-color: var(--raised); }
 .v-count { margin-left: auto; color: var(--faint); font-size: .78rem; font-stretch: 85%; }

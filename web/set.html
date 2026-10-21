@@ -294,8 +294,10 @@
           <button class="ghost" role="tab" id="vibeShort" aria-selected="false">Keywords only</button>
           <span class="v-count" id="vibeCount"></span>
         </div>
-        <textarea class="v-text" id="vibePrompt" rows="5" aria-label="Playlist prompt" spellcheck="false"></textarea>
+        <div class="v-strength" id="vibeStrength" aria-live="polite"></div>
+        <textarea class="v-text" id="vibePrompt" rows="6" aria-label="Playlist prompt" spellcheck="false"></textarea>
         <input class="v-extra" id="vibeExtra" type="text" maxlength="160" placeholder="Add your own direction, e.g. “for a late-night drive”" aria-label="Your own direction for the prompt" />
+        <div class="v-occ" id="vibeOcc"></div>
         <div class="v-actions">
           <button class="solid" id="vibeCopy">Copy prompt</button>
           <a class="ghost v-btn" id="vibeOpen" href="https://open.spotify.com/" target="_blank" rel="noopener">Open Spotify</a>

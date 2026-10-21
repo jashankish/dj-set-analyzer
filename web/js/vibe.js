@@ -320,3 +320,43 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
   if (short.length > 300) short = `${short.slice(0, 299).replace(/,?\s*\S*$/, "")}…`;
   return { full, short };
 }
+
+/* how well the prompt pins the set down for a playlist AI: what it names,
+   weighted by how hard each steers (artists and songs most). Returns a
+   score out of 100, the parts with whether they're in, and a tip for the
+   biggest gap, so the visitor knows what would make the playlist closer. */
+export function promptStrength(P, off = defaultOff(P)) {
+  const on = (g) => P.chips.filter((c) => c.group === g && !off.has(c.id));
+  const all = (g) => P.chips.filter((c) => c.group === g).length;
+  const artists = on("Artists").length, songs = on("Tracks").length;
+  const more = all("Artists") > artists ? "switch more of the set's artists back on, or name more of its IDs (double-click a track title)" : "name more of the set's IDs (double-click a track title) to add artists";
+  const parts = [
+    { id: "genre", label: "Genre", weight: 20, got: on("Genre").length ? 1 : 0, tip: "switch a genre on: it's the first thing the AI filters by" },
+    { id: "artists", label: "Artists", weight: 25, got: Math.min(1, artists / 3), tip: artists ? `only ${artists} artist${artists > 1 ? "s" : ""}: ${more}` : all("Artists") ? "no artists switched on: they steer the AI most, so switch some back on" : "no artists: name some of the set's IDs (double-click a track title), or run the naming helper" },
+    { id: "songs", label: "Songs", weight: 20, got: Math.min(1, songs / 2), tip: all("Tracks") ? "switch on a song or two under Tracks: songs steer the AI hardest" : "no song anchors yet: they come from tracks Shazam named with confidence" },
+    { id: "tempo", label: "Tempo", weight: 10, got: on("Tempo").length ? 1 : 0, tip: "switch the tempo on, so the playlist stays at the set's pace" },
+    { id: "mood", label: "Mood", weight: 10, got: on("Mood").length ? 1 : 0, tip: "switch a mood word on" },
+    { id: "flow", label: "Flow", weight: 10, got: on("Flow").length ? 1 : 0, tip: "switch the flow on, so it's ordered like the set" },
+    { id: "avoid", label: "Avoid", weight: 5, got: on("Avoid").length ? 1 : 0, tip: "add something to avoid, so the playlist doesn't drift" },
+  ];
+  const score = Math.round(parts.reduce((s, p) => s + p.weight * p.got, 0));
+  const gap = parts.filter((p) => p.got < 1).sort((a, b) => b.weight * (1 - b.got) - a.weight * (1 - a.got))[0];
+  const label = score >= 85 ? "Strong" : score >= 65 ? "Good" : score >= 40 ? "Loose" : "Vague";
+  return { score, label, parts, tip: gap ? gap.tip : null };
+}
+
+/* where this set's playlist would fit, from its character: suggestions for
+   the visitor's own direction (each a phrase that completes "a playlist …") */
+export function occasions(P) {
+  const a = P.axes, out = [];
+  const fast = (P.bpm || 0) >= 160, mid = (P.bpm || 0) >= 118 && (P.bpm || 0) < 160;
+  if ((fast || mid) && a.energy >= 0.5) out.push("for a run");
+  if (a.aggr >= 0.3 || (fast && a.energy >= 0.55)) out.push("for the gym");
+  if (a.party >= 0.4 || a.dance >= 0.8) out.push("for a pre-party");
+  if (a.happy <= 0.3 && a.minor >= 0.6) out.push("for a late-night drive");
+  if (a.happy >= 0.45) out.push("for a summer afternoon");
+  if (a.vocal < 0.4 && a.aggr < 0.3) out.push("to focus to");
+  if ((P.textures || []).includes("atmospheric")) out.push("for the after-hours");
+  if (!out.length) out.push("for a night out", "for the drive home");
+  return [...new Set(out)].slice(0, 4);
+}
