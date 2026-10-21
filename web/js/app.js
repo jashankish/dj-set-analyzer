@@ -275,6 +275,7 @@ import { review } from "./review.js";
     renderDrops();
     renderHighlights();
     renderReview();
+    deepLink();
     renderSim();
     renderCompare();
     renderNav();
@@ -1753,6 +1754,17 @@ import { review } from "./review.js";
     else if (k === "?") $("helpBtn").click();
     else if (k === "c" || k === "C") copyPrompt();
     else if (k === "k" || k === "K") openCard();
+  }
+
+  /* a link to a section of a set (set.html?demo=…#vibe): go there once the page has drawn */
+  function deepLink() {
+    const want = decodeURIComponent(location.hash.slice(1));
+    if (!SECTIONS.some(([id]) => id === want)) return;            // the local server uses the hash for its sets
+    setTimeout(() => {
+      const b = $("pnav") && $("pnav").querySelector(`[data-to="${want}"]`);
+      if (b) b.click();
+      else if ($(want)) $(want).scrollIntoView();
+    }, 300);
   }
 
   /* ------------------------------------------------ section navigator */

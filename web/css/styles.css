@@ -185,6 +185,8 @@ button { font-family: inherit; color: inherit; }
 .tl-menu small { color: var(--muted); font-size: .76rem; font-stretch: 88%; }
 
 /* ---------------------------------------------------------------- section navigator */
+/* jumping to a section (the bar, or a link like set.html?demo=…#vibe) stops below the sticky bar */
+.hl, .rv, .desk, .mix, .craft, .journey, .moodmap, .compare, .vibe { scroll-margin-top: 64px; }
 .pnav {
   position: sticky; top: 0; z-index: 18; max-width: var(--maxw); margin: 10px auto 0; padding: 8px var(--gut);
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;

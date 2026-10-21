@@ -70,7 +70,11 @@ There are two ways to run it, and both produce the same JSON:
   its recording, so typically 40–150 MB), and it suggests deleting old sets
   once usage passes 80% of what the browser allows.
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
-  cards and the Camelot path. The animated ribbons are drawn once and cached,
+  cards and the Camelot path. Under it, **And there's more on every set**:
+  nine cards (the playlist prompt, highlights, the review, how it was mixed,
+  chapters and drops, the mood map, track by track, comparing sets,
+  tracklists and the set card), each linking straight to that section of a
+  demo (`set.html?demo=…#vibe`). The animated ribbons are drawn once and cached,
   so each frame only moves the playhead (~0.01 ms rather than ~6 ms). They
   pause when scrolled out of view and while an analysis runs. Below it are the demo sets, *How it works* and a
   short FAQ.
@@ -1122,6 +1126,11 @@ pipeline:
   waits for the Archivo weights (`document.fonts.load`) so the canvas uses
   the page's typeface, then draws; Download uses `canvas.toBlob`, Share uses
   `navigator.share({ files })` when `navigator.canShare` allows it.
+- **Links to a section:** `set.html?…#<section id>` (e.g. `#vibe`, `#rv`)
+  opens the set at that section once it has drawn (`deepLink()`); every
+  section has `scroll-margin-top`, so the browser's own jump and the bar's
+  both stop below the sticky bar. The local server's `#<slug>` links are left
+  alone, since only section ids are matched.
 - **Section bar:** `renderNav()` builds the chips from the visible sections;
   `spyNav()` (on scroll, once per frame) marks the last section whose top has
   passed 30% of the way down the screen, or the last section at the bottom of

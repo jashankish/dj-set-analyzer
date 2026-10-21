@@ -244,6 +244,7 @@ try {
   await p3.goto(BASE);
   await p3.waitForSelector("#demoList .card");
   check("phone: landing has no sideways scroll", await overflow(), (px) => px <= 0);
+  check("phone: the landing page links nine features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 9 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
   await p3.goto(BASE + "set.html?demo=worship-part-2");
   await p3.waitForSelector(".trk");
   check("phone: replay page has no sideways scroll", await overflow(), (px) => px <= 0);
@@ -299,6 +300,10 @@ try {
   await p3.locator("#vibeOcc .chip").first().tap();
   check("phone: tapping an idea adds it to the prompt", await p3.locator("#vibePrompt").inputValue(), (t) => t.endsWith(`${idea}.`) || t.includes(idea));
   await p3.locator("#vibeOcc .chip").first().tap();
+  await p3.goto(BASE + "set.html?demo=worship-part-2#vibe");
+  await p3.waitForSelector(".trk");
+  await p3.waitForFunction(() => { const t = document.getElementById("vibe").getBoundingClientRect().top; return t > 0 && t < 160; }, null, { timeout: 5000 }).catch(() => {});
+  check("phone: a link to a section (#vibe) opens the set there", await p3.evaluate(() => Math.round(document.getElementById("vibe").getBoundingClientRect().top)), (t) => t > 0 && t < 160);
   check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
   await p3.locator(".ph-vibe").last().tap();
   check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");
