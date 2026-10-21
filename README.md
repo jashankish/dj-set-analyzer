@@ -319,6 +319,23 @@ relative.
    add `https://yoursite.com/set-replay/set.html` as a Redirect URI in the
    Spotify dashboard. Without it, visitors can paste their own app's Client
    ID on the page. See [Spotify](#spotify-the-set-as-a-playlist-prompt).
+8. **Link previews.** Shared in iMessage, Slack, WhatsApp or X, a link shows a
+   card from the pages' Open Graph tags. The pages carry the title,
+   description, site name, image size and alt text, a `summary_large_image`
+   card and `apple-touch-icon.png` (the icon iOS shows next to a link; it
+   ignores SVG icons). The card image is `og-image.png` (1200 × 630), but
+   `og:image` and `og:url` must be **absolute** URLs, which only the host
+   knows, so add them in your `--head` file:
+
+   ```html
+   <meta property="og:url" content="https://example.com/set-replay/" />
+   <meta property="og:image" content="https://example.com/set-replay/og-image.png" />
+   <meta name="twitter:image" content="https://example.com/set-replay/og-image.png" />
+   ```
+
+   Without them, previews show the title and description but no image. The
+   images are drawn from demo 1 by `node tools/make-share-images.mjs` (re-run
+   only to change the design).
 
 ### Inside a larger site
 
@@ -1326,6 +1343,8 @@ dj-set-analyzer/
 │   ├── demo/          # bundled demo sets (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages
 │   ├── favicon.svg    # site icon (key-colored waveform)
+│   ├── og-image.png   # the 1200 × 630 link-preview card (tools/make-share-images.mjs)
+│   ├── apple-touch-icon.png  # the 180 × 180 icon iOS shows next to a shared link
 │   ├── serve.py       # local dev server with ranged audio
 │   └── data/          # Python output for the local server (git-ignored)
 ├── netlify.toml       # one-click Netlify deploy (runs tools/build-site.sh)
@@ -1340,6 +1359,7 @@ dj-set-analyzer/
 │   ├── fixtures/set-replay-e2e.mov  # the synthetic test set as a 2.4 MB video (H.264 + AAC, QuickTime sound entry)
 │   ├── analysis-test.mjs # the page analyses (prompt, chapters, mixing, mood map, card, compare) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
+│   ├── make-share-images.mjs  # draws og-image.png and apple-touch-icon.png from a demo (Playwright)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
 │   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labeled sets

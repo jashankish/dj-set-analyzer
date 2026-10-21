@@ -26,7 +26,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 # copy everything except dev-only files
 tar -C web --exclude='./data' --exclude='./serve.py' --exclude='.DS_Store' --exclude='__pycache__' -cf - . | tar -C "$OUT" -xf -
-for f in index.html set.html js/engine/pipeline.js models/discogs-effnet-bsdynamic-1.onnx helper/set-replay-helper.py; do
+for f in index.html set.html js/engine/pipeline.js models/discogs-effnet-bsdynamic-1.onnx helper/set-replay-helper.py og-image.png apple-touch-icon.png; do
   [ -f "$OUT/$f" ] || { echo "missing $f in the build" >&2; exit 1; }
 done
 if [ -n "$HEAD_FILE" ]; then
