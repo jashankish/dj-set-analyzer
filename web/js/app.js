@@ -7,23 +7,27 @@
    Draws the set and keeps every view in step with the audio.
    ============================================================ */
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
-import { openNamingDialog } from "./naming-ui.js";
-import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, vibeScope, copyPrompt, vibeOffWhole, spotifySave, takePending, hasPending } from "./vibe-ui.js";
-import { cardData, drawCard } from "./card.js";
-import { compareSets, mergePayloads } from "./compare.js";
-import { buildPrompt, AXES, vibeProfile } from "./vibe.js";
-import { findPhases, slicePayload } from "./phases.js";
-import { harmonicRelation } from "./engine/music.js";
 import { isVideo, extractAudio } from "./engine/demux.js";
-import { craftProfile, relationClass, mixScore, mixTips, reorder } from "./craft.js";
-import { moodMap, QUADS } from "./moodmap.js";
-import { dropAnatomy, PRE, POST } from "./drops.js";
-import { highlights } from "./highlights.js";
+import { openNamingDialog } from "./naming-ui.js";
+import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt } from "./vibe-ui.js";
+import { findPhases } from "./phases.js";
+import { mixScore, mixTips } from "./craft.js";
+import { PRE, POST } from "./drops.js";
 import { tracklist } from "./tracklist.js";
 import { similarity, idClues } from "./similarity.js";
 import { roles } from "./roles.js";
 import { trust } from "./vibe.js";
-import { review } from "./review.js";
+
+import { craftSection } from "./sections/craft-ui.js";
+import { moodMapSection } from "./sections/moodmap-ui.js";
+import { compareSection } from "./sections/compare-ui.js";
+import { cardSection } from "./sections/card-ui.js";
+import { chaptersSection } from "./sections/chapters-ui.js";
+import { navSection } from "./sections/nav.js";
+import { reviewSection } from "./sections/review-ui.js";
+import { simSection } from "./sections/simx-ui.js";
+import { highlightsSection } from "./sections/highlights-ui.js";
+import { dropsSection } from "./sections/drops-ui.js";
 
 (function () {
   "use strict";
@@ -1158,271 +1162,6 @@ import { review } from "./review.js";
     $("keyTime").querySelectorAll(".kt-row").forEach((b) => b.classList.toggle("now", b.dataset.k === keyOf(tr)));
   }
 
-  /* ------------------------------------------------ how it was mixed */
-  function renderCraft() {
-    const C = craftProfile(S.D), M = mixes(), T = tracks();
-    $("craft").hidden = !C || M.length < 2;
-    if ($("craft").hidden) return;
-    const st = C.stats;
-    $("craftName").textContent = C.style.name;
-    $("craftLine").textContent = C.style.line + (C.style.also ? ` A close second: ${C.style.also.replace(/^The /, "the ")}.` : "");
-    const tiles = [
-      ["Median mix", st.medBars ? `${st.medBars} bars` : fmtDur(st.medDur), st.medBars ? `${Math.round(st.medDur)} s` : ""],
-      ["In key", `${st.harmonicPct}%`, st.partialPct ? `+${st.partialPct}% partly` : ""],
-      ["Bass swaps", `${st.bassPct}%`, "of mixes"],
-      ["Tempo moves", String(st.tempoMoves), st.maxBpmDelta ? `max ±${st.maxBpmDelta.toFixed(1)} BPM` : "none"],
-      ["Lifts / drops", `${st.ups} / ${st.downs}`, "energy ±1 or more"],
-      ["Smoothness", `${st.smooth}`, `${st.smoothLabel.toLowerCase()}, mean of 100`],
-    ];
-    $("craftStats").innerHTML = tiles.map(([k, v, sub]) => `<div><dt>${k}</dt><dd>${v}${sub ? `<small>${sub}</small>` : ""}</dd></div>`).join("");
-    // columns: height ∝ √bars so a 64-bar blend doesn't flatten the 8-bar swaps
-    const bars = M.map((m) => m.bars || Math.max(1, Math.round(m.duration / 2)));
-    const top = Math.max(32, ...bars), hgt = (b) => Math.sqrt(b / top);
-    $("craftGrid").innerHTML = [8, 16, 32, 64].filter((b) => b <= top).map((b) => `<div class="cc-line" style="bottom:${(hgt(b) * 100).toFixed(1)}%"><span>${b}</span></div>`).join("");
-    $("craftCols").innerHTML = M.map((m, j) => {
-      const a = keyOf(T[m.from - 1]), b = keyOf(T[m.to - 1]);
-      return `<button class="cc-col ${relationClass(m.harmonic.label)}" role="listitem" data-j="${j}" style="--h:${(hgt(bars[j]) * 100).toFixed(1)}%;--a:${keyColor(a, "base")};--b:${keyColor(b, "base")}" aria-label="Mix ${j + 1}: ${esc(shortName(T[m.from - 1]))} into ${esc(shortName(T[m.to - 1]))}, ${esc(m.type)}, ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)}, ${esc(m.harmonic.label)}"><i></i></button>`;
-    }).join("");
-    const cols = $("craftCols"), tip = $("craftTip");
-    cols.querySelectorAll(".cc-col").forEach((el) => {
-      const j = +el.dataset.j, m = M[j];
-      el.addEventListener("pointerenter", () => {
-        const r = cols.getBoundingClientRect(), c = el.getBoundingClientRect();
-        showTip(tip, c.left - r.left + c.width / 2, r.width,
-          `<span class="t-time">Mix ${j + 1} · ${fmt(m.swap)}</span><span class="t-title">${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span>` +
-          `<span class="t-meta">${esc(m.type)} · ${m.bars ? `${m.bars} bars` : fmtDur(m.duration)} · ${esc(m.key_from || "?")} → ${esc(m.key_to || "?")} ${esc(m.harmonic.label.toLowerCase())}${m.bpm_delta ? ` · ${m.bpm_delta > 0 ? "+" : ""}${m.bpm_delta} BPM` : ""} · smoothness ${C.smooth[j].score}</span>`, 4);
-      });
-      el.addEventListener("pointerleave", () => (tip.hidden = true));
-      el.addEventListener("click", () => { selectMix(j, true); playMix(); });
-    });
-    const list = (rows, cls) => {
-      const max = Math.max(...rows.map((r) => r.count));
-      return rows.map((r) => `<div class="cb-row ${cls ? cls(r.label) : ""}"><span class="cb-l">${esc(r.label)}</span><span class="cb-bar"><i style="width:${(r.count / max) * 100}%"></i></span><span class="cb-n">${r.count}</span></div>`).join("");
-    };
-    $("craftKeys").innerHTML = list(C.relations, relationClass);
-    $("craftTypes").innerHTML = list(C.types);
-    $("craftMoments").innerHTML = C.moments.map((x) => {
-      const m = M[x.j];
-      return `<li><button class="cb-mo" data-j="${x.j}"><b>${esc(x.what)}</b><span>${esc(shortName(T[m.from - 1]))} → ${esc(shortName(T[m.to - 1]))}</span><small>${esc(x.detail)} · at ${fmt(m.swap)}</small></button></li>`;
-    }).join("");
-    $("craftMoments").querySelectorAll(".cb-mo").forEach((b) => b.addEventListener("click", () => { selectMix(+b.dataset.j, true); playMix(); }));
-    // the running-order search is the page's one heavy analysis (~0.2 s for 80 tracks):
-    // run it when its section comes near the screen, in idle time, not at load
-    if (tracks().filter((t) => keyOf(t)).length < 4) $("reorder").hidden = true;   // too few to re-order
-    else if (hasPending("order")) renderReorder();   // back from Spotify with this save waiting
-    else lazy($("reorder"), renderReorder);
-    markCraft();
-  }
-  function lazy(el, fn) {
-    if (lazy.watch) lazy.watch.disconnect();
-    if (!("IntersectionObserver" in window)) { fn(); return; }
-    const go = () => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 500 }) : setTimeout(fn, 0));
-    lazy.watch = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { lazy.watch.disconnect(); go(); } }, { rootMargin: "600px 0px" });
-    el.hidden = false;
-    el.classList.add("waiting");                     // holds about its final height, so nothing jumps
-    lazy.watch.observe(el);
-  }
-  /* the same tracks, re-sequenced: a slope chart from the played order to the suggested one */
-  function renderReorder() {
-    $("reorder").classList.remove("waiting");
-    const O = (S.order = reorder(S.D, { pinEnds: $("roPin").checked })), T = tracks();
-    $("reorder").hidden = !O;
-    if (!O) return;
-    const ord = (k) => `${k}${["th", "st", "nd", "rd"][(k % 100 > 10 && k % 100 < 14) || k % 10 > 3 ? 0 : k % 10]}`;
-    const b = O.before, a = O.after;
-    $("roLine").textContent = O.unchanged
-      ? `The running order is already as smooth as these tracks allow: ${b.clean} of ${O.mixes} mixes land in key.`
-      : `Re-sequenced with the same energy arc, ${a.clean} of ${O.mixes} mixes would land in key (as played: ${b.clean}) and key clashes go from ${b.clash} to ${a.clash}; the average tempo step is ${a.tempo} BPM (was ${b.tempo}).`;
-    const n = O.order.length, w = 1000 / n, pos = Object.fromEntries(O.order.map((tn, i) => [tn, i]));
-    const played = T.filter((t) => keyOf(t)).map((t) => t.n);
-    const clash = (seq) => seq.slice(1).map((tn, i) => harmonicRelation(keyOf(T[seq[i] - 1]), keyOf(T[tn - 1])).compatible === false ? i + 1 : -1).filter((i) => i > 0);
-    let g = "";
-    played.forEach((tn, i) => {
-      const j = pos[tn], moved = i !== j;
-      g += `<line class="ro-link${moved ? " moved" : ""}" x1="${(i + 0.5) * w}" y1="34" x2="${(j + 0.5) * w}" y2="116" vector-effect="non-scaling-stroke"/>`;
-    });
-    const row = (seq, y) => seq.map((tn, i) => `<rect x="${i * w + 1}" y="${y}" width="${w - 2}" height="30" rx="3" fill="${keyColor(keyOf(T[tn - 1]), "base")}"><title>Track ${tn}: ${esc(shortName(T[tn - 1]))} (${keyOf(T[tn - 1])})</title></rect>`).join("") +
-      clash(seq).map((i) => `<rect class="ro-clash" x="${i * w - 2}" y="${y - 4}" width="4" height="38" />`).join("");
-    g += row(played, 4) + row(O.order, 116);
-    $("roSvg").innerHTML = g;
-    $("roMoves").innerHTML = O.moves.slice(0, 3).map((m) => `<li><b>${esc(shortName(T[m.n - 1]))}</b> (track ${m.n}, ${keyOf(T[m.n - 1])}) moves from ${ord(m.from)} to ${ord(m.to)}</li>`).join("");
-    $("roPin").onchange = renderReorder;
-    $("roSave").onclick = saveOrder;
-    if (takePending("order")) saveOrder();
-  }
-  /* the named tracks, in the suggested order, as a Spotify playlist */
-  function saveOrder() {
-    const T = tracks(), say = (h) => ($("roStatus").innerHTML = h);
-    spotifySave({
-      tracks: S.order.order.map((n) => T[n - 1]), names: S.names,
-      name: `${S.title || S.D.title} · smoother order · Set Replay`,
-      description: `The tracks of ${S.title || S.D.title}, re-sequenced: ${S.order.after.clean} of ${S.order.mixes} mixes in key.`,
-      say, btn: $("roSave"), pending: { action: "order" },
-    });
-  }
-  function markCraft() {
-    document.querySelectorAll(".cc-col").forEach((el) => el.classList.toggle("on", +el.dataset.j === S.mix));
-  }
-
-  /* ------------------------------------------------ mood map */
-  const MM = { x0: 46, x1: 384, y0: 16, y1: 354 };
-  function renderMoodMap() {
-    const M = (S.mood = moodMap(S.D)), T = tracks();
-    $("moodmap").hidden = !M;
-    if (!M) return;
-    const X = (v) => MM.x0 + ((v - M.domain.v[0]) / (M.domain.v[1] - M.domain.v[0])) * (MM.x1 - MM.x0);
-    const Y = (a) => MM.y1 - ((a - M.domain.a[0]) / (M.domain.a[1] - M.domain.a[0])) * (MM.y1 - MM.y0);
-    const cx = X(M.median.v), cy = Y(M.median.a);
-    const maxLen = Math.max(...M.points.map((p) => p.len));
-    M.points.forEach((p) => { p.x = X(p.v); p.y = Y(p.a); p.r = 4 + 5 * Math.sqrt(p.len / maxLen); });
-    let g = `<rect class="mm-bg" x="${MM.x0}" y="${MM.y0}" width="${MM.x1 - MM.x0}" height="${MM.y1 - MM.y0}"/>`;
-    g += `<line class="mm-mid" x1="${cx}" y1="${MM.y0}" x2="${cx}" y2="${MM.y1}"/><line class="mm-mid" x1="${MM.x0}" y1="${cy}" x2="${MM.x1}" y2="${cy}"/>`;
-    const corner = (q, x, y, anchor) => `<text class="mm-q" x="${x}" y="${y}" text-anchor="${anchor}">${QUADS[q].name.toUpperCase()}</text>`;
-    g += corner("intense", MM.x0 + 8, MM.y0 + 16, "start") + corner("euphoric", MM.x1 - 8, MM.y0 + 16, "end") +
-      corner("brooding", MM.x0 + 8, MM.y1 - 8, "start") + corner("warm", MM.x1 - 8, MM.y1 - 8, "end");
-    g += `<text class="mm-ax" x="${(MM.x0 + MM.x1) / 2}" y="${MM.y1 + 22}" text-anchor="middle">darker  ←  brightness  →  brighter</text>`;
-    g += `<text class="mm-ax" transform="translate(${MM.x0 - 14} ${(MM.y0 + MM.y1) / 2}) rotate(-90)" text-anchor="middle">calmer  ←  intensity  →  more intense</text>`;
-    g += `<polyline class="mm-path-dim" id="mmAhead"/><polyline class="mm-path" id="mmDone"/>`;
-    g += M.points.map((p, i) => `<g class="mm-pt" data-i="${i}" tabindex="0" role="button" aria-label="Track ${p.n}: ${esc(shortName(T[p.n - 1]))}, ${QUADS[p.q].name}">
-      <circle class="mm-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${p.r.toFixed(1)}" style="fill:${keyColor(keyOf(T[p.n - 1]), "base")}"/>
-      <text class="mm-n" x="${(p.x + p.r + 2).toFixed(1)}" y="${(p.y - p.r + 2).toFixed(1)}">${p.n}</text></g>`).join("");
-    $("mmSvg").innerHTML = g;
-    const tip = $("mmTip"), box = $("mmSvg");
-    box.querySelectorAll(".mm-pt").forEach((el) => {
-      const p = M.points[+el.dataset.i], tr = T[p.n - 1];
-      el.addEventListener("pointerenter", () => {
-        const r = box.getBoundingClientRect(), k = r.width / 400;
-        showTip(tip, p.x * k, r.width, `<span class="t-time">Track ${p.n} · ${fmt(tr.start)}</span><span class="t-title">${esc(nameOf(tr))}</span><span class="t-meta">${QUADS[p.q].name} · energy ${tr.energy.toFixed(1)} · ${keyOf(tr) || "?"}</span>`, p.y * k + 14);
-      });
-      el.addEventListener("pointerleave", () => (tip.hidden = true));
-      const go = () => seek(tr.start + 0.05, true);
-      el.addEventListener("click", go);
-      el.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
-    });
-    $("mmLine").textContent = M.sentence;
-    $("mmQuads").innerHTML = ["euphoric", "intense", "warm", "brooding"].map((q) =>
-      `<div class="mmq${q === M.home ? " home" : ""}"><span class="mmq-l">${QUADS[q].name}</span><span class="cb-bar"><i style="width:${Math.round(M.share[q] * 100)}%"></i></span><span class="mmq-v">${Math.round(M.share[q] * 100)}%</span><span class="mmq-h">${QUADS[q].hint}</span></div>`).join("") +
-      (M.jump ? `<button class="ghost mm-jump" id="mmJump">Biggest swing: track ${M.jump.from} → ${M.jump.to}</button>` : "");
-    if (M.jump) $("mmJump").addEventListener("click", () => seek(T[M.jump.to - 1].start - 8, true));
-    updateMoodMap(Math.max(0, S.cur));
-  }
-  function updateMoodMap(i) {
-    const M = S.mood;
-    if (!M || !$("mmDone")) return;
-    const k = M.points.findIndex((p) => p.n === i + 1);
-    const pts = (a) => a.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-    $("mmDone").setAttribute("points", pts(M.points.slice(0, k + 1)));
-    $("mmAhead").setAttribute("points", pts(M.points.slice(Math.max(0, k))));
-    $("mmSvg").querySelectorAll(".mm-pt").forEach((el) => el.classList.toggle("now", +el.dataset.i === k));
-  }
-
-  /* ------------------------------------------------ compare with another set */
-  async function loadPayload(slug) {
-    if (S.mode === "local") { const rec = await getSet(slug); return rec && rec.payload; }
-    const r = await fetch(S.mode === "demo" ? `demo/${encodeURIComponent(slug)}.json` : `data/sets/${encodeURIComponent(slug)}.json`);
-    return r.ok ? r.json() : null;
-  }
-  const titleOf = (slug, fallback) => (load(`set-replay:${slug}`) || {}).title || fallback;
-  function renderCompare() {
-    const others = (S.sets || []).filter((s) => s.slug !== S.D.slug);
-    $("compare").hidden = !others.length;
-    if (!others.length) return;
-    const want = load(`set-replay:compare:${S.D.slug}`);
-    const pick = others.find((s) => s.slug === want) || others[0];
-    $("cmpSel").innerHTML = others.map((s) => `<option value="${esc(s.slug)}"${s === pick ? " selected" : ""}>${esc(titleOf(s.slug, s.title))}</option>`).join("");
-    $("cmpSel").onchange = () => { store(`set-replay:compare:${S.D.slug}`, $("cmpSel").value); showCompare($("cmpSel").value); };
-    $("cmpCopy").onclick = async () => {
-      try { await navigator.clipboard.writeText($("cmpPrompt").value); toast("Blend prompt copied"); } catch (e) { $("cmpPrompt").select(); toast("Select the prompt and copy it"); }
-    };
-    showCompare(pick.slug);
-  }
-  async function showCompare(slug) {
-    const mine = S.D.slug;
-    const B = await loadPayload(slug).catch(() => null);
-    if (S.D.slug !== mine) return;                 // the visitor moved on while it loaded
-    $("cmpBody").hidden = !B;
-    if (!B) return;
-    const ta = S.title || S.D.title, tb = titleOf(slug, B.title);
-    const C = compareSets(S.D, B, { a: ta, b: tb });
-    $("cmpScore").textContent = `${C.score}`;
-    $("cmpVerdict").textContent = `${C.verdict} · similarity out of 100`;
-    const PART = { sound: "Sound (styles)", feel: "Feel (mood axes)", tempo: "Tempo", artists: "Shared artists" };
-    $("cmpParts").innerHTML = Object.entries(C.parts).filter(([, v]) => v != null).map(([k, v]) =>
-      `<div class="cb-row"><span class="cb-l">${PART[k]}</span><span class="cb-bar"><i style="width:${Math.round(v * 100)}%"></i></span><span class="cb-n">${Math.round(v * 100)}</span></div>`).join("");
-    $("cmpDiffs").innerHTML = C.diffs.map((d) => `<li>${esc(d)}</li>`).join("") || "<li>No big differences on any axis.</li>";
-    const both = [...C.genres.both.map((g) => g.toLowerCase().replace("drum n bass", "drum & bass")), ...C.artists];
-    $("cmpShared").innerHTML = both.length ? `In common: ${both.map((x) => `<span class="tag">${esc(x)}</span>`).join(" ")}` : "No genres or artists in common.";
-    // the overlaid radar: this set filled, the other outlined
-    const R = 112, pt = (i, v) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / AXES.length; return [Math.cos(a) * R * v, Math.sin(a) * R * v]; };
-    const poly = (ax) => AXES.map(([k], i) => pt(i, Math.max(0.03, ax[k] || 0)).map((n) => n.toFixed(1)).join(",")).join(" ");
-    const home = (D) => { const t = {}; D.tracks.forEach((tr) => { const k = keyOf(tr); if (k) t[k] = (t[k] || 0) + tr.end - tr.start; }); return Object.entries(t).sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
-    const ka = home(S.D), kb = home(B);
-    let g = "";
-    [0.25, 0.5, 0.75, 1].forEach((r) => (g += `<polygon class="vr-ring" points="${AXES.map((_, i) => pt(i, r).join(",")).join(" ")}"/>`));
-    AXES.forEach(([, label], i) => {
-      const [x, y] = pt(i, 1), [lx, ly] = pt(i, 1.17);
-      g += `<line class="vr-spoke" x1="0" y1="0" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/><text class="vr-lbl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${Math.abs(lx) < 8 ? "middle" : lx > 0 ? "start" : "end"}">${label}</text>`;
-    });
-    g += `<polygon class="vr-set" points="${poly(C.axes.a)}" style="fill:${keyColor(ka, "base")};stroke:${keyColor(ka, "ink")}"/>`;
-    g += `<polygon class="cmp-b" points="${poly(C.axes.b)}" style="stroke:${keyColor(kb, "ink")}"/>`;
-    $("cmpRadar").innerHTML = g;
-    $("cmpCap").innerHTML = `<span class="v-lg"><i class="v-sw" style="background:${keyColor(ka, "base")};border-color:${keyColor(ka, "ink")}"></i>${esc(ta)}</span><span class="v-lg"><i class="v-sw v-sw-now" style="border-color:${keyColor(kb, "ink")}"></i>${esc(tb)}</span>`;
-    const M = mergePayloads(S.D, B, `${ta} + ${tb}`), blend = buildPrompt(vibeProfile(M));
-    $("cmpPrompt").value = blend.full;
-    const saveBlend = () => spotifySave({
-      tracks: M.tracks, names: S.names,                  // the first set's own names; its track numbers are unchanged
-      name: `${ta} + ${tb} · Set Replay`, description: blend.short,
-      say: (h) => ($("cmpStatus").innerHTML = h), btn: $("cmpSave"), pending: { action: "blend", slug },
-    });
-    $("cmpSave").onclick = saveBlend;
-    const p = takePending("blend");
-    if (p && p.slug === slug) saveBlend();
-  }
-
-  /* ------------------------------------------------ set card */
-  async function openCard() {
-    const dlg = $("cardDlg");
-    if (!dlg.open) dlg.showModal();
-    // the canvas only uses Archivo once those weights are loaded
-    try { await Promise.all(["400 25px Archivo", "700 20px Archivo", "900 74px Archivo"].map((f) => document.fonts.load(f))); } catch (e) { /* system font */ }
-    const c = $("cardCanvas");
-    drawCard(c.getContext("2d"), cardData(S.D, { title: S.title || S.D.title, names: S.names, off: vibeOffWhole() }), keyColor);
-    $("cardShare").hidden = !(navigator.canShare && navigator.canShare({ files: [new File([""], "x.png", { type: "image/png" })] }));
-  }
-  const cardBlob = () => new Promise((res) => $("cardCanvas").toBlob(res, "image/png"));
-
-  /* ------------------------------------------------ chapters */
-  function renderPhases() {
-    const P = S.phases, T = tracks();
-    const block = $("phases").closest(".j-block");
-    block.hidden = P.length < 2;
-    if (P.length < 2) return;
-    $("phaseSub").textContent = "Where the set changes gear, from track energy and tempo";
-    const maxE = Math.max(...P.map((p) => p.energy));
-    $("phases").style.gridTemplateColumns = P.map((p) => `minmax(0, ${Math.max(1, p.end - p.start).toFixed(0)}fr)`).join(" ");
-    $("phases").innerHTML = P.map((p, i) => {
-      const k = p.keys[0] || keyOf(T[p.from - 1]);
-      // the same words the chapter's Spotify prompt uses: trusted genres, then the leading mood
-      const V = vibeProfile(slicePayload(S.D, p));
-      const styles = [...V.chips.filter((c) => c.group === "Genre" && c.on).slice(0, 2), ...V.chips.filter((c) => c.group === "Mood").slice(0, 1)].map((c) => c.text).join(" · ");
-      return `<div class="ph" data-i="${i}" style="--c:${keyColor(k, "deep")};--c2:${keyColor(k, "base")}">
-        <button class="ph-go" data-t="${p.start}" title="Play this chapter">
-          <span class="ph-l">${esc(p.label)}</span>
-          <span class="ph-t">${fmt(p.start)}–${fmt(p.end)} · tracks ${p.from}–${p.to}</span>
-          <span class="ph-s">${Math.round(p.bpm)} BPM · energy ${p.energy.toFixed(1)}${p.drops ? ` · ${p.drops} drop${p.drops > 1 ? "s" : ""}` : ""}</span>
-          ${styles ? `<span class="ph-st">${esc(styles)}</span>` : ""}
-          <span class="ph-bar" aria-hidden="true"><i style="width:${Math.round((p.energy / maxE) * 100)}%"></i></span>
-        </button>
-        <button class="ph-vibe ghost" data-i="${i}">Spotify prompt</button>
-      </div>`;
-    }).join("");
-    $("phases").querySelectorAll(".ph-go").forEach((b) => b.addEventListener("click", () => seek(+b.dataset.t + 0.05, true)));
-    $("phases").querySelectorAll(".ph-vibe").forEach((b) => b.addEventListener("click", () => {
-      vibeScope(+b.dataset.i);
-      $("vibe").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-    }));
-  }
-
   /* ------------------------------------------------ energy + rows */
   function drawEnergy() {
     const box = $("energyBox"), c = $("energyCanvas");
@@ -1788,113 +1527,6 @@ import { review } from "./review.js";
     }, 300);
   }
 
-  /* ------------------------------------------------ section navigator */
-  const SECTIONS = [["hl", "Highlights"], ["rv", "Review"], ["desk", "Setlist"], ["mix", "The mix"], ["craft", "How it was mixed"], ["journey", "Journey"],
-    ["moodmap", "Mood map"], ["simx", "Track by track"], ["compare", "Compare"], ["vibe", "Spotify"]];
-  function renderNav() {
-    if (!$("pnav")) return;                          // a page without the bar (e.g. a stale cached set.html)
-    const live = SECTIONS.filter(([id]) => $(id) && !$(id).hidden);
-    $("pnav").innerHTML = live.map(([id, label]) => `<button data-to="${id}">${label}</button>`).join("");
-    const goal = () => $("pnav").offsetHeight + 12;
-    $("pnav").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-      const el = $(b.dataset.to), top = el.getBoundingClientRect().top + window.scrollY - goal();
-      window.scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-      // if something above changed height on the way (a section drawing as it came into view),
-      // land on the section anyway once the scroll stops
-      let last = -1, settle = setInterval(() => {
-        if (window.scrollY !== last) { last = window.scrollY; return; }
-        clearInterval(settle);
-        const off = el.getBoundingClientRect().top - goal();
-        if (Math.abs(off) > 24 && window.innerHeight + window.scrollY < document.documentElement.scrollHeight - 4) window.scrollBy(0, off);
-      }, 150);
-    }));
-    renderNav.ids = live.map(([id]) => id);
-    spyNav();
-  }
-  /* the current section: the last one whose top has passed 30% of the way down the
-     screen (or the last one, once the page is scrolled to the bottom) */
-  function spyNav() {
-    if (!$("pnav")) return;
-    const ids = renderNav.ids || [], line = Math.max($("pnav").offsetHeight + 40, window.innerHeight * 0.3);
-    let cur = null;
-    ids.forEach((id) => { const el = $(id); if (!el.hidden && el.getBoundingClientRect().top <= line) cur = id; });
-    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4 && ids.length) cur = ids[ids.length - 1];
-    if (cur === spyNav.cur) return;
-    spyNav.cur = cur;
-    $("pnav").querySelectorAll("button").forEach((b) => {
-      const on = b.dataset.to === cur;
-      b.setAttribute("aria-current", on ? "true" : "false");
-      if (on && $("pnav").scrollWidth > $("pnav").clientWidth) $("pnav").scrollTo({ left: b.offsetLeft - $("pnav").clientWidth / 2 + b.offsetWidth / 2 });
-    });
-  }
-
-  /* ------------------------------------------------ the review */
-  function renderReview() {
-    const Rv = review(S.D, (n) => shortName(tracks()[n - 1]));
-    $("rv").hidden = !Rv;
-    if (!Rv) return;
-    $("rvOverall").textContent = Rv.overall.toFixed(1);
-    $("rvVerdict").textContent = Rv.verdict;
-    $("rvScores").innerHTML = Rv.scores.map((x) => `<div class="rv-s"><span class="rv-l">${x.label}</span><span class="cb-bar"><i style="width:${x.v * 10}%"></i></span><span class="rv-v">${x.v.toFixed(1)}</span><span class="rv-why">${esc(x.why)}</span></div>`).join("");
-    $("rvText").innerHTML = Rv.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("");
-    $("rvCopy").onclick = () => copyText(`${S.title || S.D.title}: ${Rv.overall.toFixed(1)}/10. ${Rv.verdict}\n\n${Rv.paragraphs.join("\n\n")}\n`, "Review copied");
-  }
-
-  /* ------------------------------------------------ track by track */
-  function renderSim() {
-    const X = S.sim, T = tracks();
-    $("simx").hidden = !X;
-    if (!X) return;
-    const nm = (n) => `${n}. ${shortName(T[n - 1])}`;
-    $("sxLine").textContent = `Track to track, the set hands over between sounds that are ${Math.round(X.flowAvg * 100)}% alike on average.`;
-    const notes = [];
-    if (X.run) notes.push(["The most consistent stretch", `tracks ${X.run.from}–${X.run.to}, every hand-over ${Math.round(X.run.mean * 100)}% alike on average`, X.run.from]);
-    if (X.echo) notes.push(["The set comes back to a sound", `${nm(X.echo.a)} and ${nm(X.echo.b)}, ${X.echo.b - X.echo.a} tracks apart, are ${Math.round(X.echo.v * 100)}% alike`, X.echo.b]);
-    if (X.turn) notes.push(["The hardest turn", `${nm(X.turn.a)} into ${nm(X.turn.b)}, only ${Math.round(X.turn.v * 100)}% alike`, X.turn.b]);
-    $("sxNotes").innerHTML = notes.map(([k, v, n]) => `<button class="cb-mo" data-n="${n}"><b>${esc(k)}</b><span>${esc(v)}</span></button>`).join("");
-    $("sxNotes").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => seek(T[+b.dataset.n - 1].start + 0.05, true)));
-    if (renderSim.bound) { drawSim(); return; }
-    renderSim.bound = true;
-    const box = $("sxBox"), tip = box.querySelector(".tip");
-    const cell = (e) => {
-      const r = box.getBoundingClientRect(), n = S.sim.n;
-      const i = Math.floor(((e.clientY - r.top) / r.height) * n), j = Math.floor(((e.clientX - r.left) / r.width) * n);
-      return i >= 0 && j >= 0 && i < n && j < n ? { i, j, x: e.clientX - r.left, y: e.clientY - r.top, w: r.width } : null;
-    };
-    box.addEventListener("pointermove", (e) => {
-      const c = cell(e), T2 = tracks();
-      if (!c) { tip.hidden = true; return; }
-      showTip(tip, c.x, c.w, `<span class="t-title">${esc(`${c.i + 1}. ${shortName(T2[c.i])}`)} × ${esc(`${c.j + 1}. ${shortName(T2[c.j])}`)}</span><span class="t-meta">${Math.round(S.sim.M[c.i][c.j] * 100)}% alike · ${keyOf(T2[c.i]) || "?"} / ${keyOf(T2[c.j]) || "?"}</span>`, c.y + 14);
-    });
-    box.addEventListener("pointerleave", () => (tip.hidden = true));
-    box.addEventListener("click", (e) => { const c = cell(e); if (c) seek(tracks()[c.j].start + 0.05, true); });
-    drawSim();
-  }
-  function drawSim() {
-    const X = S.sim;
-    if (!X || $("simx").hidden) return;
-    const { ctx, w } = fit($("sxCanvas"));
-    const n = X.n, s = w / n;
-    ctx.fillStyle = "#1C1B26"; ctx.fillRect(0, 0, w, w);
-    // map the set's own range onto the ink ramp, so its structure shows
-    let lo = 1, hi = 0;
-    X.M.forEach((r, i) => r.forEach((v, j) => { if (i !== j) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      const v = i === j ? 1 : (X.M[i][j] - lo) / Math.max(0.01, hi - lo);
-      ctx.fillStyle = `rgba(239,236,245,${(0.06 + 0.9 * v * v).toFixed(3)})`;
-      ctx.fillRect(j * s + 0.5, i * s + 0.5, Math.max(1, s - 1), Math.max(1, s - 1));
-    }
-    // chapters as boxes along the diagonal
-    ctx.strokeStyle = "rgba(185,168,255,.9)"; ctx.lineWidth = 1.5;
-    (S.phases || []).forEach((p) => { const a = (p.from - 1) * s, b = p.to * s; ctx.strokeRect(a + 0.75, a + 0.75, b - a - 1.5, b - a - 1.5); });
-    // the playing track's row and column
-    if (S.cur >= 0) {
-      const c = S.cur * s, k = keyColor(keyOf(tracks()[S.cur]), "base");
-      ctx.strokeStyle = k; ctx.lineWidth = 2;
-      ctx.strokeRect(0.5, c + 0.5, w - 1, s - 1); ctx.strokeRect(c + 0.5, 0.5, s - 1, w - 1);
-    }
-  }
-
   /* ------------------------------------------------ playback speed: slow a mix down to study it */
   const SPEEDS = [0.5, 0.75, 1, 1.25];
   let speed = 1;
@@ -1909,108 +1541,6 @@ import { review } from "./review.js";
     if (speed !== 1 && document.activeElement && document.activeElement.id !== "speedBtn") toast(`Playing at ${speed}×, same key`);
   }
 
-  /* ------------------------------------------------ highlights */
-  function renderHighlights() {
-    stopReel();
-    const H = (S.hl = highlights(S.D, (n) => shortName(tracks()[n - 1])));
-    $("hl").hidden = H.items.length < 2;
-    if ($("hl").hidden) return;
-    $("hlSub").textContent = `${H.items.length} moments from across the set · a ${fmt(H.reel)} reel`;
-    const KIND = { chapter: "Chapter", drop: "Drop", peak: "Peak", mix: "Mix", mood: "Mood", track: "Track" };
-    $("hlList").innerHTML = H.items.map((h, i) => `<li><button class="hl-card" data-i="${i}" data-kind="${h.kind}" data-end="${(h.t + h.dur).toFixed(2)}">
-      <span class="hl-meta"><b>${fmt(h.t)}</b> ${KIND[h.kind]}</span><span class="hl-title">${esc(h.title)}</span><span class="hl-why">${esc(h.why)}</span>
-      <span class="hl-bar" aria-hidden="true"><i></i></span></button></li>`).join("");
-    $("hlList").querySelectorAll(".hl-card").forEach((b) => b.addEventListener("click", () => {
-      const h = S.hl.items[+b.dataset.i];
-      stopReel();
-      if (h.mix != null) selectMix(h.mix, false);
-      seek(h.t, true);
-    }));
-    $("hlPlay").onclick = () => (S.reel ? stopReel() : playHighlight(0, true));
-  }
-  function playHighlight(i, reel) {
-    const h = S.hl.items[i];
-    if (reel && !S.noAudio) S.reel = { i };          // without audio there's nothing to step through
-    if (h.mix != null) selectMix(h.mix, false);
-    seek(h.t, true);
-    markReel();
-  }
-  function stopReel() {
-    if (!S.reel) return;
-    S.reel = null;
-    markReel();
-  }
-  function markReel() {
-    $("hlPlay").textContent = S.reel ? `Stop the reel (${S.reel.i + 1} of ${S.hl.items.length})` : "Play the highlights";
-    $("hlPlay").setAttribute("aria-pressed", String(!!S.reel));
-    document.querySelectorAll(".hl-card").forEach((c) => c.classList.toggle("on", !!S.reel && +c.dataset.i === S.reel.i));
-    const on = document.querySelector(".hl-card.on");
-    if (on) on.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-  }
-
-  /* ------------------------------------------------ drop anatomy */
-  function renderDrops() {
-    const A = (S.dropA = dropAnatomy(S.D));
-    S.dropLive = -1; S.dropHover = -1;
-    $("dropBlock").hidden = !A;
-    if (!A) return;
-    $("dropSub").textContent = `Every drop's bass line, lined up where it lands · ${A.style.name}`;
-    $("dropLine").textContent = A.sentence;
-    $("dropTop").innerHTML = `<span class="j-sub">Biggest drops:</span>` + A.top.map((r) => `<button class="ghost" data-t="${r.t}">${fmt(r.t)}${r.n ? ` · track ${r.n}` : ""} · ${Math.round(r.impact_db)} dB</button>`).join("");
-    $("dropTop").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => seek(+b.dataset.t - 12, true)));
-    if (renderDrops.bound) return;
-    renderDrops.bound = true;
-    const box = $("dropBox"), tip = box.querySelector(".tip");
-    const pick = (e) => {
-      const r = box.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-      const A2 = S.dropA, k = Math.round(((x / r.width) * (PRE + POST)) / 0.5);
-      const yv = 1 - (y - 8) / (r.height - 26);
-      let best = -1, d = Infinity;
-      A2.rows.forEach((row, i) => { const v = row.curve[clamp(k, 0, row.curve.length - 1)]; if (v != null && Math.abs(v - yv) < d) { d = Math.abs(v - yv); best = i; } });
-      return { best, x, w: r.width };
-    };
-    box.addEventListener("pointermove", (e) => {
-      if (!S.dropA) return;
-      const { best, x, w } = pick(e);
-      if (best !== S.dropHover) { S.dropHover = best; drawDrops(); }
-      const row = S.dropA.rows[best];
-      if (row) showTip(tip, x, w, `<span class="t-time">Drop at ${fmt(row.t)}${row.n ? ` · track ${row.n}` : ""}</span><span class="t-meta">${Math.round(row.breakdown_s)} s breakdown, bass down ${Math.round(row.depth_db)} dB, lands ${Math.round(row.impact_db)} dB harder</span>`, 6);
-    });
-    box.addEventListener("pointerleave", () => { tip.hidden = true; S.dropHover = -1; drawDrops(); });
-    box.addEventListener("click", (e) => { if (!S.dropA) return; const row = S.dropA.rows[pick(e).best]; if (row) seek(row.t - 12, true); });
-  }
-  function drawDrops() {
-    const A = S.dropA;
-    if (!A || $("dropBlock").hidden) return;
-    const { ctx, w, h } = fit($("dropCanvas"));
-    ctx.clearRect(0, 0, w, h);
-    const X = (dt) => ((dt + PRE) / (PRE + POST)) * w, Y = (v) => 8 + (1 - v) * (h - 26);
-    // the typical breakdown, shaded, and the moment of the drop
-    ctx.fillStyle = "rgba(255,255,255,.045)";
-    ctx.fillRect(X(-A.stats.breakdown), 0, X(0) - X(-A.stats.breakdown), h - 18);
-    ctx.strokeStyle = "rgba(239,236,245,.35)"; ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
-    ctx.beginPath(); ctx.moveTo(X(0), 0); ctx.lineTo(X(0), h - 18); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = "#9792AB"; ctx.font = "500 10.5px Archivo, sans-serif";
-    [-32, -24, -16, -8, 0, 8, 16].forEach((s) => { ctx.textAlign = "center"; ctx.fillText(s === 0 ? "drop" : `${s > 0 ? "+" : ""}${s} s`, clamp(X(s), 14, w - 14), h - 4); });
-    ctx.textAlign = "left";
-    const path = (curve) => { ctx.beginPath(); let on = false; curve.forEach((v, k) => { if (v == null) { on = false; return; } const x = X(A.xs[k]), y = Y(v); on ? ctx.lineTo(x, y) : ctx.moveTo(x, y); on = true; }); };
-    const focus = S.dropHover >= 0 ? S.dropHover : S.dropLive;
-    A.rows.forEach((r, i) => {
-      if (i === focus) return;
-      path(r.curve);
-      ctx.strokeStyle = keyColor(r.key, "base", focus >= 0 ? 0.25 : 0.5); ctx.lineWidth = 1.2; ctx.stroke();
-    });
-    path(A.mean); ctx.strokeStyle = "rgba(239,236,245,.95)"; ctx.lineWidth = 2.5; ctx.stroke();
-    if (focus >= 0) {
-      const r = A.rows[focus];
-      path(r.curve); ctx.strokeStyle = keyColor(r.key, "ink"); ctx.lineWidth = 2.5; ctx.stroke();
-      if (focus === S.dropLive) {                          // where playback is on this drop
-        const dt = now() - r.t, k = clamp(Math.round((dt + PRE) / 0.5), 0, r.curve.length - 1);
-        if (r.curve[k] != null) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(dt), Y(r.curve[k]), 4, 0, Math.PI * 2); ctx.fill(); }
-      }
-    }
-  }
-
   function drawAll() {
     drawOverview();
     drawRibbon();
@@ -2022,6 +1552,21 @@ import { review } from "./review.js";
     drawDrops();
     drawSim();
   }
+
+  /* ------------------------------------------------ the analysis sections (web/js/sections/) */
+  // each section module gets the state and helpers it uses, and hands back what the page calls
+  let markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
+  ({ markCraft, renderCraft } = craftSection(ctx));
+  ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
+  ({ renderCompare } = compareSection(ctx));
+  ({ cardBlob, openCard } = cardSection(ctx));
+  ({ renderPhases } = chaptersSection(ctx));
+  ({ SECTIONS, renderNav, spyNav } = navSection(ctx));
+  ({ renderReview } = reviewSection(ctx));
+  ({ drawSim, renderSim } = simSection(ctx));
+  ({ playHighlight, renderHighlights, stopReel } = highlightsSection(ctx));
+  ({ drawDrops, renderDrops } = dropsSection(ctx));
 
   boot();
 })();

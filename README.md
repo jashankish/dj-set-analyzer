@@ -658,6 +658,9 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/engine/     the browser engine (Web Workers, Essentia.js, ORT Web)    │
                          │ js/store.js    the visitor's library in IndexedDB                       │
                          │ js/app.js      viewer: canvases, SVG wheel, playback sync, shortcuts    │
+                         │ js/sections/   one module per analysis section, given the app's ctx     │
+                         │ js/roles.js    what each track does: Peak, Lift, Curveball, Key bridge… │
+                         │ js/tracklist.js  tracklist as text, YouTube chapters, 1001TL, CUE sheet  │
                          │ js/vibe.js     set → vibe fingerprint, keyword chips, Spotify prompt     │
                          │ js/phases.js   chapters: optimal split on track energy + tempo, names   │
                          │ js/craft.js    mixing style archetype, key-move/type tallies, moments   │
@@ -1100,7 +1103,20 @@ pipeline:
 - accepts only plain names of audio files in the project root; there's no path
   traversal
 
-### Viewer (`web/js/app.js`, about 1,400 lines of vanilla JS, an ES module)
+### Viewer (`web/js/app.js` and `web/js/sections/`, vanilla JS ES modules)
+
+`app.js` (~1,600 lines) holds the state, loading, the ribbon, deck, setlist,
+mix inspector, wheel, energy and style rows, playback and keyboard. The
+analysis sections live in `web/js/sections/`, one module each (`craft-ui.js`,
+`moodmap-ui.js`, `compare-ui.js`, `card-ui.js`, `chapters-ui.js`, `nav.js`,
+`review-ui.js`, `simx-ui.js`, `highlights-ui.js`, `drops-ui.js`). Each
+exports a factory, e.g. `moodMapSection(ctx)`, that takes the app's shared
+state and helpers (`ctx`: `S`, `$`, `tracks`, `keyColor`, `fmt`, `seek`,
+`showTip`, …, built at the end of `app.js`) and returns the functions the rest
+of the page calls (`renderMoodMap`, `updateMoodMap`). The analyses themselves
+stay in the pure, DOM-free modules (`vibe.js`, `craft.js`, `moodmap.js`, …)
+that `tools/analysis-test.mjs` runs in Node.
+
 
 - **State:** one `S` object holds the loaded set, the ribbon view window
   `{t0, t1}`, the current track, the selected mix, and the follow and loop
@@ -1349,7 +1365,9 @@ dj-set-analyzer/
 │   ├── index.html     # landing: drop zone, queue, library, demos
 │   ├── set.html       # the replay
 │   ├── css/styles.css, css/landing.css
-│   ├── js/app.js      # viewer
+│   ├── js/app.js      # viewer: state, ribbon, deck, setlist, mix inspector, wheel, playback
+│   ├── js/sections/   # one module per analysis section (mixing, mood map, compare, card, chapters,
+│   │                  #   section bar, review, track by track, highlights, drop anatomy)
 │   ├── js/landing.js  # drop, queue, library, teaser
 │   ├── js/store.js    # IndexedDB library
 │   ├── js/prefs.js    # set-replay: localStorage key prefix (+ old-key migration)

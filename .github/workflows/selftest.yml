@@ -20,7 +20,7 @@ jobs:
 
       - name: JavaScript parses
         run: |
-          for f in web/js/*.js web/js/engine/*.js tools/*.mjs; do
+          for f in web/js/*.js web/js/engine/*.js web/js/sections/*.js tools/*.mjs; do
             node --check "$f" 2>/dev/null || node --input-type=module --check < "$f" || { echo "syntax error in $f"; exit 1; }
           done
 
