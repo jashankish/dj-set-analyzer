@@ -94,7 +94,7 @@ export const AXES = [
   ["aggr", "Aggressive"], ["happy", "Bright"], ["vocal", "Vocal"], ["minor", "Minor key"],
 ];
 const tempoAxis = (bpm) => (bpm ? clamp01((bpm - 70) / (185 - 70)) : 0);
-function trackAxes(tr) {
+export function trackAxes(tr) {
   const m = tr.moods || {};
   return {
     tempo: tempoAxis(tr.bpm), energy: clamp01((tr.energy || 0) / 10), dance: m.danceability || 0,

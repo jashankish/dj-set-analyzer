@@ -20,6 +20,7 @@ import { moodMap, QUADS } from "./moodmap.js";
 import { dropAnatomy, PRE, POST } from "./drops.js";
 import { highlights } from "./highlights.js";
 import { tracklist } from "./tracklist.js";
+import { similarity } from "./similarity.js";
 
 (function () {
   "use strict";
@@ -272,6 +273,7 @@ import { tracklist } from "./tracklist.js";
     renderMoodMap();
     renderDrops();
     renderHighlights();
+    renderSim();
     renderCompare();
     renderNav();
     mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast, seek, nameOf });
@@ -654,6 +656,7 @@ import { tracklist } from "./tracklist.js";
     updateWheel();
     vibeTrack(i);
     updateMoodMap(i);
+    drawSim();
     const ph = (S.phases || []).findIndex((p) => tr.n >= p.from && tr.n <= p.to);
     document.querySelectorAll(".ph").forEach((el) => el.classList.toggle("now", +el.dataset.i === ph));
   }
@@ -1752,7 +1755,7 @@ import { tracklist } from "./tracklist.js";
 
   /* ------------------------------------------------ section navigator */
   const SECTIONS = [["hl", "Highlights"], ["desk", "Setlist"], ["mix", "The mix"], ["craft", "How it was mixed"], ["journey", "Journey"],
-    ["moodmap", "Mood map"], ["compare", "Compare"], ["vibe", "Spotify"]];
+    ["moodmap", "Mood map"], ["simx", "Track by track"], ["compare", "Compare"], ["vibe", "Spotify"]];
   function renderNav() {
     if (!$("pnav")) return;                          // a page without the bar (e.g. a stale cached set.html)
     const live = SECTIONS.filter(([id]) => $(id) && !$(id).hidden);
@@ -1788,6 +1791,61 @@ import { tracklist } from "./tracklist.js";
       b.setAttribute("aria-current", on ? "true" : "false");
       if (on && $("pnav").scrollWidth > $("pnav").clientWidth) $("pnav").scrollTo({ left: b.offsetLeft - $("pnav").clientWidth / 2 + b.offsetWidth / 2 });
     });
+  }
+
+  /* ------------------------------------------------ track by track */
+  function renderSim() {
+    const X = (S.sim = similarity(S.D)), T = tracks();
+    $("simx").hidden = !X;
+    if (!X) return;
+    const nm = (n) => `${n}. ${shortName(T[n - 1])}`;
+    $("sxLine").textContent = `Track to track, the set hands over between sounds that are ${Math.round(X.flowAvg * 100)}% alike on average.`;
+    const notes = [];
+    if (X.run) notes.push(["The most consistent stretch", `tracks ${X.run.from}–${X.run.to}, every hand-over ${Math.round(X.run.mean * 100)}% alike on average`, X.run.from]);
+    if (X.echo) notes.push(["The set comes back to a sound", `${nm(X.echo.a)} and ${nm(X.echo.b)}, ${X.echo.b - X.echo.a} tracks apart, are ${Math.round(X.echo.v * 100)}% alike`, X.echo.b]);
+    if (X.turn) notes.push(["The hardest turn", `${nm(X.turn.a)} into ${nm(X.turn.b)}, only ${Math.round(X.turn.v * 100)}% alike`, X.turn.b]);
+    $("sxNotes").innerHTML = notes.map(([k, v, n]) => `<button class="cb-mo" data-n="${n}"><b>${esc(k)}</b><span>${esc(v)}</span></button>`).join("");
+    $("sxNotes").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => seek(T[+b.dataset.n - 1].start + 0.05, true)));
+    if (renderSim.bound) { drawSim(); return; }
+    renderSim.bound = true;
+    const box = $("sxBox"), tip = box.querySelector(".tip");
+    const cell = (e) => {
+      const r = box.getBoundingClientRect(), n = S.sim.n;
+      const i = Math.floor(((e.clientY - r.top) / r.height) * n), j = Math.floor(((e.clientX - r.left) / r.width) * n);
+      return i >= 0 && j >= 0 && i < n && j < n ? { i, j, x: e.clientX - r.left, y: e.clientY - r.top, w: r.width } : null;
+    };
+    box.addEventListener("pointermove", (e) => {
+      const c = cell(e), T2 = tracks();
+      if (!c) { tip.hidden = true; return; }
+      showTip(tip, c.x, c.w, `<span class="t-title">${esc(`${c.i + 1}. ${shortName(T2[c.i])}`)} × ${esc(`${c.j + 1}. ${shortName(T2[c.j])}`)}</span><span class="t-meta">${Math.round(S.sim.M[c.i][c.j] * 100)}% alike · ${keyOf(T2[c.i]) || "?"} / ${keyOf(T2[c.j]) || "?"}</span>`, c.y + 14);
+    });
+    box.addEventListener("pointerleave", () => (tip.hidden = true));
+    box.addEventListener("click", (e) => { const c = cell(e); if (c) seek(tracks()[c.j].start + 0.05, true); });
+    drawSim();
+  }
+  function drawSim() {
+    const X = S.sim;
+    if (!X || $("simx").hidden) return;
+    const { ctx, w } = fit($("sxCanvas"));
+    const n = X.n, s = w / n;
+    ctx.fillStyle = "#1C1B26"; ctx.fillRect(0, 0, w, w);
+    // map the set's own range onto the ink ramp, so its structure shows
+    let lo = 1, hi = 0;
+    X.M.forEach((r, i) => r.forEach((v, j) => { if (i !== j) { lo = Math.min(lo, v); hi = Math.max(hi, v); } }));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const v = i === j ? 1 : (X.M[i][j] - lo) / Math.max(0.01, hi - lo);
+      ctx.fillStyle = `rgba(239,236,245,${(0.06 + 0.9 * v * v).toFixed(3)})`;
+      ctx.fillRect(j * s + 0.5, i * s + 0.5, Math.max(1, s - 1), Math.max(1, s - 1));
+    }
+    // chapters as boxes along the diagonal
+    ctx.strokeStyle = "rgba(185,168,255,.9)"; ctx.lineWidth = 1.5;
+    (S.phases || []).forEach((p) => { const a = (p.from - 1) * s, b = p.to * s; ctx.strokeRect(a + 0.75, a + 0.75, b - a - 1.5, b - a - 1.5); });
+    // the playing track's row and column
+    if (S.cur >= 0) {
+      const c = S.cur * s, k = keyColor(keyOf(tracks()[S.cur]), "base");
+      ctx.strokeStyle = k; ctx.lineWidth = 2;
+      ctx.strokeRect(0.5, c + 0.5, w - 1, s - 1); ctx.strokeRect(c + 0.5, 0.5, s - 1, w - 1);
+    }
   }
 
   /* ------------------------------------------------ highlights */
@@ -1901,6 +1959,7 @@ import { tracklist } from "./tracklist.js";
     drawMix();
     drawRows(now());
     drawDrops();
+    drawSim();
   }
 
   boot();

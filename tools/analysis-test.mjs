@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { similarity } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -187,6 +188,19 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
 }
+
+/* ---------------- track by track (web/js/similarity.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), X = similarity(D), n = D.tracks.length;
+  check(`${slug}: an n × n matrix, 1 on the diagonal, symmetric, all 0–1`, X.M, (M) => M.length === n && M.every((r, i) => r.length === n && r[i] === 1 && r.every((v, j) => v >= 0 && v <= 1 && v === M[j][i])));
+  check(`${slug}: the consistent stretch, the echo and the hardest turn are where they should be`, [X.run, X.echo, X.turn], ([r, e, t]) => r.to > r.from && e.b - e.a >= 4 && t.b === t.a + 1);
+  check(`${slug}: the hardest turn is the least alike pair of neighbors`, X.turn.v, (v) => v === Math.min(...X.M.slice(1).map((_, i) => X.M[i][i + 1])));
+}
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const X = similarity(demo(slug));
+  check(`${slug}: the most consistent stretch is smoother than the set's average hand-over`, [X.run.mean, X.flowAvg], ([r, f]) => r > f);
+}
+check("similarity: fewer than four tracks, none", similarity({ tracks: [{ n: 1 }, { n: 2 }, { n: 3 }] }), (v) => v === null);
 
 /* ---------------- highlights (web/js/highlights.js) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {

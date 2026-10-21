@@ -285,6 +285,7 @@ try {
   check("phone: the demo's highlights are listed", await p3.locator(".hl-card").count(), (n) => n >= 5);
   await p3.locator(".hl-card").nth(2).tap();
   check("phone: tapping a highlight jumps to it", [await p3.locator("#tCur").textContent(), await p3.locator(".hl-card .hl-meta b").nth(2).textContent()], ([now, at]) => now === at);
+  check("phone: track by track draws the matrix and three insights", [await p3.locator("#sxCanvas").count(), await p3.locator("#sxNotes .cb-mo").count()], ([c, n]) => c === 1 && n === 3);
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");
