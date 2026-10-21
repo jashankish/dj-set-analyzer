@@ -21,6 +21,7 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
 import { highlights } from "./highlights.js";
 import { tracklist } from "./tracklist.js";
 import { similarity } from "./similarity.js";
+import { review } from "./review.js";
 
 (function () {
   "use strict";
@@ -273,6 +274,7 @@ import { similarity } from "./similarity.js";
     renderMoodMap();
     renderDrops();
     renderHighlights();
+    renderReview();
     renderSim();
     renderCompare();
     renderNav();
@@ -1754,7 +1756,7 @@ import { similarity } from "./similarity.js";
   }
 
   /* ------------------------------------------------ section navigator */
-  const SECTIONS = [["hl", "Highlights"], ["desk", "Setlist"], ["mix", "The mix"], ["craft", "How it was mixed"], ["journey", "Journey"],
+  const SECTIONS = [["hl", "Highlights"], ["rv", "Review"], ["desk", "Setlist"], ["mix", "The mix"], ["craft", "How it was mixed"], ["journey", "Journey"],
     ["moodmap", "Mood map"], ["simx", "Track by track"], ["compare", "Compare"], ["vibe", "Spotify"]];
   function renderNav() {
     if (!$("pnav")) return;                          // a page without the bar (e.g. a stale cached set.html)
@@ -1791,6 +1793,18 @@ import { similarity } from "./similarity.js";
       b.setAttribute("aria-current", on ? "true" : "false");
       if (on && $("pnav").scrollWidth > $("pnav").clientWidth) $("pnav").scrollTo({ left: b.offsetLeft - $("pnav").clientWidth / 2 + b.offsetWidth / 2 });
     });
+  }
+
+  /* ------------------------------------------------ the review */
+  function renderReview() {
+    const Rv = review(S.D, (n) => shortName(tracks()[n - 1]));
+    $("rv").hidden = !Rv;
+    if (!Rv) return;
+    $("rvOverall").textContent = Rv.overall.toFixed(1);
+    $("rvVerdict").textContent = Rv.verdict;
+    $("rvScores").innerHTML = Rv.scores.map((x) => `<div class="rv-s"><span class="rv-l">${x.label}</span><span class="cb-bar"><i style="width:${x.v * 10}%"></i></span><span class="rv-v">${x.v.toFixed(1)}</span><span class="rv-why">${esc(x.why)}</span></div>`).join("");
+    $("rvText").innerHTML = Rv.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("");
+    $("rvCopy").onclick = () => copyText(`${S.title || S.D.title}: ${Rv.overall.toFixed(1)}/10. ${Rv.verdict}\n\n${Rv.paragraphs.join("\n\n")}\n`, "Review copied");
   }
 
   /* ------------------------------------------------ track by track */

@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { review } = await import(pathToFileURL(path.join(ROOT, "web/js/review.js")));
 const { similarity } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
@@ -188,6 +189,16 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
 }
+
+/* ---------------- the review (web/js/review.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), Rv = review(D);
+  check(`${slug}: five scores, each 0–10, overall is their mean`, Rv, (r) => r.scores.length === 5 && r.scores.every((x) => x.v >= 0 && x.v <= 10) && Math.abs(r.overall - r.scores.reduce((a, x) => a + x.v, 0) / 5) < 0.06);
+  check(`${slug}: mixing and harmony scores come straight from the mixing breakdown`, [Rv.scores[0].v, Rv.scores[1].v], ([m, h]) => { const C = craftProfile(D); return Math.abs(m - C.stats.smooth / 10) < 0.06 && Math.abs(h - (C.stats.harmonicPct + C.stats.partialPct / 2) / 10) < 0.06; });
+  check(`${slug}: three paragraphs that name the genre, the chapters and the mixing style`, Rv.paragraphs, (p) => p.length === 3 && /drum & bass/.test(p[0]) && /chapters/.test(p[1]) && /technician/.test(p[2]));
+  check(`${slug}: the prose reads as description, not instruction`, Rv.paragraphs.join(" "), (t) => !/, turn |and end |keep the mood|\) \(/.test(t));
+}
+check("review: fewer than four tracks, none", review({ tracks: [{ n: 1 }], summary: {} }), (v) => v === null);
 
 /* ---------------- track by track (web/js/similarity.js) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {

@@ -79,6 +79,21 @@
     <ol class="hl-list" id="hlList"></ol>
   </section>
 
+  <!-- the review: the set in words, and a scorecard -->
+  <section class="rv" id="rv" aria-labelledby="rvH" hidden>
+    <div class="rv-card">
+      <h2 class="h2" id="rvH">The review</h2>
+      <p class="rv-overall"><b id="rvOverall"></b><span>out of 10</span></p>
+      <p class="rv-verdict" id="rvVerdict"></p>
+      <div class="rv-scores" id="rvScores"></div>
+      <p class="mm-note">Scores describe the set, not taste: each is computed from the analyses on this page.</p>
+    </div>
+    <div class="rv-text">
+      <div id="rvText"></div>
+      <button class="ghost" id="rvCopy">Copy the review</button>
+    </div>
+  </section>
+
   <main class="desk" id="desk">
     <!-- now playing -->
     <aside class="deck" id="deck" aria-live="polite">
