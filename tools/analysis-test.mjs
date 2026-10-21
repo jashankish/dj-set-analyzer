@@ -176,7 +176,7 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
 {
   const D = demo("worship-part-2"), C = cardData(D, { title: "My night" });
   check("card: uses the visitor's title", C.title, (t) => t === "My night");
-  check("card: facts are length, tracks, tempo, in-key share", C.facts, (f) => f.length === 4 && f[1] === "19 tracks" && /BPM/.test(f[2]) && /% in key/.test(f[3]));
+  check("card: facts are length, tracks, tempo, in-key share and the review score", C.facts, (f) => f.length === 5 && f[1] === "19 tracks" && /BPM/.test(f[2]) && /% in key/.test(f[3]) && /^review \d+\.\d\/10$/.test(f[4]));
   check("card: home key is 4A F minor", C.home, (h) => h.key === "4A" && /F minor/.test(h.name) && h.pct > 20);
   check("card: carries the mixing style, mood route and chapters", [C.style, C.route, C.chapters.length], ([s, r, n]) => /^The /.test(s) && / → /.test(r) && n >= 2);
   check("card: chips lead with the trusted genre and stay ≤ 9", C.chips, (c) => c[0] === "drum & bass" && c.length <= 9);

@@ -129,6 +129,12 @@ try {
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
   await page.keyboard.press("Space");
   await page.waitForTimeout(300);
+  await page.keyboard.press("]");
+  const fast = await page.evaluate(() => [document.getElementById("speedBtn").textContent, document.getElementById("audio").playbackRate]);
+  await page.keyboard.press("[");
+  await page.keyboard.press("[");
+  check("[ and ] change the playback speed (pitch kept)", [fast, await page.evaluate(() => [document.getElementById("speedBtn").textContent, document.getElementById("audio").playbackRate, document.getElementById("audio").preservesPitch !== false])], ([f, s]) => f[0] === "1.25×" && f[1] === 1.25 && s[0] === "0.75×" && s[1] === 0.75 && s[2]);
+  await page.keyboard.press("]");
   check("Space pauses (nothing focused)", await page.evaluate(() => [document.getElementById("audio").paused, !document.querySelector(".i-play").hasAttribute("hidden")]), (v) => v[0] && v[1]);
   if (canClip) {
   await page.click("#copyBtn");

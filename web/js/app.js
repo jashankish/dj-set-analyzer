@@ -1713,6 +1713,8 @@ import { review } from "./review.js";
       $("followBtn").setAttribute("aria-pressed", String(S.follow));
     });
     $("copyBtn").addEventListener("click", copyTracklist);
+    $("speedBtn").addEventListener("click", () => setSpeed(SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]));
+    setSpeed(load("set-replay:speed") || 1);
     $("tlMore").querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => exportTracklist(b.dataset.f)));
     $("cardBtn").addEventListener("click", openCard);
     $("cardClose").addEventListener("click", () => $("cardDlg").close());
@@ -1735,7 +1737,7 @@ import { review } from "./review.js";
     scrub.addEventListener("pointerup", () => (scrubbing = false));
     ["play", "pause"].forEach((ev) => audio.addEventListener(ev, () => { setPlayIcon(); tick(true); }));
     audio.addEventListener("seeked", () => tick(true));
-    audio.addEventListener("loadedmetadata", () => tick(true));
+    audio.addEventListener("loadedmetadata", () => { audio.playbackRate = speed; tick(true); });
     window.addEventListener("resize", () => { if (S.D) { hatch = null; drawAll(); tick(true); } });
     window.addEventListener("hashchange", () => {
       const slug = decodeURIComponent(location.hash.slice(1));
@@ -1772,6 +1774,7 @@ import { review } from "./review.js";
     else if (k === "?") $("helpBtn").click();
     else if (k === "c" || k === "C") copyPrompt();
     else if (k === "k" || k === "K") openCard();
+    else if (k === "[" || k === "]") setSpeed(SPEEDS[clamp(SPEEDS.indexOf(speed) + (k === "]" ? 1 : -1), 0, SPEEDS.length - 1)]);
   }
 
   /* a link to a section of a set (set.html?demo=…#vibe): go there once the page has drawn */
@@ -1890,6 +1893,20 @@ import { review } from "./review.js";
       ctx.strokeStyle = k; ctx.lineWidth = 2;
       ctx.strokeRect(0.5, c + 0.5, w - 1, s - 1); ctx.strokeRect(c + 0.5, 0.5, s - 1, w - 1);
     }
+  }
+
+  /* ------------------------------------------------ playback speed: slow a mix down to study it */
+  const SPEEDS = [0.5, 0.75, 1, 1.25];
+  let speed = 1;
+  function setSpeed(v) {
+    speed = SPEEDS.includes(+v) ? +v : 1;
+    audio.playbackRate = audio.defaultPlaybackRate = speed;     // default too: a new recording resets the rate
+    audio.preservesPitch = audio.mozPreservesPitch = audio.webkitPreservesPitch = true;   // slower, same key
+    $("speedBtn").textContent = `${speed}×`;
+    $("speedBtn").setAttribute("aria-label", `Playback speed ${speed} times, pitch kept`);
+    $("speedBtn").classList.toggle("on", speed !== 1);
+    store("set-replay:speed", speed);
+    if (speed !== 1 && document.activeElement && document.activeElement.id !== "speedBtn") toast(`Playing at ${speed}×, same key`);
   }
 
   /* ------------------------------------------------ highlights */

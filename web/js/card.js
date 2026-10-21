@@ -14,6 +14,7 @@ import { vibeProfile, buildPrompt, AXES } from "./vibe.js";
 import { craftProfile } from "./craft.js";
 import { moodMap } from "./moodmap.js";
 import { findPhases } from "./phases.js";
+import { review } from "./review.js";
 
 export const CARD = { w: 1080, h: 1350 };
 
@@ -28,7 +29,8 @@ export function cardData(D, { title, names = {}, off } = {}) {
   const home = Object.entries(time).sort((a, b) => b[1] - a[1])[0];
   const homeName = home ? (T.find((t) => t.key && t.key.camelot === home[0]) || {}).key.name : null;
   const bpm = s.bpm_min != null && s.bpm_max - s.bpm_min >= 2 ? `${Math.round(s.bpm_min)}–${Math.round(s.bpm_max)} BPM` : s.bpm_avg ? `${Math.round(s.bpm_avg)} BPM` : null;
-  const facts = [clock(s.set_length || D.duration), `${T.length} tracks`, bpm, s.harmonic_pct != null ? `${s.harmonic_pct}% in key` : null].filter(Boolean);
+  const Rv = review(D);
+  const facts = [clock(s.set_length || D.duration), `${T.length} tracks`, bpm, s.harmonic_pct != null ? `${s.harmonic_pct}% in key` : null, Rv ? `review ${Rv.overall.toFixed(1)}/10` : null].filter(Boolean);
   const offSet = off || new Set(P.chips.filter((c) => !c.on).map((c) => c.id));
   const pick = (g, n) => P.chips.filter((c) => c.group === g && !offSet.has(c.id)).slice(0, n).map((c) => c.text);
   const chips = [...pick("Genre", 3), ...pick("Mood", 2), ...pick("Artists", 4)];
