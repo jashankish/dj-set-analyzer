@@ -51,3 +51,26 @@ export function similarity(D) {
   const flowAvg = nb.reduce((s, x) => s + x, 0) / nb.length;
   return { n, M, run, echo, turn, flowAvg };
 }
+
+/* For each unnamed track, the trusted named track in the set it sounds most
+   like: a clue for hunting the ID down (DJs tend to play from one circle).
+   Ranked by how much more alike the pair is than that named track is to the
+   set in general, so one "generic" track doesn't become everyone's answer;
+   shown only when the pair is at least 80% alike. trustOf(track) is 0–1
+   (vibe.trust); names under 0.6 aren't used as references. */
+export function idClues(D, X = similarity(D), trustOf = () => 1) {
+  const T = D.tracks || [], out = {};
+  if (!X) return out;
+  const avg = T.map((_, j) => T.reduce((s, __, i) => s + (i === j ? 0 : X.M[i][j]), 0) / Math.max(1, T.length - 1));
+  T.forEach((t, i) => {
+    if (t.identified) return;
+    let best = null;
+    T.forEach((u, j) => {
+      if (j === i || !u.identified || trustOf(u) < 0.6 || X.M[i][j] < 0.8) return;
+      const lift = X.M[i][j] - avg[j];
+      if (!best || lift > best.lift) best = { n: u.n, v: X.M[i][j], lift };
+    });
+    if (best) out[t.n] = best;
+  });
+  return out;
+}

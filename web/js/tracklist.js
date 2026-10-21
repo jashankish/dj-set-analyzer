@@ -11,7 +11,8 @@
      tl1001   1001Tracklists' style, "[mm:ss] Artist - Title"
      cue      a CUE sheet (players and DJ tools split the recording by it):
               INDEX times in mm:ss:ff, 75 frames a second
-   opts: { title, name(tr), artist(tr), file }. No DOM: tools/analysis-test.mjs.
+   opts: { title, name(tr), artist(tr), file, hint(tr) }; hint adds a clue to
+   an unnamed track, e.g. "sounds like Artist – Title". No DOM: tools/analysis-test.mjs.
    ============================================================ */
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -26,12 +27,12 @@ const cueTime = (t) => {
 };
 const q = (s) => String(s).replace(/"/g, "'");
 
-export function tracklist(D, { title = D.title, name, artist, file = D.file } = {}) {
+export function tracklist(D, { title = D.title, name, artist, file = D.file, hint } = {}) {
   const named = (tr) => (name ? name(tr) : tr.identified ? tr.title : "ID");
   const who = (tr) => (artist ? artist(tr) : tr.identified ? tr.artist : "ID");
   const entries = (D.tracks || []).map((tr) => {
     const unnamed = named(tr) === "ID";
-    const clues = unnamed ? [tr.key && tr.key.camelot, tr.bpm ? `${Math.round(tr.bpm)} BPM` : null].filter(Boolean) : [];
+    const clues = unnamed ? [tr.key && tr.key.camelot, tr.bpm ? `${Math.round(tr.bpm)} BPM` : null, hint ? hint(tr) : null].filter(Boolean) : [];
     return { n: tr.n, t: tr.start, artist: who(tr), title: named(tr), clues };
   });
   const line = (e, sep) => `${e.artist}${sep}${e.title}${e.clues.length ? ` (${e.clues.join(", ")})` : ""}`;

@@ -284,6 +284,8 @@ button { font-family: inherit; color: inherit; }
 .deck-links { display: flex; gap: 14px; font-size: .84rem; }
 .deck-links a { color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .deck-links a:hover { color: var(--ink); }
+.deck-links { flex-wrap: wrap; }
+.deck-clue { flex-basis: 100%; text-align: left; color: var(--ink-2); font-size: .84rem; }
 .deck-next { border-top: 1px solid var(--line-soft); padding-top: 12px; color: var(--muted); font-size: .86rem; }
 .deck-next b { color: var(--ink); font-weight: 600; }
 

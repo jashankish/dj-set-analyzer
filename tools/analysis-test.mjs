@@ -21,7 +21,7 @@ const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.j
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
 const { review } = await import(pathToFileURL(path.join(ROOT, "web/js/review.js")));
-const { similarity } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
+const { similarity, idClues } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -222,6 +222,13 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   const X = similarity(demo(slug));
   check(`${slug}: the most consistent stretch is smoother than the set's average hand-over`, [X.run.mean, X.flowAvg], ([r, f]) => r > f);
 }
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), X = similarity(D), C = idClues(D, X, trust);
+  const entries = Object.entries(C);
+  check(`${slug}: ID clues point only at trusted named tracks, at least 80% alike`, entries.map(([n, c]) => [D.tracks[+n - 1].identified, D.tracks[c.n - 1].identified, trust(D.tracks[c.n - 1]), c.v]), (v) => v.length >= 2 && v.every(([idd, named, t, s]) => !idd && named && t >= 0.6 && s >= 0.8));
+}
+check("worship-part-2: no single track is every ID's clue", new Set(Object.values(idClues(demo("worship-part-2"), similarity(demo("worship-part-2")), trust)).map((c) => c.n)).size, (n) => n >= 3);
+check("tracklist: a hint joins an ID's clues", tracklist(demo("worship-part-2"), { hint: (tr) => (tr.n === 4 ? "sounds like Sub Focus – Illuminate" : null) }).text.split("\n").find((l) => /^\S+  ID – ID/.test(l) && l.includes("sounds like")), (l) => /\(4A, 17\d BPM, sounds like Sub Focus – Illuminate\)$/.test(l || ""));
 check("similarity: fewer than four tracks, none", similarity({ tracks: [{ n: 1 }, { n: 2 }, { n: 3 }] }), (v) => v === null);
 
 /* ---------------- highlights (web/js/highlights.js) */

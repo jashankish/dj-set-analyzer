@@ -20,7 +20,8 @@ import { moodMap, QUADS } from "./moodmap.js";
 import { dropAnatomy, PRE, POST } from "./drops.js";
 import { highlights } from "./highlights.js";
 import { tracklist } from "./tracklist.js";
-import { similarity } from "./similarity.js";
+import { similarity, idClues } from "./similarity.js";
+import { trust } from "./vibe.js";
 import { review } from "./review.js";
 
 (function () {
@@ -99,7 +100,9 @@ import { review } from "./review.js";
   }
   function artistOf(tr) {
     if (S.names[tr.n] && !tr.identified) return "Named by you";
-    return tr.identified ? tr.artist : "Unidentified";
+    if (tr.identified) return tr.artist;
+    const c = S.clues && S.clues[tr.n];
+    return c ? `Unidentified · sounds like ${tracks()[c.n - 1].title.replace(/\s*\((feat|ft)\.?[^)]*\)/i, "")}` : "Unidentified";
   }
   /* in sentences an unnamed track needs its number to be told apart: "ID 7" */
   const shortName = (tr) => (!tr.identified && !S.names[tr.n] ? `ID ${tr.n}` : nameOf(tr).replace(/\s*\((feat|ft)\.?[^)]*\)/i, ""));
@@ -258,6 +261,8 @@ import { review } from "./review.js";
     S.cur = -1; S.mix = 0; S.lastBeat = -1;
     S.view = { t0: span()[0], t1: span()[1] };
     S.phases = findPhases(D);
+    S.sim = similarity(D);
+    S.clues = idClues(D, S.sim, trust);      // for each ID, the named track it sounds most like
     prepColors();
     S.noAudio = !audioUrl;
     S.vt = span()[0];
@@ -644,12 +649,18 @@ import { review } from "./review.js";
     const L = [];
     if (tr.meta && tr.meta.shazam_url) L.push(`<a href="${esc(tr.meta.shazam_url)}" target="_blank" rel="noopener">Shazam</a>`);
     if (tr.meta && tr.meta.apple_url) L.push(`<a href="${esc(tr.meta.apple_url)}" target="_blank" rel="noopener">Apple Music</a>`);
+    const clue = !tr.identified && !S.names[tr.n] && S.clues && S.clues[tr.n];
+    if (clue) {
+      const ref = tracks()[clue.n - 1];
+      L.push(`<button class="linkish deck-clue" data-n="${clue.n}" title="A clue for naming this ID: the named track in this set it's closest to">Sounds most like ${esc(ref.title)} (${esc(ref.artist)}), ${Math.round(clue.v * 100)}% alike</button>`);
+    }
     if (tr.identified || S.names[tr.n]) {
       const q = tr.identified && !S.names[tr.n] ? `${tr.artist} ${tr.title.replace(/\s*[([][^)\]]*[)\]]/g, "")}` : S.names[tr.n];
       L.push(`<a href="https://open.spotify.com/search/${encodeURIComponent(q)}" target="_blank" rel="noopener">Spotify</a>`);
     }
     if (tr.meta && (tr.meta.label || tr.meta.released)) L.push(`<span style="color:var(--muted)">${esc([tr.meta.label, tr.meta.released].filter(Boolean).join(", "))}</span>`);
     $("deckLinks").innerHTML = L.join("");
+    $("deckLinks").querySelectorAll(".deck-clue").forEach((b) => b.addEventListener("click", () => seek(tracks()[+b.dataset.n - 1].start + 0.05, true)));
     const nx = tracks()[i + 1], m = mixes()[i];
     $("deckNext").innerHTML = nx && m ? `Next: <b>${esc(nameOf(nx))}</b>, ${esc(m.type.toLowerCase())} at ${fmt(m.swap)}` : "Last track of the set";
     $("pNow").innerHTML = `<b>${esc(nameOf(tr))}</b><span>${esc(artistOf(tr))}</span>`;
@@ -841,7 +852,10 @@ import { review } from "./review.js";
   }
 
   /* the tracklist in the format asked for (tracklist.js); an unnamed track keeps its clues */
-  const lists = () => tracklist(S.D, { title: S.title || S.D.title, name: nameOf, artist: (tr) => (tr.identified ? tr.artist : "ID") });
+  const lists = () => tracklist(S.D, {
+    title: S.title || S.D.title, name: nameOf, artist: (tr) => (tr.identified ? tr.artist : "ID"),
+    hint: (tr) => { const c = S.clues && S.clues[tr.n]; if (!c) return null; const r = tracks()[c.n - 1]; return `sounds like ${r.artist} – ${r.title}`; },
+  });
   function copyText(txt, done) {
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
       .then(() => toast(done))
@@ -1821,7 +1835,7 @@ import { review } from "./review.js";
 
   /* ------------------------------------------------ track by track */
   function renderSim() {
-    const X = (S.sim = similarity(S.D)), T = tracks();
+    const X = S.sim, T = tracks();
     $("simx").hidden = !X;
     if (!X) return;
     const nm = (n) => `${n}. ${shortName(T[n - 1])}`;
