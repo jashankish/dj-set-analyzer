@@ -6,7 +6,7 @@
 #   bash tools/build-site.sh                  → dist/set-replay/
 #   bash tools/build-site.sh --zip            → also dist/set-replay.zip
 #   bash tools/build-site.sh --head FILE      → insert FILE's HTML before </head> on
-#                                               every page (e.g. your site's analytics tag);
+#                                               every page but prompt.html (e.g. your site's analytics tag);
 #                                               SET_REPLAY_HEAD=FILE does the same
 set -euo pipefail
 HEAD_FILE="${SET_REPLAY_HEAD:-}"; ZIP=false
@@ -31,6 +31,9 @@ for f in index.html set.html js/engine/pipeline.js models/discogs-effnet-bsdynam
 done
 if [ -n "$HEAD_FILE" ]; then
   for page in "$OUT"/*.html; do
+    # prompt.html carries a prompt in its URL fragment; a head snippet (analytics) could record
+    # the URL, and the page promises the prompt goes nowhere, so it gets none
+    [ "$(basename "$page")" = prompt.html ] && continue
     python3 - "$page" "$HEAD_FILE" <<'PY'
 import sys
 page, snippet = sys.argv[1], open(sys.argv[2]).read().rstrip("\n") + "\n"

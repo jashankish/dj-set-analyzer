@@ -324,7 +324,9 @@ relative.
 
 6. **Your site's own tags** (analytics, a consent banner, a theme script):
    the repo ships no tracking code. Put the HTML in a file and pass it at
-   build time, and it's inserted before `</head>` on every page:
+   build time, and it's inserted before `</head>` on every page except
+   `prompt.html` (it carries a prompt in its URL, which the page promises
+   goes nowhere):
 
    ```bash
    bash tools/build-site.sh --head my-analytics.html
