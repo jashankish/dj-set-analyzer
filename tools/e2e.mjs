@@ -111,8 +111,12 @@ try {
   await page.click('#pnav button[data-to="vibe"]');
   // wait for the section to arrive (headless Chrome can pause a smooth scroll mid-way;
   // the bar then corrects once the scroll stops), not merely for the scrolling to pause
-  await page.waitForFunction(() => { const t = document.getElementById("vibe").getBoundingClientRect().top; return t > 0 && t < 160 && document.querySelector('#pnav [aria-current="true"]')?.dataset.to === "vibe"; }, null, { timeout: 6000 }).catch(() => {});
-  check("the section bar smooth-scrolls to a section and marks it current", await page.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
+  // arrived: the section sits just under the bar, or (a short page: the last section can't
+  // rise that far) the page is scrolled to its bottom with the section in view
+  const arrived = () => { const t = document.getElementById("vibe").getBoundingClientRect().top, end = innerHeight + scrollY >= document.documentElement.scrollHeight - 4;
+    return (t > 0 && t < 160) || (end && t > 0 && t < innerHeight * 0.6); };
+  await page.waitForFunction((src) => (0, eval)(src)() && document.querySelector('#pnav [aria-current="true"]')?.dataset.to === "vibe", `(${arrived})`, { timeout: 6000 }).catch(() => {});
+  check("the section bar smooth-scrolls to a section and marks it current", await page.evaluate((src) => [(0, eval)(src)(), Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to], `(${arrived})`), ([ok, , cur]) => ok && cur === "vibe");
   await page.evaluate(() => window.scrollTo(0, 0));
 
   const bpm = await page.locator(".facts dd").nth(2).textContent();
