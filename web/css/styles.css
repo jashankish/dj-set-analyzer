@@ -467,6 +467,16 @@ button { font-family: inherit; color: inherit; }
 .kt-bar i { display: block; height: 100%; border-radius: 4px; }
 .kt-v { text-align: right; font-size: .8rem; font-stretch: 75%; color: var(--muted); }
 .kt-row.now .kt-v { color: var(--ink); }
+.bal-chart { height: 120px; border-radius: 4px; overflow: hidden; }
+.bal-legend { display: flex; gap: 14px; margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-stretch: 88%; }
+.bal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bal-sw { width: 10px; height: 10px; border-radius: 2px; }
+.bal-sw.low { background: #9085E9; } .bal-sw.mid { background: #199E70; } .bal-sw.high { background: #C98500; }
+.bal-top { display: flex; flex-wrap: wrap; gap: 8px; }
+.bal-pick { background: var(--panel); border: 1px solid var(--line-soft); color: var(--ink); border-radius: 999px; padding: 5px 12px; font: inherit; font-size: .84rem; cursor: pointer; }
+.bal-pick:hover { border-color: var(--line); }
+.bal-k { color: var(--muted); font-stretch: 88%; }
+.bal-v { color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .kj { margin-top: 22px; }
 .kj .h3 { margin: 0 0 8px; }
 .kj-box { position: relative; height: 150px; cursor: pointer; }

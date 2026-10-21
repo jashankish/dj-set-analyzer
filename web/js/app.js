@@ -29,6 +29,7 @@ import { simSection } from "./sections/simx-ui.js";
 import { highlightsSection } from "./sections/highlights-ui.js";
 import { dropsSection } from "./sections/drops-ui.js";
 import { keylineSection } from "./sections/keyline-ui.js";
+import { balanceSection } from "./sections/balance-ui.js";
 
 (function () {
   "use strict";
@@ -1109,6 +1110,7 @@ import { keylineSection } from "./sections/keyline-ui.js";
     $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighboring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
     renderKeyTime();
     renderKeyline();
+    renderBalance();
     updateWheel();
   }
   /* minutes in each key, under the wheel; the top one is the set's home key */
@@ -1410,7 +1412,7 @@ import { keylineSection } from "./sections/keyline-ui.js";
     }
     updatePulse(t);
     drawSpectrum();
-    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); tick._rows = t; }
+    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); drawBalance(t); tick._rows = t; }
     // the highlights reel: on to the next moment, or stop if the listener went elsewhere
     if (S.reel && !isPaused()) {
       const h = S.hl.items[S.reel.i];
@@ -1554,11 +1556,12 @@ import { keylineSection } from "./sections/keyline-ui.js";
     drawDrops();
     drawSim();
     drawKeyline(now());
+    drawBalance(now());
   }
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1571,6 +1574,7 @@ import { keylineSection } from "./sections/keyline-ui.js";
   ({ playHighlight, renderHighlights, stopReel } = highlightsSection(ctx));
   ({ drawDrops, renderDrops } = dropsSection(ctx));
   ({ renderKeyline, drawKeyline } = keylineSection(ctx));
+  ({ renderBalance, drawBalance } = balanceSection(ctx));
 
   boot();
 })();

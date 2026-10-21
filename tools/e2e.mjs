@@ -305,6 +305,7 @@ try {
   check("phone: setlist rows carry track roles (Peak, Lift, Curveball…)", await p3.locator(".trk .role").allTextContents(), (v) => v.length >= 5 && v.includes("Peak"));
   check("phone: an ID's setlist subtitle names what it sounds like", await p3.locator('.trk[data-i="3"]').textContent(), (t) => /Unidentified · sounds like \S/.test(t));
   check("phone: track by track draws the matrix and three insights", [await p3.locator("#sxCanvas").count(), await p3.locator("#sxNotes .cb-mo").count()], ([c, n]) => c === 1 && n === 3);
+  check("phone: the frequency balance sums up the bass, mids and highs", await p3.locator("#balLine").textContent(), (t) => /^On average \d+% bass, \d+% mids, \d+% highs/.test(t));
   check("phone: the key journey counts the key changes", await p3.locator("#kjLine").textContent(), (t) => /^\d+ key changes?: \d+ up the wheel/.test(t));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");

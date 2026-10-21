@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { soundBalance } = await import(pathToFileURL(path.join(ROOT, "web/js/balance.js")));
 const { keyTimeline } = await import(pathToFileURL(path.join(ROOT, "web/js/keyline.js")));
 const { taste } = await import(pathToFileURL(path.join(ROOT, "web/js/taste.js")));
 const { roles } = await import(pathToFileURL(path.join(ROOT, "web/js/roles.js")));
@@ -202,6 +203,23 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- frequency balance (web/js/balance.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), B = soundBalance(D);
+  check(`${slug}: every balance window's three shares sum to 1`, B.bins.map((b) => b.low + b.mid + b.high), (v) => v.length > 50 && v.every((x) => Math.abs(x - 1) < 1e-9));
+  check(`${slug}: windows run in order inside the set`, B.bins, (b) => b.every((x, i) => x.t0 >= B.s0 - 1e-6 && x.t1 <= B.s1 + 1e-6 && (!i || x.t0 > b[i - 1].t0)));
+  check(`${slug}: every track gets a lean; the heaviest is bass-heavy`, [B.tracks.length, D.tracks.length, B.heaviest.lean], ([a, b, l]) => a === b && l === "bass-heavy");
+}
+{
+  // a synthetic set: bass for the first half, highs for the second
+  const N = 8 * 400, wave = { low: [], mid: [], high: [] };
+  for (let i = 0; i < N; i++) { const late = i >= N / 2; wave.low.push(late ? 10 : 60); wave.mid.push(20); wave.high.push(late ? 60 : 10); }
+  const D = { duration: 400, summary: {}, curves: { wave, wave_fps: 8 }, tracks: [{ n: 1, start: 0, end: 200 }, { n: 2, start: 200, end: 400 }] };
+  const B = soundBalance(D);
+  check("balance: bass then highs reads as bass-heavy, then bright, getting brighter", [B.tracks[0].lean, B.tracks[1].lean, B.trend], ([a, b, t]) => a === "bass-heavy" && b === "bright" && t === "brighter");
+  check("balance: no waveform, no chart", soundBalance({ duration: 10, tracks: [] }), (v) => v === null);
 }
 
 /* ---------------- key journey (web/js/keyline.js) */

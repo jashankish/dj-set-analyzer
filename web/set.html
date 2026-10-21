@@ -239,6 +239,13 @@
         <div class="j-head"><h2 class="h2">Energy</h2><span class="j-sub" id="energySub"></span></div>
         <div class="curve" id="energyBox"><canvas id="energyCanvas"></canvas><div class="c-hover" hidden></div><div class="tip" hidden></div></div>
       </div>
+      <div class="j-block" id="balBlock" hidden>
+        <div class="j-head"><h2 class="h2">Frequency balance</h2><span class="j-sub">How the sound splits between bass, mids and highs</span></div>
+        <div class="curve bal-chart" id="balBox"><canvas id="balCanvas" role="img" aria-label="Share of bass, mids and highs over the set, stacked to 100%"></canvas><div class="tip" hidden></div></div>
+        <p class="bal-legend"><span><i class="bal-sw low"></i>Bass</span><span><i class="bal-sw mid"></i>Mids</span><span><i class="bal-sw high"></i>Highs</span></p>
+        <p class="drop-line" id="balLine"></p>
+        <div class="bal-top" id="balTop"></div>
+      </div>
       <div class="j-block" id="dropBlock">
         <div class="j-head"><h2 class="h2">Drop anatomy</h2><span class="j-sub" id="dropSub"></span></div>
         <p class="drop-line" id="dropLine"></p>
