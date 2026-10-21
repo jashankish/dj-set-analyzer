@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { setShape, SHAPES } = await import(pathToFileURL(path.join(ROOT, "web/js/shape.js")));
 const { soundBalance } = await import(pathToFileURL(path.join(ROOT, "web/js/balance.js")));
 const { keyTimeline } = await import(pathToFileURL(path.join(ROOT, "web/js/keyline.js")));
 const { taste } = await import(pathToFileURL(path.join(ROOT, "web/js/taste.js")));
@@ -203,6 +204,23 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- set shape (web/js/shape.js) */
+{
+  const B = setShape(demo("worship-part-2"));
+  check("shape: worship part 2 is a wind-down", [B.best.id, B.best.match], ([id, m]) => id === "down" && m >= 70);
+  check("shape: matches are ranked, 0–100, one per template", B.matches, (m) => m.length === SHAPES.length && m.every((x, i) => x.match >= 0 && x.match <= 100 && (!i || x.r <= m[i - 1].r)));
+  // synthetic sets: each template played back as a set should match itself best
+  const synth = (f, n = 1800) => ({ duration: n, summary: { set_start: 0, set_end: n }, curves: { energy: { step: 1, v: Array.from({ length: n }, (_, i) => 3 + 4 * f(i / (n - 1))) } }, tracks: [] });
+  for (const s of SHAPES) {
+    const tpl = (x) => { const k = Math.min(s.t.length - 1, Math.round(x * (s.t.length - 1))); return s.t[k]; };
+    check(`shape: a set drawn as "${s.name}" matches it best`, setShape(synth(tpl)).best.id, (id) => id === s.id);
+  }
+  check("shape: a flat set is level, with no best shape", setShape(synth(() => 0.5 + 0.01 * Math.sin(1)) ), (x) => x.level && x.best === null);
+  const waves = synth((x) => 0.5 - 0.5 * Math.cos(x * 6 * Math.PI));
+  waves.tracks = [{ n: 1, start: 0, end: 1800, bpm: 128, energy: 5 }];
+  check("shape: a set in waves tells the prompt to ride it in waves", vibeProfile(waves).flow.id, (id) => id === "waves");
 }
 
 /* ---------------- a prompt for the part around a moment (phases.around) */

@@ -18,6 +18,7 @@
    ============================================================ */
 import { tempoLikelihood } from "./engine/music.js";
 import { moodMap } from "./moodmap.js";
+import { setShape } from "./shape.js";
 
 /* Discogs style → how listeners (and Spotify) say it */
 const SAY = {
@@ -190,6 +191,14 @@ export function vibeProfile(D, names = {}) {
   else if (arc[0] > arc[2] + d && arc[0] >= arc[1] - d / 2) flow = { id: "comedown", chip: "winds down", say: "open at full intensity and wind down toward a calmer finish" };
   else if (arc[1] > Math.max(arc[0], arc[2]) + d / 2) flow = { id: "peak", chip: "peaks mid-set", say: "build to a peak in the middle, then ease off" };
   else flow = { id: "steady", chip: "steady and rolling", say: "keep the energy level and rolling from start to finish" };
+  // shapes three points can't see (shape.js): waves, two swells, or straight up and held
+  const sh = setShape(D);
+  const finer = sh && sh.best && sh.best.match >= 60 && {
+    waves: { id: "waves", chip: "rises and falls in waves", say: "ride it in waves: build, release and build again, several times over" },
+    tidal: { id: "tidal", chip: "two big swells", say: "build to a big swell, pull back, then build to a second one" },
+    peaktime: { id: "peaktime", chip: "peak-time throughout", say: "get to full intensity fast and hold it there" },
+  }[sh.best.id];
+  if (finer) flow = finer;
 
   /* ---------- who and when */
   const credit = new Map();                          // artist → weighted credit; Map keeps first-seen order for ties

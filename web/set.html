@@ -239,6 +239,15 @@
         <div class="j-head"><h2 class="h2">Energy</h2><span class="j-sub" id="energySub"></span></div>
         <div class="curve" id="energyBox"><canvas id="energyCanvas"></canvas><div class="c-hover" hidden></div><div class="tip" hidden></div></div>
       </div>
+      <div class="j-block" id="shapeBlock" hidden>
+        <div class="j-head"><h2 class="h2">Set shape</h2><span class="j-sub">The energy arc against the classic shapes sets are built in</span></div>
+        <div class="sh-wrap">
+          <svg class="sh-svg" id="shapeSvg" viewBox="0 0 600 150" preserveAspectRatio="none" role="img"></svg>
+          <div class="sh-list" id="shapeList" aria-label="Shapes, by how well the set matches"></div>
+        </div>
+        <p class="sh-legend"><span><i class="sh-sw"></i>This set</span><span><i class="sh-sw tpl"></i>Shape</span></p>
+        <p class="drop-line" id="shapeLine"></p>
+      </div>
       <div class="j-block" id="balBlock" hidden>
         <div class="j-head"><h2 class="h2">Frequency balance</h2><span class="j-sub">How the sound splits between bass, mids and highs</span></div>
         <div class="curve bal-chart" id="balBox"><canvas id="balCanvas" role="img" aria-label="Share of bass, mids and highs over the set, stacked to 100%"></canvas><div class="tip" hidden></div></div>

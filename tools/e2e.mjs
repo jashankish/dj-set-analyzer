@@ -309,6 +309,7 @@ try {
   await p3.waitForTimeout(400);
   check("phone: Playlist like this part scopes the prompt to the tracks around now", [await p3.locator('#vibeScope [aria-selected="true"]').textContent(), await p3.locator("#vibePrompt").inputValue()], ([s, t]) => /^Around now · \d+–\d+$/.test(s) && /drum & bass/.test(t) && !/Order it like a DJ set|order it like a DJ set/i.test(t));
   await p3.locator('#vibeScope [data-i="-1"]').click();
+  check("phone: the set shape names its closest shape", await p3.locator("#shapeLine").textContent(), (t) => /^Closest to wind-down \(\d+% match\)/.test(t));
   check("phone: the frequency balance sums up the bass, mids and highs", await p3.locator("#balLine").textContent(), (t) => /^On average \d+% bass, \d+% mids, \d+% highs/.test(t));
   check("phone: the key journey counts the key changes", await p3.locator("#kjLine").textContent(), (t) => /^\d+ key changes?: \d+ up the wheel/.test(t));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);

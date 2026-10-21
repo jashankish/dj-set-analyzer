@@ -105,6 +105,7 @@ top; its color swatches are the set's track keys in order. Then:
 | **Harmonic path** | A Camelot wheel. Each track is a dot on its key, and the dots are joined in the order played (solid once played, dotted ahead). Under it, **time in key**: the set's home key and its share, then minutes in each key as key-colored bars (top six; the rest summed), with the playing key highlighted. Under that, the **key journey**: key against time on the Camelot wheel "unwrapped" into a line (each stretch takes the representation of its number nearest the last, so 12A → 1A is one step up, not a fall), each stretch in its key's color with major a little above minor, and each key change drawn solid (clean), dashed (bolder) or dotted (clash); a sentence counts the changes up and down the wheel, the clashes, and where it ends relative to where it began | Click a dot to play that track; click a key's bar to play the first track in that key; hover the key journey for a stretch, click it to play from there |
 | **Chapters** | The set split into its chapters (warm-up, build, peak, breather, second wind, cool-down…), as blocks sized by length and tinted by each chapter's main key. Each shows its time and tracks, tempo, energy (with a bar against the strongest chapter), drops, and its genres and mood in the same words its Spotify prompt uses. The playing chapter is outlined. Hidden when the set is one steady chapter | Click a chapter to play it; **Spotify prompt** scopes the prompt below to that chapter |
 | **Energy** | The energy arc of the set, filled per track in its key color, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
+| **Set shape** | The energy arc (24 points, each the mean of its slice, lightly smoothed, scaled to its own range) against seven classic shapes: *slow burn*, *peak time*, *mid-set peak*, *wind-down*, *dip & return*, *waves* (three rises and falls) and *tidal* (two swells). Each is scored by correlation (shown 0–100%) and ranked beside the arc with a sketch of its template; the chosen one is drawn dashed over the arc. A sentence names the closest (and a close second); an arc that stays within 12% of its average is *level*, and a best match under 35% means the set writes its own arc. When the closest is waves, tidal or peak time at 60% or more, the Spotify prompt's flow line uses it (three thirds can't see those) | Click a shape to lay it over the arc |
 | **Frequency balance** | How the sound splits between bass, mids and highs over the set: the waveform's three bands as shares in ~20 s windows, stacked to 100% (bass at the bottom; violet, aqua and amber, validated for color-blind separation, and named at the right edge), with track boundaries as ticks. A sentence gives the set's average split, whether it gets brighter, darker or heavier toward the end (first third against last), and how many tracks lean bass-heavy, bright or mid-forward. Leans are judged against the set's own average, since absolute band levels differ between recordings | Hover for a window's split and its track's lean; click to seek; **Heaviest** / **Brightest** play those tracks |
 | **Drop anatomy** | Every drop overlaid on one chart, lined up at the moment it lands: the bass line (the low band, averaged over a second) from 32 s before to 16 s after, each in its track's key color, with the average drawn bold and the typical breakdown shaded. A sentence and the style (*quick switch-ups* under 10 s, *classic builds* under 18 s, else *long builds*): how often drops come, how long the breakdowns run (in seconds and bars), how far the bass is pulled and how hard it lands. While a drop plays it's highlighted, with a dot riding its curve | Hover a line for that drop; click it, or one of the **biggest drops**, to hear it from 12 s before |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
@@ -551,7 +552,9 @@ Node by `tools/analysis-test.mjs`):
 - **Labels** that recur (e.g. RAM Records, Positiva), the **era** of the
   trusted releases, and the **flow**: the energy arc over the set's thirds,
   phrased as an ordering instruction ("start strong, breathe in the middle,
-  then build back up to a big finish"), and the **mood route** from the mood
+  then build back up to a big finish"), or, when the set shape is clearly
+  *waves*, *tidal* or *peak time* (60%+), that shape ("ride it in waves:
+  build, release and build again"), and the **mood route** from the mood
   map: the dominant corner of each third, as "Let the mood move as the set
   does: open dark and driving, turn euphoric, and end warmer and calmer"
   (or "keep the mood … throughout"). It's relative to the set, so it
@@ -1128,7 +1131,7 @@ mix inspector, wheel, energy and style rows, playback and keyboard. The
 analysis sections live in `web/js/sections/`, one module each (`craft-ui.js`,
 `moodmap-ui.js`, `compare-ui.js`, `card-ui.js`, `chapters-ui.js`, `nav.js`,
 `review-ui.js`, `simx-ui.js`, `highlights-ui.js`, `drops-ui.js`, `keyline-ui.js`,
-`balance-ui.js`). Each
+`balance-ui.js`, `shape-ui.js`). Each
 exports a factory, e.g. `moodMapSection(ctx)`, that takes the app's shared
 state and helpers (`ctx`: `S`, `$`, `tracks`, `keyColor`, `fmt`, `seek`,
 `showTip`, …, built at the end of `app.js`) and returns the functions the rest
@@ -1404,6 +1407,7 @@ dj-set-analyzer/
 │   ├── js/tracklist.js   # tracklist as text, YouTube chapters, 1001Tracklists and a CUE sheet (no DOM)
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
+│   ├── js/shape.js       # set shape: the energy arc scored against seven classic shapes (no DOM)
 │   ├── js/balance.js     # frequency balance: bass / mids / highs shares over time and per track (no DOM)
 │   ├── js/keyline.js     # the key journey: Camelot key against time, unwrapped (no DOM)
 │   ├── js/taste.js       # one prompt across every set saved here: the sound they share (no DOM)

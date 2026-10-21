@@ -30,6 +30,7 @@ import { highlightsSection } from "./sections/highlights-ui.js";
 import { dropsSection } from "./sections/drops-ui.js";
 import { keylineSection } from "./sections/keyline-ui.js";
 import { balanceSection } from "./sections/balance-ui.js";
+import { shapeSection } from "./sections/shape-ui.js";
 
 (function () {
   "use strict";
@@ -1112,6 +1113,7 @@ import { balanceSection } from "./sections/balance-ui.js";
     $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighboring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
     renderKeyTime();
     renderKeyline();
+    renderShape();
     renderBalance();
     updateWheel();
   }
@@ -1563,7 +1565,7 @@ import { balanceSection } from "./sections/balance-ui.js";
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, renderBalance, drawBalance, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1577,6 +1579,7 @@ import { balanceSection } from "./sections/balance-ui.js";
   ({ drawDrops, renderDrops } = dropsSection(ctx));
   ({ renderKeyline, drawKeyline } = keylineSection(ctx));
   ({ renderBalance, drawBalance } = balanceSection(ctx));
+  ({ renderShape } = shapeSection(ctx));
 
   boot();
 })();

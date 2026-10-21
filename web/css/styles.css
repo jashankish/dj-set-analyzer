@@ -470,6 +470,27 @@ button { font-family: inherit; color: inherit; }
 .kt-bar i { display: block; height: 100%; border-radius: 4px; }
 .kt-v { text-align: right; font-size: .8rem; font-stretch: 75%; color: var(--muted); }
 .kt-row.now .kt-v { color: var(--ink); }
+.sh-wrap { display: grid; grid-template-columns: 1fr 280px; gap: 18px; align-items: start; }
+.sh-svg { width: 100%; height: 150px; display: block; overflow: visible; }
+.sh-area { fill: rgba(239,236,245,.08); }
+.sh-set { fill: none; stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.sh-tpl { fill: none; stroke: #3987E5; stroke-width: 2; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.sh-lab { fill: var(--ink-2); font: 600 12px Archivo, sans-serif; }
+.sh-list { display: grid; gap: 2px; }
+.sh-row { display: grid; grid-template-columns: 48px 1fr 54px 34px; gap: 8px; align-items: center; background: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; color: var(--ink-2); font: inherit; font-size: .82rem; text-align: left; cursor: pointer; }
+.sh-row:hover { background: var(--panel); }
+.sh-row[aria-pressed="true"] { border-color: var(--line); color: var(--ink); background: var(--panel); }
+.sh-row svg { width: 48px; height: 20px; }
+.sh-row svg path { fill: none; stroke: currentColor; stroke-width: 1.5; }
+.sh-bar { height: 6px; border-radius: 3px; background: var(--line-soft); overflow: hidden; }
+.sh-bar i { display: block; height: 100%; background: var(--ink-2); border-radius: 3px; }
+.sh-name { white-space: nowrap; }
+.sh-pct { font-variant-numeric: tabular-nums; text-align: right; }
+.sh-legend { display: flex; gap: 14px; margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-stretch: 88%; }
+.sh-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sh-sw { width: 16px; height: 0; border-top: 2px solid var(--ink); }
+.sh-sw.tpl { border-top: 2px dashed #3987E5; }
+@media (max-width: 720px) { .sh-wrap { grid-template-columns: 1fr; } }
 .bal-chart { height: 120px; border-radius: 4px; overflow: hidden; }
 .bal-legend { display: flex; gap: 14px; margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-stretch: 88%; }
 .bal-legend span { display: inline-flex; align-items: center; gap: 6px; }
