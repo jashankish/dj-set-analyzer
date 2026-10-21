@@ -310,6 +310,8 @@ button { font-family: inherit; color: inherit; }
 .trk .name { min-width: 0; }
 .trk .name .t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .trk .name .a { color: var(--ink-2); font-size: .88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.trk .name .role { font-size: .7rem; font-weight: 600; font-stretch: 88%; color: var(--ink-2); margin-left: 6px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); vertical-align: 1px; }
+.role-tag { border-color: var(--ink-2); }
 .trk .name .flag { font-size: .74rem; color: var(--muted); font-stretch: 85%; margin-left: 6px; font-weight: 400; }
 .trk.unknown .name .t { color: var(--ink-2); font-weight: 500; }
 .key-chip {

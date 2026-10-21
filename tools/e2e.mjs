@@ -287,6 +287,7 @@ try {
   await p3.locator(".hl-card").nth(2).tap();
   check("phone: tapping a highlight jumps to it", [await p3.locator("#tCur").textContent(), await p3.locator(".hl-card .hl-meta b").nth(2).textContent()], ([now, at]) => now === at);
   check("phone: the review scores the set and writes three paragraphs", [await p3.locator("#rvOverall").textContent(), await p3.locator("#rvText p").count()], ([o, n]) => /^\d+\.\d$/.test(o) && n === 3);
+  check("phone: setlist rows carry track roles (Peak, Lift, Curveball…)", await p3.locator(".trk .role").allTextContents(), (v) => v.length >= 5 && v.includes("Peak"));
   check("phone: an ID's setlist subtitle names what it sounds like", await p3.locator('.trk[data-i="3"]').textContent(), (t) => /Unidentified · sounds like \S/.test(t));
   check("phone: track by track draws the matrix and three insights", [await p3.locator("#sxCanvas").count(), await p3.locator("#sxNotes .cb-mo").count()], ([c, n]) => c === 1 && n === 3);
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);

@@ -21,6 +21,7 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
 import { highlights } from "./highlights.js";
 import { tracklist } from "./tracklist.js";
 import { similarity, idClues } from "./similarity.js";
+import { roles } from "./roles.js";
 import { trust } from "./vibe.js";
 import { review } from "./review.js";
 
@@ -263,6 +264,7 @@ import { review } from "./review.js";
     S.phases = findPhases(D);
     S.sim = similarity(D);
     S.clues = idClues(D, S.sim, trust);      // for each ID, the named track it sounds most like
+    S.roles = roles(D, S.sim);               // what each track does in the set: Peak, Lift, Curveball…
     prepColors();
     S.noAudio = !audioUrl;
     S.vt = span()[0];
@@ -645,7 +647,8 @@ import { review } from "./review.js";
     $("roKeyName").textContent = tr.key ? tr.key.name : "Key";
     $("roEnergy").textContent = tr.energy != null ? tr.energy.toFixed(1) : "—";
     $("deck").style.setProperty("--beat", keyColor(k, "base"));
-    $("deckStyles").innerHTML = tr.styles.slice(0, 3).map((s) => `<span class="tag"><b>${esc(s.style)}</b> ${Math.round(s.p * 100)}%</span>`).join("");
+    $("deckStyles").innerHTML = (S.roles[tr.n] || []).map((r) => `<span class="tag role-tag" title="${esc(r.why)}"><b>${r.tag}</b></span>`).join("") +
+      tr.styles.slice(0, 3).map((s) => `<span class="tag"><b>${esc(s.style)}</b> ${Math.round(s.p * 100)}%</span>`).join("");
     const L = [];
     if (tr.meta && tr.meta.shazam_url) L.push(`<a href="${esc(tr.meta.shazam_url)}" target="_blank" rel="noopener">Shazam</a>`);
     if (tr.meta && tr.meta.apple_url) L.push(`<a href="${esc(tr.meta.apple_url)}" target="_blank" rel="noopener">Apple Music</a>`);
@@ -789,7 +792,8 @@ import { review } from "./review.js";
     const html = [];
     T.forEach((tr, i) => {
       const k = keyOf(tr);
-      const flag = possible(tr) ? `<span class="flag">possible match</span>` : "";
+      const flag = (possible(tr) ? `<span class="flag">possible match</span>` : "") +
+        (S.roles[tr.n] || []).map((r) => `<span class="role" title="${esc(r.why)}">${r.tag}</span>`).join("");
       html.push(`<li class="trk${tr.identified || S.names[tr.n] ? "" : " unknown"}${i === S.cur ? " now" : ""}" data-i="${i}" tabindex="0">
         <span class="when">${fmt(tr.start)}</span>
         <span class="thumb">${artHtml(tr)}</span>

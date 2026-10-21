@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { roles } = await import(pathToFileURL(path.join(ROOT, "web/js/roles.js")));
 const { review } = await import(pathToFileURL(path.join(ROOT, "web/js/review.js")));
 const { similarity, idClues } = await import(pathToFileURL(path.join(ROOT, "web/js/similarity.js")));
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
@@ -199,6 +200,16 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- track roles (web/js/roles.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), R = roles(D, similarity(D)), all = Object.entries(R).flatMap(([n, rs]) => rs.map((r) => ({ n: +n, ...r })));
+  const e = D.tracks.map((t) => t.energy);
+  check(`${slug}: one Peak, on the most energetic track`, all.filter((r) => r.tag === "Peak").map((r) => r.n), (v) => v.length === 1 && e[v[0] - 1] === Math.max(...e));
+  check(`${slug}: at most two Cores and two Curveballs, two tags a track`, [all.filter((r) => r.tag === "Core").length, all.filter((r) => r.tag === "Curveball").length, Math.max(...Object.values(R).map((v) => v.length))], ([c, cb, m]) => c <= 2 && cb <= 2 && m <= 2);
+  check(`${slug}: every Lift is a real jump of 1.5+`, all.filter((r) => r.tag === "Lift").map((r) => e[r.n - 1] - e[r.n - 2]), (v) => v.every((d) => d >= 1.5));
+  check(`${slug}: every tag gives a reason`, all, (v) => v.length >= 5 && v.every((r) => r.why && r.why.length > 10));
 }
 
 /* ---------------- the review (web/js/review.js) */
