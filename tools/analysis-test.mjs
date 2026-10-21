@@ -19,6 +19,7 @@ const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, 
 const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
+const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
@@ -158,6 +159,22 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("card: the prompt is the keywords-only one (≤ 300)", C.prompt.length, (n) => n > 20 && n <= 300);
   const off = new Set(["g:Drum n Bass"]);
   check("card: follows the chips switched off on the page", cardData(D, { off }).chips, (c) => !c.includes("drum & bass"));
+}
+
+/* ---------------- tracklist formats (web/js/tracklist.js) */
+{
+  const D = demo("worship-part-1"), L = tracklist(D);
+  const yt = L.youtube.trim().split("\n").slice(1);
+  check("youtube: the first chapter is 0:00", yt[0], (l) => l.startsWith("0:00 "));
+  check("youtube: at least three chapters, each 10 s or more", yt.map((l) => { const p = l.split(" ")[0].split(":").map(Number); return p.reduce((a, x) => a * 60 + x, 0); }), (t) => t.length >= 3 && t.every((x, i) => !i || x - t[i - 1] >= 10));
+  check("1001: [mm:ss] Artist - Title, IDs with their clues", L.tl1001.split("\n")[0], (l) => l === "[0:00] ID - ID (10A, 175 BPM)");
+  check("cue: one TRACK per track, INDEX in mm:ss:ff", [L.cue.match(/TRACK \d\d AUDIO/g).length, L.cue.match(/INDEX 01 (\d\d:\d\d:\d\d)/g)[1]], ([n, idx]) => n === D.tracks.length && idx === "INDEX 01 02:01:00");
+  check("cue: CRLF line ends and the recording's file", L.cue, (c) => c.includes("\r\n") && c.includes('FILE "Recording 9.m4a" WAVE'));
+  const close = { title: "T", file: "x.mp3", tracks: [{ n: 1, start: 3, identified: true, title: "A", artist: "X" }, { n: 2, start: 60, identified: true, title: "B", artist: "Y" }, { n: 3, start: 65, identified: true, title: "C", artist: "Z" }, { n: 4, start: 200, identified: true, title: "D", artist: "W" }] };
+  const Lc = tracklist(close);
+  check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
+  check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
+  check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
 }
 
 /* ---------------- highlights (web/js/highlights.js) */

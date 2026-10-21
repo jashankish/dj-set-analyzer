@@ -125,6 +125,12 @@ try {
   if (canClip) {
   await page.click("#copyBtn");
   const copied = await page.evaluate(() => navigator.clipboard.readText());
+  await page.click("#tlMore summary");
+  await page.click('#tlMore [data-f="youtube"]');
+  check("YouTube chapters start at 0:00", (await page.evaluate(() => navigator.clipboard.readText())).split("\n").slice(0, 2), (l) => l[0] === "Tracklist:" && /^0:00 ID – ID \(8A, 12\d BPM\)$/.test(l[1]));
+  await page.click("#tlMore summary");
+  const [cueFile] = await Promise.all([page.waitForEvent("download"), page.click('#tlMore [data-f="cue"]')]);
+  check("the CUE sheet downloads", cueFile.suggestedFilename(), (n) => n.endsWith(".cue"));
   check("Copy tracklist lists each ID with its key and tempo", copied.split("\n").slice(2, 4), (l) => /^0:00  ID – ID \(8A, 12\d BPM\)$/.test(l[0]) && /ID – ID \(7A, 1[34]\d BPM\)$/.test(l[1]));
   }
   await page.locator(".seam").first().click();

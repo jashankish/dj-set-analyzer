@@ -173,6 +173,17 @@ button { font-family: inherit; color: inherit; }
 }
 .solid:hover { background: #fff; }
 
+.tl-more { position: relative; }
+.tl-more summary { list-style: none; }
+.tl-more summary::-webkit-details-marker { display: none; }
+.tl-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 15; width: 280px; display: flex; flex-direction: column;
+  background: #0F0E15; border: 1px solid var(--line); border-radius: var(--r-m); padding: 6px; box-shadow: 0 16px 40px rgba(0,0,0,.5);
+}
+.tl-menu button { all: unset; box-sizing: border-box; cursor: pointer; padding: 8px 10px; border-radius: var(--r-s); font-size: .88rem; display: flex; flex-direction: column; gap: 1px; }
+.tl-menu button:hover, .tl-menu button:focus-visible { background: var(--panel); }
+.tl-menu small { color: var(--muted); font-size: .76rem; font-stretch: 88%; }
+
 /* ---------------------------------------------------------------- highlights */
 .hl { max-width: var(--maxw); margin: 34px auto 0; padding: 0 var(--gut); }
 .hl-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }

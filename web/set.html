@@ -104,6 +104,14 @@
           <button class="ghost" id="nameBtn" hidden>Name these IDs</button>
           <button class="ghost" id="followBtn" aria-pressed="true">Follow playback</button>
           <button class="ghost" id="copyBtn">Copy tracklist</button>
+          <details class="tl-more" id="tlMore">
+            <summary class="ghost">More formats</summary>
+            <div class="tl-menu" role="menu">
+              <button role="menuitem" data-f="youtube">Copy as YouTube chapters<small>paste into a video's description</small></button>
+              <button role="menuitem" data-f="tl1001">Copy for 1001Tracklists<small>[mm:ss] Artist - Title</small></button>
+              <button role="menuitem" data-f="cue">Download a CUE sheet<small>players and DJ tools split the recording by it</small></button>
+            </div>
+          </details>
         </div>
       </div>
       <ol class="setlist" id="setlist"></ol>

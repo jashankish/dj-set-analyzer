@@ -19,6 +19,7 @@ import { craftProfile, relationClass, mixScore, mixTips, reorder } from "./craft
 import { moodMap, QUADS } from "./moodmap.js";
 import { dropAnatomy, PRE, POST } from "./drops.js";
 import { highlights } from "./highlights.js";
+import { tracklist } from "./tracklist.js";
 
 (function () {
   "use strict";
@@ -832,18 +833,25 @@ import { highlights } from "./highlights.js";
     });
   }
 
-  function copyTracklist() {
-    const lines = tracks().map((tr) => {
-      const who = tr.identified ? tr.artist : "ID";
-      const what = nameOf(tr);
-      // an unnamed track keeps the clues a DJ would use to track it down
-      const clues = !tr.identified && !S.names[tr.n] ? [keyOf(tr), tr.bpm ? `${Math.round(tr.bpm)} BPM` : null].filter(Boolean) : [];
-      return `${fmt(tr.start)}  ${who} – ${what}${clues.length ? ` (${clues.join(", ")})` : ""}`;
-    });
-    const txt = `${S.title || S.D.title}\n\n${lines.join("\n")}\n`;
+  /* the tracklist in the format asked for (tracklist.js); an unnamed track keeps its clues */
+  const lists = () => tracklist(S.D, { title: S.title || S.D.title, name: nameOf, artist: (tr) => (tr.identified ? tr.artist : "ID") });
+  function copyText(txt, done) {
     (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
-      .then(() => toast("Tracklist copied"))
+      .then(() => toast(done))
       .catch(() => toast("Copy isn't available in this browser"));
+  }
+  function copyTracklist() { copyText(lists().text, "Tracklist copied"); }
+  function exportTracklist(f) {
+    const L = lists();
+    $("tlMore").open = false;
+    if (f === "youtube") copyText(L.youtube, L.chapters >= 3 ? "YouTube chapters copied: paste them into the video's description" : "Copied, but YouTube needs at least three chapters");
+    else if (f === "tl1001") copyText(L.tl1001, "Tracklist copied for 1001Tracklists");
+    else {
+      const url = URL.createObjectURL(new Blob([L.cue], { type: "application/x-cue" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `${(S.title || S.D.title).replace(/[^\w\- ]+/g, "")}.cue` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
   }
 
   /* ------------------------------------------------ mix inspector */
@@ -1666,6 +1674,7 @@ import { highlights } from "./highlights.js";
       $("followBtn").setAttribute("aria-pressed", String(S.follow));
     });
     $("copyBtn").addEventListener("click", copyTracklist);
+    $("tlMore").querySelectorAll("[data-f]").forEach((b) => b.addEventListener("click", () => exportTracklist(b.dataset.f)));
     $("cardBtn").addEventListener("click", openCard);
     $("cardClose").addEventListener("click", () => $("cardDlg").close());
     $("cardDl").addEventListener("click", () => cardBlob().then((b) => {
