@@ -1102,7 +1102,7 @@ import { review } from "./review.js";
     const name = (k) => (tracks().find((t) => keyOf(t) === k) || {}).key?.name || "";
     const [hk, ht] = rows[0];
     $("keyTime").innerHTML = `<p class="kt-home">Home key <b style="color:${keyColor(hk, "ink")}">${hk}</b> ${esc(name(hk))}: ${Math.round((100 * ht) / total)}% of the set, across ${rows.length} key${rows.length > 1 ? "s" : ""}</p>` +
-      shown.map(([k, t]) => `<button class="kt-row" data-k="${k}" data-t="${first[k]}" aria-label="${k}, ${fmtDur(Math.round(t))}: play the first track in this key">
+      shown.map(([k, t]) => `<button class="kt-row" data-k="${k}" data-t="${first[k]}" title="Play the first track in ${k}">
         <span class="kt-k" style="background:${keyColor(k, "base")}">${k}</span>
         <span class="kt-bar"><i style="width:${((100 * t) / ht).toFixed(1)}%;background:${keyColor(k, "base")}"></i></span>
         <span class="kt-v">${Math.round(t / 60)} min</span></button>`).join("") +
@@ -1387,7 +1387,7 @@ import { review } from "./review.js";
       const V = vibeProfile(slicePayload(S.D, p));
       const styles = [...V.chips.filter((c) => c.group === "Genre" && c.on).slice(0, 2), ...V.chips.filter((c) => c.group === "Mood").slice(0, 1)].map((c) => c.text).join(" · ");
       return `<div class="ph" data-i="${i}" style="--c:${keyColor(k, "deep")};--c2:${keyColor(k, "base")}">
-        <button class="ph-go" data-t="${p.start}" aria-label="Play ${esc(p.label)}, tracks ${p.from} to ${p.to}">
+        <button class="ph-go" data-t="${p.start}" title="Play this chapter">
           <span class="ph-l">${esc(p.label)}</span>
           <span class="ph-t">${fmt(p.start)}–${fmt(p.end)} · tracks ${p.from}–${p.to}</span>
           <span class="ph-s">${Math.round(p.bpm)} BPM · energy ${p.energy.toFixed(1)}${p.drops ? ` · ${p.drops} drop${p.drops > 1 ? "s" : ""}` : ""}</span>

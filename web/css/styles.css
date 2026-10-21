@@ -17,7 +17,7 @@
   --ink:       #EFECF5;
   --ink-2:     #C3BED3;
   --muted:     #9792AB;
-  --faint:     #716C86;
+  --faint:     #928DA6;     /* the lightest grey that still reads at 4.5:1 on every surface */
 
   --play:      #FFFFFF;
   --focus:     #B9A8FF;

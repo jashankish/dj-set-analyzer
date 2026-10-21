@@ -38,11 +38,11 @@
       <h1 class="hero-title" id="heroTitle">Drop a DJ set.<br>Get the whole night back.</h1>
       <p class="hero-sub">Set Replay listens to a recording of a set and hands you the setlist, every transition, the keys, tempo and energy, then lets you replay any moment. It all runs in your browser. Your audio never leaves this computer.</p>
 
-      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Add set recordings: drop files here or press Enter to choose them" aria-describedby="dropHint">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-labelledby="dropTitle dropHint">
         <canvas class="drop-ribbon" id="dropRibbon" aria-hidden="true"></canvas>
         <div class="drop-body">
           <svg class="drop-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6v24m0 0-9-9m9 9 9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 32v6a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4v-6" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
-          <p class="drop-title">Drop set recordings here</p>
+          <p class="drop-title" id="dropTitle">Drop set recordings here</p>
           <p class="drop-hint" id="dropHint">or <span class="link-like">choose files</span>. MP3, M4A, WAV, FLAC or AAC, or a video of the set (MP4 or MOV: just its audio is used), one set or several. You can also drop a saved <i>.setreplay.json</i> analysis.</p>
         </div>
         <input type="file" id="fileInput" accept="audio/*,video/mp4,video/quicktime,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff,.mp4,.mov,.m4v,.json" multiple hidden />

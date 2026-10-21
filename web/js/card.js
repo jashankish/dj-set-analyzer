@@ -48,7 +48,7 @@ export function cardData(D, { title, names = {}, off } = {}) {
 const QUAD_ROUTE = (M) => M.thirds.filter((q, i) => !i || q !== M.thirds[i - 1]).join(" → ");
 
 /* ------------------------------------------------ painting */
-const INK = "#EFECF5", INK2 = "#C3BED3", MUTED = "#9792AB", FAINT = "#716C86", BG = "#16151E", PANEL = "#201E2B", LINE = "#363349";
+const INK = "#EFECF5", INK2 = "#C3BED3", MUTED = "#9792AB", FAINT = "#928DA6", BG = "#16151E", PANEL = "#201E2B", LINE = "#363349";
 const FONT = "Archivo, system-ui, sans-serif";
 
 function font(ctx, size, weight = 400, stretch = "normal") {

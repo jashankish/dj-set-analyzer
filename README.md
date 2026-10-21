@@ -1221,6 +1221,12 @@ pipeline:
     stays whole (checked at 390 px with no horizontal scroll)
   - reduced-motion settings are respected
   - focus outlines are visible on every control
+  - text meets WCAG AA contrast (4.5:1) on every surface: the faintest grey,
+    `--faint` `#928DA6`, is the lightest that still reads at 4.5:1 on the
+    page, panels and raised chips
+  - `tools/a11y.mjs` runs axe-core (WCAG 2.1 A and AA) over the landing page
+    and a demo's set page at desktop and phone sizes, in CI; it reports no
+    violations
   - every control has an accessible name (the drop zone included), and a
     polite live region announces when an analysis starts, finishes, stops or
     fails, without reading out each progress tick
@@ -1362,6 +1368,7 @@ dj-set-analyzer/
 │   ├── fixtures/set-replay-e2e.mov  # the synthetic test set as a 2.4 MB video (H.264 + AAC, QuickTime sound entry)
 │   ├── analysis-test.mjs # the page analyses (prompt, chapters, mixing, mood map, card, compare) on the demos and edge cases
 │   ├── build-site.sh     # package web/ for hosting → dist/set-replay/ (+ --zip, --head FILE)
+│   ├── a11y.mjs          # axe-core accessibility check (WCAG 2.1 A/AA), landing + set page, desktop + phone
 │   ├── make-share-images.mjs  # draws og-image.png and apple-touch-icon.png from a demo (Playwright)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
 │   ├── make_demos.py     # Python output → web/demo/
