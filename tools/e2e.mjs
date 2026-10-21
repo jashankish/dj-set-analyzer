@@ -295,6 +295,9 @@ try {
   await p3.locator('#pnav button[data-to="vibe"]').tap();
   await p3.waitForTimeout(1200);
   check("phone: tapping a section jumps there and marks it current", await p3.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
+  await p3.locator('#vibeRange [data-r="discover"]').tap();
+  check("phone: Discover asks for new names and drops the set's own songs", await p3.locator("#vibePrompt").inputValue(), (t) => /lesser-known/.test(t) && !/Start from songs/.test(t));   // full or keywords-only, whichever is showing
+  await p3.locator('#vibeRange [data-r="balanced"]').tap();
   check("phone: the prompt strength meter rates the demo's prompt", await p3.locator("#vibeStrength .vs-v").textContent(), (t) => /^\d+ (Strong|Good|Loose|Vague)$/.test(t.trim()));
   const idea = await p3.locator("#vibeOcc .chip").first().textContent();
   await p3.locator("#vibeOcc .chip").first().tap();

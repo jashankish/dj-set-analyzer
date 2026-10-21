@@ -326,6 +326,12 @@
         <div class="v-scope" id="vibeScope" role="tablist" aria-label="Which part of the set" hidden></div>
         <div class="v-chips" id="vibeChips"></div>
         <div class="v-scope" id="vibeTarget" role="tablist" aria-label="Where the prompt goes"></div>
+        <div class="v-scope" id="vibeRange" role="tablist" aria-label="How far the playlist may wander from the set">
+          <span class="v-gl">Range</span>
+          <button class="ghost" role="tab" data-r="close" title="The set's own songs and artists, and their circle">Close to the set</button>
+          <button class="ghost" role="tab" data-r="balanced" title="The set's sound, with its artists as the reference">Balanced</button>
+          <button class="ghost" role="tab" data-r="discover" title="The set's sound, new names: lesser-known artists and deeper cuts">Discover</button>
+        </div>
         <div class="v-form" role="tablist" aria-label="Prompt length">
           <button class="ghost" role="tab" id="vibeFull" aria-selected="true">Full prompt</button>
           <button class="ghost" role="tab" id="vibeShort" aria-selected="false">Keywords only</button>

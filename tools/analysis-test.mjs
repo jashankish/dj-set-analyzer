@@ -56,6 +56,17 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
 }
 check("part 2: hardcore (a room-noise artifact) is left out", vibeProfile(demo("worship-part-2")).genres.map((g) => g.style), (g) => !g.includes("Hardcore"));
 
+/* ---------------- range: close / balanced / discover */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const P = vibeProfile(demo(slug)), off = defaultOff(P);
+  const [close, bal, disc] = ["close", "balanced", "discover"].map((range) => buildPrompt(P, off, "", { range }));
+  check(`${slug}: balanced is the default prompt`, bal.full, (t) => t === buildPrompt(P, off).full);
+  check(`${slug}: close asks to stay with the set's artists and keeps its songs`, close.full, (t) => /Stay close to these artists/.test(t) && /Start from songs like/.test(t));
+  check(`${slug}: discover keeps the sound, drops the set's songs, asks for new names`, disc.full, (t) => /drum & bass/.test(t) && !/Start from songs/.test(t) && /lesser-known names and deeper cuts/.test(t));
+  check(`${slug}: every range's keywords-only prompt fits in 300 characters`, [close.short, disc.short].map((x) => x.length), (v) => v.every((n) => n > 20 && n <= 300));
+  check(`${slug}: in discover the strength meter doesn't count or tip about songs`, promptStrength(P, off, { range: "discover" }), (S) => !S.parts.some((p) => p.id === "songs") && S.score >= 85);
+}
+
 /* ---------------- prompt strength and occasion ideas */
 for (const slug of ["worship-part-1", "worship-part-2"]) {
   const P = vibeProfile(demo(slug));

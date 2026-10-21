@@ -38,7 +38,7 @@ let V = null;      // { D, phases, scope, Ds, P, Pall, offs, off, extra, form, n
 
 function storeKey() { return `set-replay:vibe:${V.D.slug}`; }
 function save() {
-  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope, range: V.range })); } catch (e) { /* private mode */ }
 }
 function restore() {
   try { return JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch (e) { return null; }
@@ -141,7 +141,7 @@ function renderChips() {
 }
 
 function prompt() {
-  const p = buildPrompt(V.P, V.off, V.extra);
+  const p = buildPrompt(V.P, V.off, V.extra, { range: V.range });
   if (target.id !== "chat") return p;
   const ask = `Make me a playlist of about ${V.P.songs} songs, as a numbered list of "Artist – Title", using only real, released tracks.`;
   return { full: `${ask} ${p.full}`, short: `${ask} Keywords: ${p.short}` };
@@ -157,7 +157,7 @@ function renderTarget() {
   $("vibeHow").innerHTML = target.steps.map((s) => `<li>${s}</li>`).join("");
 }
 function renderStrength() {
-  const S = promptStrength(V.P, V.off);
+  const S = promptStrength(V.P, V.off, { range: V.range });
   $("vibeStrength").innerHTML = `<span class="vs-k">How well this prompt pins the set down</span>
     <span class="vs-bar">${S.parts.map((p) => `<i style="flex:${p.weight}" class="${p.got >= 1 ? "on" : p.got > 0 ? "half" : ""}" title="${esc(p.label)}"></i>`).join("")}</span>
     <span class="vs-v"><b>${S.score}</b> ${S.label}</span>
@@ -168,6 +168,7 @@ function renderOccasions() {
 }
 function renderPrompt() {
   renderStrength();
+  $("vibeRange").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.r === V.range)));
   const p = prompt(), text = V.form === "short" ? p.short : p.full;
   $("vibePrompt").value = text;
   $("vibeCount").textContent = `${text.length} characters`;
@@ -277,6 +278,12 @@ function bind() {
   $("vibeFull").addEventListener("click", () => { V.form = "full"; save(); renderPrompt(); });
   $("vibeShort").addEventListener("click", () => { V.form = "short"; save(); renderPrompt(); });
   $("vibeExtra").addEventListener("input", () => { V.extra = $("vibeExtra").value; save(); renderPrompt(); renderOccasions(); });
+  $("vibeRange").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    V.range = b.dataset.r;
+    save(); renderPrompt();
+  });
   $("vibeOcc").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
@@ -361,6 +368,7 @@ export function mountVibe(ctx) {
   useOff();
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
+  V.range = (saved && saved.range) || "balanced";
   $("vibeExtra").value = V.extra;
   renderTarget(); renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt(); renderOccasions();
   if (!pending) status(notice);

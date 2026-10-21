@@ -282,11 +282,17 @@ export function vibeProfile(D, names = {}) {
 /* default off-set: the chips that start switched off */
 export const defaultOff = (P) => new Set(P.chips.filter((c) => !c.on).map((c) => c.id));
 
-export function buildPrompt(P, off = defaultOff(P), extra = "") {
+/* range: how far the playlist may wander from the set.
+     close     the set's own songs and artists, and their circle
+     balanced  the set's sound, its artists as the reference (the default)
+     discover  the set's sound, new names: its artists only as a pointer,
+               lesser-known artists and deeper cuts, none of its own songs */
+export const RANGES = ["close", "balanced", "discover"];
+export function buildPrompt(P, off = defaultOff(P), extra = "", { range = "balanced" } = {}) {
   const live = (g) => P.chips.filter((c) => c.group === g && !off.has(c.id)).map((c) => c.text);
   const one = (id) => { const c = P.chips.find((x) => x.id === id); return c && !off.has(id) ? c : null; };
   const genres = live("Genre"), moods = live("Mood"), sound = live("Sound"), artists = live("Artists"), labels = live("Labels");
-  const songs = live("Tracks"), avoid = live("Avoid");
+  const songs = range === "discover" ? [] : live("Tracks"), avoid = live("Avoid");
   const tword = one("t:word") ? one("t:word").text : "", tbpm = one("t:bpm") ? one("t:bpm").text : "";
   const x = String(extra || "").trim();
 
@@ -297,11 +303,16 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
   if (moods.length) first += ` that feels ${list(moods)}`;
   if (sound.length) first += `${moods.length ? ", with" : " with"} ${list(sound)}`;
   parts.push(`${first}.`);
-  if (artists.length) {
+  if (artists.length && range === "discover") {
+    let a = `In the spirit of ${list(artists.slice(0, 3))}${labels.length ? ` and the ${list(labels)} sound` : ""}, but mostly other artists: lesser-known names and deeper cuts`;
+    if (one("e:era")) a += `, ${P.era.say}`;
+    parts.push(`${a}.`);
+  } else if (artists.length) {
     let a = `Think ${list(artists)}`;
     if (labels.length) a += `, the ${list(labels)} sound`;
     if (one("e:era")) a += `, ${P.era.say}`;
     parts.push(`${a}.`);
+    if (range === "close") parts.push("Stay close to these artists and the artists around them.");
   } else if (labels.length) parts.push(`The ${list(labels)} sound${one("e:era") ? `, ${P.era.say}` : ""}.`);
   else if (one("e:era")) parts.push(`${cap(P.era.say)}.`);
   if (songs.length) parts.push(`Start from songs like ${list(songs)}.`);
@@ -314,7 +325,8 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
 
   /* short: keywords only, under Spotify's 300-character description limit */
   let short = [...moods.slice(0, 2), tword, ...genres, tbpm, ...sound.slice(0, 2)].filter(Boolean).join(", ");
-  if (artists.length) short += `${short ? ", " : ""}like ${list(artists.slice(0, 4))}`;
+  if (artists.length && range === "discover") short += `${short ? ", " : ""}in the spirit of ${list(artists.slice(0, 3))}, lesser-known artists, deep cuts`;
+  else if (artists.length) short += `${short ? ", " : ""}like ${list(artists.slice(0, 4))}${range === "close" ? ", and their circle" : ""}`;
   if (avoid.length) short += `, no ${avoid.join(", no ")}`;
   if (x) short += `, ${x.replace(/[.!?]$/, "")}`;
   if (short.length > 300) short = `${short.slice(0, 299).replace(/,?\s*\S*$/, "")}…`;
@@ -325,7 +337,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "") {
    weighted by how hard each steers (artists and songs most). Returns a
    score out of 100, the parts with whether they're in, and a tip for the
    biggest gap, so the visitor knows what would make the playlist closer. */
-export function promptStrength(P, off = defaultOff(P)) {
+export function promptStrength(P, off = defaultOff(P), { range = "balanced" } = {}) {
   const on = (g) => P.chips.filter((c) => c.group === g && !off.has(c.id));
   const all = (g) => P.chips.filter((c) => c.group === g).length;
   const artists = on("Artists").length, songs = on("Tracks").length;
@@ -339,10 +351,12 @@ export function promptStrength(P, off = defaultOff(P)) {
     { id: "flow", label: "Flow", weight: 10, got: on("Flow").length ? 1 : 0, tip: "switch the flow on, so it's ordered like the set" },
     { id: "avoid", label: "Avoid", weight: 5, got: on("Avoid").length ? 1 : 0, tip: "add something to avoid, so the playlist doesn't drift" },
   ];
-  const score = Math.round(parts.reduce((s, p) => s + p.weight * p.got, 0));
-  const gap = parts.filter((p) => p.got < 1).sort((a, b) => b.weight * (1 - b.got) - a.weight * (1 - a.got))[0];
+  // Discover leaves the set's own songs out on purpose: don't count them, or tip about them
+  const used = range === "discover" ? parts.filter((p) => p.id !== "songs") : parts;
+  const score = Math.round((100 * used.reduce((s, p) => s + p.weight * p.got, 0)) / used.reduce((s, p) => s + p.weight, 0));
+  const gap = used.filter((p) => p.got < 1).sort((a, b) => b.weight * (1 - b.got) - a.weight * (1 - a.got))[0];
   const label = score >= 85 ? "Strong" : score >= 65 ? "Good" : score >= 40 ? "Loose" : "Vague";
-  return { score, label, parts, tip: gap ? gap.tip : null };
+  return { score, label, parts: used, tip: gap ? gap.tip : null };
 }
 
 /* where this set's playlist would fit, from its character: suggestions for

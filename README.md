@@ -459,6 +459,16 @@ section **Take the vibe to Spotify**.
 **Using it:** press **Copy prompt** (or `C`). In the Spotify app, tap
 **Create** (+), then **Prompted Playlist**, and paste.
 
+**Range: how far the playlist may wander.** *Close to the set* keeps the
+song anchors and adds "Stay close to these artists and the artists around
+them". *Balanced* (the default) is the prompt as described above.
+*Discover* keeps the sound (genres, tempo, mood, flow, what to leave out)
+but uses the artists only as a pointer, "in the spirit of … but mostly
+other artists: lesser-known names and deeper cuts", and leaves the set's
+own songs out. The keywords-only version and the Spotify playlist's
+description follow the range, and in Discover the strength meter doesn't
+count song anchors. The choice is remembered per set.
+
 **How well the prompt pins the set down.** Above the prompt, a meter
 (`vibe.promptStrength`) scores what it gives a playlist AI to go on, out of
 100: artists 25 (full at three), genre 20, songs 20 (full at two), tempo 10,
