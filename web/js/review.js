@@ -10,6 +10,8 @@
      Dynamics   how far the energy travels (track energy, 10th to 90th
                 percentile) and how often drops land
      Variety    how many keys it visits and how different its tracks are
+   The prose also draws on the set shape, the vocal map, the frequency
+   balance and pacing, each only where it has something clear to say.
    No DOM here: tools/analysis-test.mjs runs it in Node.
    ============================================================ */
 import { vibeProfile, say } from "./vibe.js";
@@ -17,6 +19,10 @@ import { craftProfile } from "./craft.js";
 import { similarity } from "./similarity.js";
 import { findPhases } from "./phases.js";
 import { dropAnatomy } from "./drops.js";
+import { setShape } from "./shape.js";
+import { pacing } from "./pacing.js";
+import { vocalMap } from "./vocals.js";
+import { soundBalance } from "./balance.js";
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const r1 = (x) => Math.round(x * 10) / 10;
@@ -27,6 +33,8 @@ export function review(D, name = (n) => `track ${n}`) {
   const T = D.tracks || [], s = D.summary || {};
   if (T.length < 4) return null;
   const P = vibeProfile(D), C = craftProfile(D), X = similarity(D), ph = findPhases(D), A = dropAnatomy(D);
+  const Sh = setShape(D), Pc = pacing(D), Vo = vocalMap(D), Bl = soundBalance(D);
+  const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}`;
   const mins = Math.round((s.set_length || D.duration) / 60);
 
   /* ---------- the scorecard */
@@ -50,13 +58,26 @@ export function review(D, name = (n) => `track ${n}`) {
   const artists = P.artists.slice(0, 3);
   const moods = P.chips.filter((c) => c.group === "Mood" && c.on).slice(0, 2).map((c) => c.text);
   const p1 = `A ${mins}-minute ${genres.length ? list(genres) : "electronic"} set${P.bpm ? ` at ${Math.round(P.bpm)} BPM` : ""}${moods.length ? `, ${list(moods)}` : ""}.` +
-    (artists.length ? ` It leans on ${list(artists)}${P.labels.length ? `, the ${list(P.labels)} sound` : ""}.` : " Most of it is unnamed, so it speaks through its sound rather than its names.");
+    (artists.length ? ` It leans on ${list(artists)}${P.labels.length ? `, the ${list(P.labels)} sound` : ""}.` : " Most of it is unnamed, so it speaks through its sound rather than its names.") +
+    vocalLine() + balanceLine();
+  function vocalLine() {
+    if (!Vo) return "";
+    const pc = Math.round(Vo.overall * 100), t = Vo.thirds, hi = t.indexOf(Math.max(...t)), lo = t.indexOf(Math.min(...t));
+    const where = t[hi] - t[lo] >= 0.2 ? `, ${["most of all early on", "most of all in the middle", "more and more toward the end"][hi]}` : "";
+    return pc >= 70 ? ` Vocals run through almost all of it${where}.` : pc <= 20 ? " It's almost entirely instrumental." : ` Vocals come and go, in ${pc}% of it${where}.`;
+  }
+  function balanceLine() {
+    if (!Bl || Bl.trend === "steady") return "";
+    return ` By the close, ${{ brighter: "the sound has brightened", darker: "the sound has darkened", heavier: "the bass has taken over" }[Bl.trend]}.`;
+  }
 
   /* ---------- the journey */
   const j = [];
   const words = ["", "one", "two", "three", "four", "five"];
   if (ph.length > 1) j.push(`It runs in ${words[ph.length] || ph.length} chapters, ${list(ph.map((p) => `${p.label.toLowerCase()} (tracks ${p.from}–${p.to})`))}.`);
   else j.push(`It holds one level from start to finish rather than building in chapters.`);
+  if (Sh && Sh.level && ph.length > 1) j.push("Overall, though, its energy barely moves.");
+  else if (Sh && Sh.best && Sh.best.match >= 50) j.push(`Its arc is closest to a ${Sh.best.name.toLowerCase()} (${Sh.best.match}% match): ${Sh.best.line}.`);
   // the prompt says it as an instruction ("open dark, turn euphoric, and end warmer"); say it as a description
   if (P.mood) j.push(`The mood ${P.mood.say.replace(/^keep the mood/, "stays").replace(/^open /, "opens ").replace(/, turn /, ", turns ").replace(/and end /, "and ends ")}.`);
   if (A) j.push(`Its drops are ${A.style.name}: ${A.stats.count} of them, the typical breakdown ${Math.round(A.stats.breakdown)} s, the biggest at ${Math.floor(A.biggest.t / 60)}:${String(Math.floor(A.biggest.t % 60)).padStart(2, "0")}.`);
@@ -71,6 +92,7 @@ export function review(D, name = (n) => `track ${n}`) {
     if (best) k.push(`The longest blend, ${best.from} into ${best.to}, runs ${best.detail}.`);
     if (rough) k.push(`The roughest hand-over is ${rough.from} into ${rough.to}, at ${rough.detail.split(":")[0]}.`);
   }
+  if (Pc) k.push(`The pacing is ${Pc.style.name.toLowerCase()}: a typical track gets ${mmss(Pc.stats.median)}, ${Math.round(Pc.stats.perHour)} an hour${Pc.trend !== "even" ? `, and the pace ${Pc.trend} in the second half` : ""}${Pc.quick ? `, with ${Pc.quick.count} tracks in its quickest 8 minutes` : ""}.`);
   const p3 = k.join(" ");
 
   const verdict = overall >= 8 ? "A polished, carefully built set." : overall >= 6.5 ? "A well-mixed set with a clear shape." : overall >= 5 ? "A set with real moments and some rough edges." : "A raw, adventurous set that takes its chances.";

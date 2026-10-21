@@ -314,6 +314,7 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: five scores, each 0–10, overall is their mean`, Rv, (r) => r.scores.length === 5 && r.scores.every((x) => x.v >= 0 && x.v <= 10) && Math.abs(r.overall - r.scores.reduce((a, x) => a + x.v, 0) / 5) < 0.06);
   check(`${slug}: mixing and harmony scores come straight from the mixing breakdown`, [Rv.scores[0].v, Rv.scores[1].v], ([m, h]) => { const C = craftProfile(D); return Math.abs(m - C.stats.smooth / 10) < 0.06 && Math.abs(h - (C.stats.harmonicPct + C.stats.partialPct / 2) / 10) < 0.06; });
   check(`${slug}: three paragraphs that name the genre, the chapters and the mixing style`, Rv.paragraphs, (p) => p.length === 3 && /drum & bass/.test(p[0]) && /chapters/.test(p[1]) && /technician/.test(p[2]));
+  check(`${slug}: the prose draws on the shape, vocals and pacing`, Rv.paragraphs, (p) => /arc is closest to a wind-down/.test(p[1]) && /Vocals/.test(p[0]) && /The pacing is steady: a typical track gets \d+:\d\d/.test(p[2]));
   check(`${slug}: the prose reads as description, not instruction`, Rv.paragraphs.join(" "), (t) => !/, turn |and end |keep the mood|\) \(/.test(t));
 }
 check("review: fewer than four tracks, none", review({ tracks: [{ n: 1 }], summary: {} }), (v) => v === null);

@@ -297,6 +297,10 @@ function bind() {
   });
   $("vibePrompt").addEventListener("input", () => ($("vibeCount").textContent = `${$("vibePrompt").value.length} characters`));
   $("vibeCopy").addEventListener("click", copyPrompt);
+  $("vibeCopyAll").addEventListener("click", async () => {
+    const ok = await copyText(`${V.title}: ${V.phases.length} playlists, one per chapter\n\n${chapterPrompts()}`);
+    V.toast(ok ? `${V.phases.length} prompts copied: make one playlist from each` : "Couldn't copy");
+  });
   $("vibeOpen").addEventListener("click", () => { copyText($("vibePrompt").value).then((ok) => ok && V.toast(`Prompt copied. Paste it into ${target.where}`)); });
   $("vibeTarget").addEventListener("click", (e) => {
     const b = e.target.closest("button");
@@ -322,18 +326,33 @@ const part = () => (V.scope === HERE ? V.here : V.phases[V.scope]);
 const scopeName = () => (V.scope === -1 ? "Whole set" : esc(part().label));
 function scoped() {
   const p = part();
-  V.Ds = p ? slicePayload(V.D, p) : V.D;
-  const inScope = new Set(V.Ds.tracks.map((t) => String(t.n)));
-  V.P = p ? vibeProfile(V.Ds, Object.fromEntries(Object.entries(V.names).filter(([n]) => inScope.has(n)))) : V.Pall;
+  ({ Ds: V.Ds, P: V.P } = profileFor(p));
+}
+/* the payload and profile for one part of the set (none: the whole set) */
+function profileFor(p) {
+  const Ds = p ? slicePayload(V.D, p) : V.D;
+  const inScope = new Set(Ds.tracks.map((t) => String(t.n)));
+  const P = p ? vibeProfile(Ds, Object.fromEntries(Object.entries(V.names).filter(([n]) => inScope.has(n)))) : V.Pall;
   if (p) {
     // a chapter (or a moment) with few named tracks borrows the set's leading artists, so Spotify still has names to go on
-    const have = V.P.chips.filter((c) => c.group === "Artists");
+    const have = P.chips.filter((c) => c.group === "Artists");
     const add = V.Pall.chips.filter((c) => c.group === "Artists" && c.on && !have.some((h) => h.id === c.id)).slice(0, Math.max(0, 4 - have.length));
     if (have.length < 3 && add.length) {
-      const at = V.P.chips.findIndex((c) => c.group === "Labels" || c.group === "Era" || c.group === "Flow");
-      V.P.chips.splice(at < 0 ? V.P.chips.length : at, 0, ...add.map((c) => ({ ...c, hint: "From the whole set: this chapter has few named tracks" })));
+      const at = P.chips.findIndex((c) => c.group === "Labels" || c.group === "Era" || c.group === "Flow");
+      P.chips.splice(at < 0 ? P.chips.length : at, 0, ...add.map((c) => ({ ...c, hint: "From the whole set: this chapter has few named tracks" })));
     }
   }
+  return { Ds, P };
+}
+/* one prompt per chapter, numbered, each with the chips switched off in that chapter (or its defaults) */
+export function chapterPrompts() {
+  if (!V || V.phases.length < 2) return "";
+  return V.phases.map((p, i) => {
+    const { P } = profileFor(p);
+    const off = V.offs[String(i)] ? new Set(V.offs[String(i)]) : defaultOff(P);
+    const pr = buildPrompt(P, off, V.extra, { range: V.range });
+    return `${i + 1}. ${p.label} (tracks ${p.from}–${p.to}): ${V.form === "short" ? pr.short : pr.full}`;
+  }).join("\n\n");
 }
 /* each scope keeps its own switched-off chips; a scope never touched starts at the defaults */
 function useOff() {
@@ -343,6 +362,7 @@ function useOff() {
   if (!V.offs[k] && V.scope === HERE) ["f:flow", "f:mood", "n:len"].forEach((id) => V.off.add(id));
 }
 function renderScope() {
+  $("vibeCopyAll").hidden = V.phases.length < 2;
   const el = $("vibeScope");
   el.hidden = V.D.tracks.length < 3;
   const here = V.scope === HERE;
