@@ -81,6 +81,7 @@ top; its color swatches are the set's track keys in order. Then:
 | Part of the page | What it shows | What you can do |
 | --- | --- | --- |
 | **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser). **Set card** (or `K`) opens a shareable 1080 × 1350 image of the set: title and facts, the energy arc in key colors with its chapters, the vibe radar, mixing style, home key, mood route, keyword chips and the short playlist prompt. **Download PNG**, or **Share…** where the browser can share files (phones). It uses your title and the whole-set chips you left on |
+| **Section bar** | A slim bar under the header that sticks to the top while you scroll: one chip per section on the page (Highlights, Setlist, The mix, How it was mixed, Journey, Mood map, Compare, Spotify; hidden sections are left out), the one you're reading highlighted | Click a chip to scroll to that section; on a phone the bar scrolls sideways and keeps the current chip in view |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's color on the Camelot wheel**. Colors cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterward) is grayed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
 | **Highlights** | A guided tour of the set, under the waveform: up to 10 moments picked from the page's own analyses (where each chapter starts, the three biggest drops, the energy peak, the longest blend, the boldest key move, the biggest lift, the biggest mood swing, the track most like the whole set, and the curveball), each with its time, kind and a one-line reason, plus the length of the reel | Click a card to hear that moment; **Play the highlights** plays them back to back (15–30 s each, a few minutes in all), outlining the playing card with a progress bar; press it again, or seek anywhere else, to stop |
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyzer, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
@@ -1088,6 +1089,17 @@ pipeline:
   waits for the Archivo weights (`document.fonts.load`) so the canvas uses
   the page's typeface, then draws; Download uses `canvas.toBlob`, Share uses
   `navigator.share({ files })` when `navigator.canShare` allows it.
+- **Section bar:** `renderNav()` builds the chips from the visible sections;
+  `spyNav()` (on scroll, once per frame) marks the last section whose top has
+  passed 30% of the way down the screen, or the last section at the bottom of
+  the page. A click smooth-scrolls (instantly under reduced motion) and, once
+  the scroll stops, nudges the section into place if anything above it changed
+  height on the way.
+- **Lazy work:** the running-order search (`reorder()`, ~0.2 s for 80 tracks)
+  is the page's one heavy analysis, so it runs only when its section comes
+  within 600 px of the screen (`lazy()`, IntersectionObserver +
+  `requestIdleCallback`), holding about its final height meanwhile. Everything
+  else builds in ~10 ms for a 19-track set.
 - **Highlights:** `highlights.js`'s `highlights(D, name)` scores candidate
   moments (biggest drop 90, longest blend 75, the peak 70, …), keeps the
   strongest that are at least 25 s apart (10 at most) and sorts them by time.

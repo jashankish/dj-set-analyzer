@@ -232,6 +232,7 @@ export async function spotifySave({ tracks: trackList, names = {}, name, descrip
     if (btn) btn.disabled = false;
   }
 }
+export const hasPending = (action) => !!pending && pending.action === action;
 /* after Spotify's sign-in: the save that was waiting, if it's this kind */
 export function takePending(action) {
   if (!pending || pending.action !== action) return null;

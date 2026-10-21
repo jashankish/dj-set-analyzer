@@ -26,6 +26,9 @@
     <div class="top-actions"><button class="ghost" id="cardBtn" title="One image of the set to share (K)">Set card</button></div>
   </header>
 
+  <!-- jump between the page's sections; sticks to the top while scrolling -->
+  <nav class="pnav" id="pnav" aria-label="Sections of this page"></nav>
+
   <!-- the whole set, colored by key -->
   <section class="ribbon-wrap" aria-label="The set, track by track">
     <div class="overview" id="overview">
@@ -69,7 +72,7 @@
     <ol class="hl-list" id="hlList"></ol>
   </section>
 
-  <main class="desk">
+  <main class="desk" id="desk">
     <!-- now playing -->
     <aside class="deck" id="deck" aria-live="polite">
       <div class="deck-art" id="deckArt"></div>
@@ -192,7 +195,7 @@
   </section>
 
   <!-- the journey -->
-  <section class="journey" aria-label="Set journey">
+  <section class="journey" id="journey" aria-label="Set journey">
     <div class="j-wheel">
       <h2 class="h2">Harmonic path</h2>
       <p class="j-sub" id="wheelSub">Each dot is a track, placed on the Camelot wheel. Neighboring keys mix cleanly.</p>

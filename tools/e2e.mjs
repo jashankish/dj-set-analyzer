@@ -107,6 +107,14 @@ try {
   const story = await page.locator("#story").textContent();
   check("result page tells the story", story.slice(0, 60), (t) => /tracks in \d+ minutes/.test(t));
   check("finds the track change", await page.locator(".trk").count(), (n) => n >= 2);
+  // the section bar, on a fresh result page (smooth scroll, no other interaction yet)
+  await page.click('#pnav button[data-to="vibe"]');
+  // wait for the section to arrive (headless Chrome can pause a smooth scroll mid-way;
+  // the bar then corrects once the scroll stops), not merely for the scrolling to pause
+  await page.waitForFunction(() => { const t = document.getElementById("vibe").getBoundingClientRect().top; return t > 0 && t < 160 && document.querySelector('#pnav [aria-current="true"]')?.dataset.to === "vibe"; }, null, { timeout: 6000 }).catch(() => {});
+  check("the section bar smooth-scrolls to a section and marks it current", await page.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   const bpm = await page.locator(".facts dd").nth(2).textContent();
   check(`tempo spans ${SYNTH.parts[0].bpm}-${SYNTH.parts[1].bpm} BPM`, bpm, (t) => { const m = t.match(/(\d+)\D+(\d+)/); return !!m && Math.abs(+m[1] - 128) <= 3 && Math.abs(+m[2] - 140) <= 3; });
   const keys = await page.locator(".trk .key-chip").allTextContents();
@@ -228,7 +236,7 @@ try {
 
 /* ---------------- on a phone: 390 x 844 with touch */
 try {
-  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, reducedMotion: "reduce" });
   const p3 = await phone.newPage();
   const errs3 = [];
   p3.on("pageerror", (e) => errs3.push(String(e)));
@@ -253,7 +261,9 @@ try {
   check("phone: the mixing breakdown names a style", await p3.locator("#craftName").textContent(), (t) => /^The /.test(t));
   await p3.locator(".cc-col").nth(3).tap();
   check("phone: tapping a mix column opens that mix in the inspector", await p3.locator("#mixTitle").textContent(), (t) => /^Mix 4: /.test(t));
-  check("phone: a smoother running order is drawn (two rows of 19)", await p3.locator("#roSvg rect:not(.ro-clash)").count(), (n) => n === 38);
+  await p3.locator("#reorder").scrollIntoViewIfNeeded();
+  await p3.waitForFunction(() => document.querySelectorAll("#roSvg rect:not(.ro-clash)").length > 0, null, { timeout: 5000 }).catch(() => {});
+  check("phone: a smoother running order is drawn when it comes into view (two rows of 19)", await p3.locator("#roSvg rect:not(.ro-clash)").count(), (n) => n === 38);
   await p3.locator("#roSave").tap();
   check("phone: saving the suggested order without a Spotify app explains what's needed", await p3.locator("#roStatus").textContent(), (t) => /Client ID/.test(t));
   check("phone: setlist transition rows show smoothness", await p3.locator(".seam-sm").count(), (n) => n === 18);
@@ -278,6 +288,10 @@ try {
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");
+  check("phone: the section bar lists the page's sections", await p3.locator("#pnav button").allTextContents(), (v) => v.includes("Highlights") && v.includes("Spotify") && v.includes("Compare"));
+  await p3.locator('#pnav button[data-to="vibe"]').tap();
+  await p3.waitForTimeout(1200);
+  check("phone: tapping a section jumps there and marks it current", await p3.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
   check("phone: the demo plays in chapters", await p3.locator(".ph").count(), (n) => n >= 2);
   await p3.locator(".ph-vibe").last().tap();
   check("phone: a chapter's Spotify prompt button scopes the prompt to it", await p3.locator("#vibeScope [aria-selected=true]").textContent(), (t) => t !== "Whole set");
