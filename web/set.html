@@ -266,6 +266,14 @@
         <p class="drop-line" id="balLine"></p>
         <div class="bal-top" id="balTop"></div>
       </div>
+      <div class="j-block" id="vocBlock" hidden>
+        <div class="j-head"><h2 class="h2">Vocal map</h2><span class="j-sub">Where in the set people are singing</span></div>
+        <div class="curve voc-chart" id="vocBox"><canvas id="vocCanvas" role="img" aria-label="Vocal score over the set: stronger color means vocals, faint means instrumental; vocal stretches are underlined"></canvas><div class="tip" hidden></div></div>
+        <p class="bal-legend"><span><i class="voc-sw lo"></i>Instrumental</span><span><i class="voc-sw hi"></i>Vocals</span><span><i class="voc-sw run"></i>Vocal stretch</span></p>
+        <p class="drop-line" id="vocLine"></p>
+        <div class="voc-tracks" id="vocTracks" aria-label="Each track: vocal, mixed or instrumental"></div>
+        <p class="bal-legend"><span><i class="voc-pill-sw vocal"></i>Vocal track</span><span><i class="voc-pill-sw mixed"></i>Mixed</span><span><i class="voc-pill-sw instrumental"></i>Instrumental</span></p>
+      </div>
       <div class="j-block" id="dropBlock">
         <div class="j-head"><h2 class="h2">Drop anatomy</h2><span class="j-sub" id="dropSub"></span></div>
         <p class="drop-line" id="dropLine"></p>

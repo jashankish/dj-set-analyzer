@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { vocalMap } = await import(pathToFileURL(path.join(ROOT, "web/js/vocals.js")));
 const { pacing } = await import(pathToFileURL(path.join(ROOT, "web/js/pacing.js")));
 const { setShape, SHAPES } = await import(pathToFileURL(path.join(ROOT, "web/js/shape.js")));
 const { soundBalance } = await import(pathToFileURL(path.join(ROOT, "web/js/balance.js")));
@@ -205,6 +206,18 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- vocal map (web/js/vocals.js) */
+{
+  const D = demo("worship-part-2"), V = vocalMap(D);
+  check("vocals: windows stay inside the set, scores 0–1", V.cells, (c) => c.every((x) => x.t0 >= V.s0 && x.t1 <= V.s1 + 1e-6 && x.v >= 0 && x.v <= 1));
+  check("vocals: every track tagged vocal, mixed or instrumental", V.tracks, (t) => t.length === D.tracks.length && t.every((x) => ["vocal", "mixed", "instrumental"].includes(x.tag)));
+  check("vocals: part 2 sings most in its last third", [V.thirds.indexOf(Math.max(...V.thirds)), V.sentence], ([i, s]) => i === 2 && /sit in the last third/.test(s));
+  const synth = { duration: 600, summary: {}, curves: { moods: { step: 10, v: { voice_instrumental: Array.from({ length: 60 }, (_, i) => (i < 30 ? 0.9 : 0.05)) } } }, tracks: [{ n: 1, start: 0, end: 300 }, { n: 2, start: 300, end: 600 }] };
+  const S2 = vocalMap(synth);
+  check("vocals: a sung half then an instrumental half", [S2.tracks[0].tag, S2.tracks[1].tag, S2.runs.length, Math.round(S2.longestInst.t1 - S2.longestInst.t0)], ([a, b, r, l]) => a === "vocal" && b === "instrumental" && r === 1 && l >= 280);
+  check("vocals: no vocal curve, no map", vocalMap({ duration: 10, tracks: [] }), (v) => v === null);
 }
 
 /* ---------------- pacing (web/js/pacing.js) */

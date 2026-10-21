@@ -32,6 +32,7 @@ import { keylineSection } from "./sections/keyline-ui.js";
 import { balanceSection } from "./sections/balance-ui.js";
 import { shapeSection } from "./sections/shape-ui.js";
 import { pacingSection } from "./sections/pacing-ui.js";
+import { vocalsSection } from "./sections/vocals-ui.js";
 
 (function () {
   "use strict";
@@ -1117,6 +1118,7 @@ import { pacingSection } from "./sections/pacing-ui.js";
     renderShape();
     renderPacing();
     renderBalance();
+    renderVocals();
     updateWheel();
   }
   /* minutes in each key, under the wheel; the top one is the set's home key */
@@ -1418,7 +1420,7 @@ import { pacingSection } from "./sections/pacing-ui.js";
     }
     updatePulse(t);
     drawSpectrum();
-    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); drawBalance(t); tick._rows = t; }
+    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); drawBalance(t); drawVocals(t); tick._rows = t; }
     // the highlights reel: on to the next moment, or stop if the listener went elsewhere
     if (S.reel && !isPaused()) {
       const h = S.hl.items[S.reel.i];
@@ -1563,11 +1565,12 @@ import { pacingSection } from "./sections/pacing-ui.js";
     drawSim();
     drawKeyline(now());
     drawBalance(now());
+    drawVocals(now());
   }
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, renderVocals, drawVocals, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1583,6 +1586,7 @@ import { pacingSection } from "./sections/pacing-ui.js";
   ({ renderBalance, drawBalance } = balanceSection(ctx));
   ({ renderShape } = shapeSection(ctx));
   ({ renderPacing } = pacingSection(ctx));
+  ({ renderVocals, drawVocals } = vocalsSection(ctx));
 
   boot();
 })();

@@ -503,6 +503,17 @@ button { font-family: inherit; color: inherit; }
 .sh-sw { width: 16px; height: 0; border-top: 2px solid var(--ink); }
 .sh-sw.tpl { border-top: 2px dashed #3987E5; }
 @media (max-width: 720px) { .sh-wrap { grid-template-columns: 1fr; } }
+.curve.voc-chart { height: 48px; }
+.voc-sw { width: 14px; height: 10px; border-radius: 2px; }
+.voc-sw.lo { background: rgba(232,123,164,.15); } .voc-sw.hi { background: rgb(232,123,164); } .voc-sw.run { height: 3px; background: rgb(232,123,164); }
+.voc-tracks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.voc-pill { min-width: 28px; padding: 3px 6px; border-radius: 999px; font: inherit; font-size: .74rem; font-variant-numeric: tabular-nums; cursor: pointer; border: 1px solid rgba(232,123,164,.7); }
+.voc-pill.vocal { background: rgb(232,123,164); color: #16151E; border-color: transparent; font-weight: 600; }
+.voc-pill.mixed { background: rgba(232,123,164,.18); color: var(--ink); }
+.voc-pill.instrumental { background: none; color: var(--ink-2); border-color: var(--line); }
+.voc-pill:hover { filter: brightness(1.15); }
+.voc-pill-sw { width: 14px; height: 10px; border-radius: 999px; }
+.voc-pill-sw.vocal { background: rgb(232,123,164); } .voc-pill-sw.mixed { background: rgba(232,123,164,.18); border: 1px solid rgba(232,123,164,.7); } .voc-pill-sw.instrumental { border: 1px solid var(--line); }
 .bal-chart { height: 120px; border-radius: 4px; overflow: hidden; }
 .bal-legend { display: flex; gap: 14px; margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-stretch: 88%; }
 .bal-legend span { display: inline-flex; align-items: center; gap: 6px; }

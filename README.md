@@ -107,6 +107,7 @@ top; its color swatches are the set's track keys in order. Then:
 | **Energy** | The energy arc of the set, filled per track in its key color, with drops, the peak and the chapter boundaries marked | Hover for values; click to seek |
 | **Set shape** | The energy arc (24 points, each the mean of its slice, lightly smoothed, scaled to its own range) against seven classic shapes: *slow burn*, *peak time*, *mid-set peak*, *wind-down*, *dip & return*, *waves* (three rises and falls) and *tidal* (two swells). Each is scored by correlation (shown 0–100%) and ranked beside the arc with a sketch of its template; the chosen one is drawn dashed over the arc. A sentence names the closest (and a close second); an arc that stays within 12% of its average is *level*, and a best match under 35% means the set writes its own arc. When the closest is waves, tidal or peak time at 60% or more, the Spotify prompt's flow line uses it (three thirds can't see those) | Click a shape to lay it over the arc |
 | **Frequency balance** | How the sound splits between bass, mids and highs over the set: the waveform's three bands as shares in ~20 s windows, stacked to 100% (bass at the bottom; violet, aqua and amber, validated for color-blind separation, and named at the right edge), with track boundaries as ticks. A sentence gives the set's average split, whether it gets brighter, darker or heavier toward the end (first third against last), and how many tracks lean bass-heavy, bright or mid-forward. Leans are judged against the set's own average, since absolute band levels differ between recordings | Hover for a window's split and its track's lean; click to seek; **Heaviest** / **Brightest** play those tracks |
+| **Vocal map** | Where in the set people are singing: the vocal model's score per 10 s window as a strip (one hue, faint for instrumental, strong for vocals), stretches of 30 s or more above 0.5 underlined, track boundaries as ticks. A sentence gives the vocal share of the set, how many tracks are vocal (vocals in 60%+ of it), mixed or instrumental (20% or less), where the vocals sit when one third has 20 points more than another, and the longest instrumental stretch. Under it, each track as a numbered pill in its tag's style | Hover the strip for a window's score and track; click it, or a pill, to play from there |
 | **Drop anatomy** | Every drop overlaid on one chart, lined up at the moment it lands: the bass line (the low band, averaged over a second) from 32 s before to 16 s after, each in its track's key color, with the average drawn bold and the typical breakdown shaded. A sentence and the style (*quick switch-ups* under 10 s, *classic builds* under 18 s, else *long builds*): how often drops come, how long the breakdowns run (in seconds and bars), how far the bass is pulled and how hard it lands. While a drop plays it's highlighted, with a dot riding its curve | Hover a line for that drop; click it, or one of the **biggest drops**, to hear it from 12 s before |
 | **Sound** | How strongly the style model hears the set's top six Discogs styles over time | Click to seek |
 | **Mood** | Danceability, party, aggressive, happy and vocal scores over time | Click to seek |
@@ -1131,7 +1132,7 @@ mix inspector, wheel, energy and style rows, playback and keyboard. The
 analysis sections live in `web/js/sections/`, one module each (`craft-ui.js`,
 `moodmap-ui.js`, `compare-ui.js`, `card-ui.js`, `chapters-ui.js`, `nav.js`,
 `review-ui.js`, `simx-ui.js`, `highlights-ui.js`, `drops-ui.js`, `keyline-ui.js`,
-`balance-ui.js`, `shape-ui.js`, `pacing-ui.js`). Each
+`balance-ui.js`, `shape-ui.js`, `pacing-ui.js`, `vocals-ui.js`). Each
 exports a factory, e.g. `moodMapSection(ctx)`, that takes the app's shared
 state and helpers (`ctx`: `S`, `$`, `tracks`, `keyColor`, `fmt`, `seek`,
 `showTip`, …, built at the end of `app.js`) and returns the functions the rest
@@ -1407,6 +1408,7 @@ dj-set-analyzer/
 │   ├── js/tracklist.js   # tracklist as text, YouTube chapters, 1001Tracklists and a CUE sheet (no DOM)
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
+│   ├── js/vocals.js      # vocal map: where the singing is, per window and per track (no DOM)
 │   ├── js/pacing.js      # pacing: each track's time in the set, the quickest stretch, the trend (no DOM)
 │   ├── js/shape.js       # set shape: the energy arc scored against seven classic shapes (no DOM)
 │   ├── js/balance.js     # frequency balance: bass / mids / highs shares over time and per track (no DOM)
