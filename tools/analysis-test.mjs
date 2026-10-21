@@ -19,6 +19,7 @@ const { findPhases, slicePayload } = await import(pathToFileURL(path.join(ROOT, 
 const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = await import(pathToFileURL(path.join(ROOT, "web/js/craft.js")));
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
+const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
 const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
@@ -158,6 +159,17 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   const off = new Set(["g:Drum n Bass"]);
   check("card: follows the chips switched off on the page", cardData(D, { off }).chips, (c) => !c.includes("drum & bass"));
 }
+
+/* ---------------- highlights (web/js/highlights.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), H = highlights(D);
+  check(`${slug}: 5–10 highlights, in time order`, H.items.map((h) => h.t), (t) => t.length >= 5 && t.length <= 10 && t.every((x, i) => !i || x > t[i - 1]));
+  check(`${slug}: no two highlights within 25 s`, H.items.map((h) => h.t), (t) => t.every((x, i) => !i || x - t[i - 1] >= 25));
+  check(`${slug}: every highlight is inside the set, with a 15–30 s listen`, H.items, (v) => v.every((h) => h.t >= (D.summary.set_start || 0) && h.t < D.summary.set_end && h.dur >= 15 && h.dur <= 30 && Number.isInteger(h.dur)));
+  check(`${slug}: the biggest drop is among them`, H.items.map((h) => h.title), (t) => t.includes("The biggest drop"));
+  check(`${slug}: the reel is a few minutes`, H.reel, (s) => s >= 90 && s <= 300);
+}
+check("highlights: names come from the page", highlights(demo("worship-part-2"), (n) => `#${n}`).items.some((h) => /#\d+/.test(h.why)), (v) => v === true);
 
 /* ---------------- drop anatomy (web/js/drops.js) */
 for (const slug of ["worship-part-1", "worship-part-2"]) {

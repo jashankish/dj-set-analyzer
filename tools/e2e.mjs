@@ -134,6 +134,16 @@ try {
   const [cardFile] = await Promise.all([page.waitForEvent("download"), page.click("#cardDl")]);
   check("the set card downloads as a PNG", cardFile.suggestedFilename(), (n) => n.endsWith("set card.png"));
   await page.click("#cardClose");
+  check("highlights pick moments from the short test set", await page.locator(".hl-card").count(), (n) => n >= 2);
+  await page.click("#hlPlay");
+  await page.waitForTimeout(1200);
+  check("Play the highlights starts the reel at the first moment", await page.evaluate(() => [document.getElementById("hlPlay").textContent, !document.getElementById("audio").paused, !!document.querySelector(".hl-card.on")]), ([t, playing, on]) => /^Stop the reel \(1 of \d+\)$/.test(t) && playing && on);
+  await page.evaluate(() => { document.getElementById("audio").currentTime = +document.querySelector(".hl-card.on").dataset.end - 0.3; });
+  await page.waitForTimeout(1500);
+  check("the reel moves on to the next moment when one ends", await page.locator("#hlPlay").textContent(), (t) => /^Stop the reel \(2 of \d+\)$/.test(t));
+  await page.click("#hlPlay");
+  await page.evaluate(() => document.getElementById("audio").pause());
+  check("pressing it again stops the reel", await page.locator("#hlPlay").textContent(), (t) => t === "Play the highlights");
   check("one mix is too few for the mixing breakdown, so it hides", await page.locator("#craft").isHidden(), (h) => h === true);
   check("two tracks are too few for the mood map, so it hides", await page.locator("#moodmap").isHidden(), (h) => h === true);
   check("a 3-minute set is one chapter, so the chapters strip hides", await page.locator("#phases").evaluate((el) => el.closest(".j-block").hidden), (h) => h === true);
@@ -256,6 +266,9 @@ try {
   check("phone: compares with the other demo and writes a blend prompt", [await p3.locator("#cmpScore").textContent(), await p3.locator("#cmpPrompt").inputValue()], ([s, p]) => +s > 0 && +s <= 100 && /^A .* playlist/.test(p));
   check("phone: the vibe section lists the most typical tracks and the curveballs", await p3.locator("#vibeFit").textContent(), (t) => t.includes("Most like the set") && t.includes("Curveballs"));
   check("phone: drop anatomy describes the drops", await p3.locator("#dropLine").textContent(), (t) => /^\d+ drops, about one every/.test(t));
+  check("phone: the demo's highlights are listed", await p3.locator(".hl-card").count(), (n) => n >= 5);
+  await p3.locator(".hl-card").nth(2).tap();
+  check("phone: tapping a highlight jumps to it", [await p3.locator("#tCur").textContent(), await p3.locator(".hl-card .hl-meta b").nth(2).textContent()], ([now, at]) => now === at);
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");

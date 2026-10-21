@@ -18,6 +18,7 @@ import { isVideo, extractAudio } from "./engine/demux.js";
 import { craftProfile, relationClass, mixScore, mixTips, reorder } from "./craft.js";
 import { moodMap, QUADS } from "./moodmap.js";
 import { dropAnatomy, PRE, POST } from "./drops.js";
+import { highlights } from "./highlights.js";
 
 (function () {
   "use strict";
@@ -269,6 +270,7 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
     renderCraft();
     renderMoodMap();
     renderDrops();
+    renderHighlights();
     renderCompare();
     mountVibe({ D, phases: S.phases, names: S.names, title: S.title || D.title, cur: 0, keyColor, toast, seek, nameOf });
     drawAll();
@@ -1621,6 +1623,13 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
     updatePulse(t);
     drawSpectrum();
     if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); tick._rows = t; }
+    // the highlights reel: on to the next moment, or stop if the listener went elsewhere
+    if (S.reel && !isPaused()) {
+      const h = S.hl.items[S.reel.i];
+      if (t < h.t - 3 || t > h.t + h.dur + 3) stopReel();
+      else if (t >= h.t + h.dur) S.reel.i + 1 < S.hl.items.length ? playHighlight(S.reel.i + 1, true) : stopReel();
+      else { const c = document.querySelector(".hl-card.on"); if (c) c.style.setProperty("--p", `${clamp((t - h.t) / h.dur, 0, 1) * 100}%`); }
+    }
     // drop anatomy: highlight the drop being played, with a dot riding its curve
     if (S.dropA) {
       const k = S.dropA.rows.findIndex((r) => t >= r.t - PRE && t <= r.t + POST);
@@ -1713,6 +1722,45 @@ import { dropAnatomy, PRE, POST } from "./drops.js";
     else if (k === "?") $("helpBtn").click();
     else if (k === "c" || k === "C") copyPrompt();
     else if (k === "k" || k === "K") openCard();
+  }
+
+  /* ------------------------------------------------ highlights */
+  function renderHighlights() {
+    stopReel();
+    const H = (S.hl = highlights(S.D, (n) => shortName(tracks()[n - 1])));
+    $("hl").hidden = H.items.length < 2;
+    if ($("hl").hidden) return;
+    $("hlSub").textContent = `${H.items.length} moments from across the set · a ${fmt(H.reel)} reel`;
+    const KIND = { chapter: "Chapter", drop: "Drop", peak: "Peak", mix: "Mix", mood: "Mood", track: "Track" };
+    $("hlList").innerHTML = H.items.map((h, i) => `<li><button class="hl-card" data-i="${i}" data-kind="${h.kind}" data-end="${(h.t + h.dur).toFixed(2)}">
+      <span class="hl-meta"><b>${fmt(h.t)}</b> ${KIND[h.kind]}</span><span class="hl-title">${esc(h.title)}</span><span class="hl-why">${esc(h.why)}</span>
+      <span class="hl-bar" aria-hidden="true"><i></i></span></button></li>`).join("");
+    $("hlList").querySelectorAll(".hl-card").forEach((b) => b.addEventListener("click", () => {
+      const h = S.hl.items[+b.dataset.i];
+      stopReel();
+      if (h.mix != null) selectMix(h.mix, false);
+      seek(h.t, true);
+    }));
+    $("hlPlay").onclick = () => (S.reel ? stopReel() : playHighlight(0, true));
+  }
+  function playHighlight(i, reel) {
+    const h = S.hl.items[i];
+    if (reel && !S.noAudio) S.reel = { i };          // without audio there's nothing to step through
+    if (h.mix != null) selectMix(h.mix, false);
+    seek(h.t, true);
+    markReel();
+  }
+  function stopReel() {
+    if (!S.reel) return;
+    S.reel = null;
+    markReel();
+  }
+  function markReel() {
+    $("hlPlay").textContent = S.reel ? `Stop the reel (${S.reel.i + 1} of ${S.hl.items.length})` : "Play the highlights";
+    $("hlPlay").setAttribute("aria-pressed", String(!!S.reel));
+    document.querySelectorAll(".hl-card").forEach((c) => c.classList.toggle("on", !!S.reel && +c.dataset.i === S.reel.i));
+    const on = document.querySelector(".hl-card.on");
+    if (on) on.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   }
 
   /* ------------------------------------------------ drop anatomy */

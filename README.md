@@ -82,6 +82,7 @@ top; its color swatches are the set's track keys in order. Then:
 | --- | --- | --- |
 | **Header** | The set title, length, track count, BPM, the share of harmonic mixes, and a short generated summary of the set (including its chapters) | Double-click the title to rename the set (saved in this browser). **Set card** (or `K`) opens a shareable 1080 × 1350 image of the set: title and facts, the energy arc in key colors with its chapters, the vibe radar, mixing style, home key, mood route, keyword chips and the short playlist prompt. **Download PNG**, or **Share…** where the browser can share files (phones). It uses your title and the whole-set chips you left on |
 | **Set ribbon** | The whole set as a 3-band waveform (lows, mids, highs). Each track is tinted by its **key's color on the Camelot wheel**. Colors cross-fade through every mix; hatching marks mix windows and ▼ marks drops. Recording outside the set (e.g. the phone left running afterward) is grayed out | Click to play from that moment; hover for track, key, BPM and mix details; zoom with pinch, ⌘/Ctrl-scroll or `+`/`−`; drag to pan; use the overview strip above to jump or drag the window |
+| **Highlights** | A guided tour of the set, under the waveform: up to 10 moments picked from the page's own analyses (where each chapter starts, the three biggest drops, the energy peak, the longest blend, the boldest key move, the biggest lift, the biggest mood swing, the track most like the whole set, and the curveball), each with its time, kind and a one-line reason, plus the length of the reel | Click a card to hear that moment; **Play the highlights** plays them back to back (15–30 s each, a few minutes in all), outlining the playing card with a progress bar; press it again, or seek anywhere else, to stop |
 | **Now playing** | Cover art, live BPM, key and key name, energy (1 to 10), a 4-step beat pulse, a live spectrum analyzer, the top styles, Shazam / Apple Music / Spotify links, and what comes next | Double-click an **ID** track's title to name it yourself |
 | **Setlist** | Every track: start time, art, title and artist, Camelot key, BPM, energy sparkline, and a progress bar while it plays. Between tracks, a transition row gives the mix type, length in bars, harmonic relation, tempo change, swap time and smoothness (◦ out of 100) | Click a track to play it; click a transition row to open it in the inspector; *Copy tracklist* puts `time  Artist – Title` lines on the clipboard. Unnamed tracks keep their key and tempo, e.g. `ID – ID (4A, 177 BPM)`, the clues a DJ uses to track a song down |
 | **Mix inspector** | A zoomed waveform of one transition. Markers show where the next track came in, the swap point and where the mix ended. Below are the low-end curve and a beat grid counted in bars from the swap, plus key, tempo and energy changes, the low-end dip, how much sound the tracks share, the mix's **smoothness** out of 100, and a description that ends with what cost it points. Below 85, **How it could be smoother** gives a DJ's fixes: for a key clash the bridging keys (Camelot keys next to both) or, if none, the shortest in-key route around the wheel ("via 4A, 5A, 6A, 7A"), naming tracks from this set in those keys; riding the pitch for a tempo gap; cutting the outgoing lows when bass lines overlap; starting on a phrase; going through a breakdown when the energy lurches | **Hear this mix** jumps to 6 s before it; **Loop it** repeats it; *Previous / Next* step through the mixes. While playing, the inspector follows the live mix |
@@ -614,6 +615,7 @@ A set's **slug** (its ID in URLs and file names) comes from the file name:
                          │ js/card.js     the shareable set card: data (pure) + canvas painter     │
                          │ js/compare.js  similarity of two sets, differences, blended payload     │
                          │ js/drops.js    every drop's bass line aligned at the drop, style, stats  │
+                         │ js/highlights.js  the set's best moments from every analysis; the reel  │
                          │ js/vibe-ui.js  radar, chips, copy; js/spotify.js PKCE + playlist save   │
                          │ js/color.js    Camelot key → OKLCH hue wheel → sRGB                     │
                          │ serve.py       local dev server (+ /audio/<file> with HTTP Range)       │
@@ -1086,6 +1088,12 @@ pipeline:
   waits for the Archivo weights (`document.fonts.load`) so the canvas uses
   the page's typeface, then draws; Download uses `canvas.toBlob`, Share uses
   `navigator.share({ files })` when `navigator.canShare` allows it.
+- **Highlights:** `highlights.js`'s `highlights(D, name)` scores candidate
+  moments (biggest drop 90, longest blend 75, the peak 70, …), keeps the
+  strongest that are at least 25 s apart (10 at most) and sorts them by time.
+  The reel is `S.reel = { i }`: `tick()` moves to the next moment when the
+  current one's listening time is up, and stops the reel when playback leaves
+  the moment (the listener seeked), so the reel never fights the listener.
 - **Drop anatomy:** `drops.js`'s `dropAnatomy()` samples `curves.wave.low`
   every half second around each drop (`PRE` 32 s, `POST` 16 s);
   `renderDrops()` / `drawDrops()` paint it on a canvas, and `tick()` redraws
@@ -1281,6 +1289,7 @@ dj-set-analyzer/
 │   ├── js/card.js     # the set card: cardData() (no DOM) + drawCard() on a canvas
 │   ├── js/compare.js  # compare two sets; merge them for a blend prompt (no DOM)
 │   ├── js/drops.js    # drop anatomy: each drop's bass line around the drop (no DOM)
+│   ├── js/highlights.js  # the highlights tour and reel: moments from every analysis (no DOM)
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
