@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { keyTimeline } = await import(pathToFileURL(path.join(ROOT, "web/js/keyline.js")));
 const { taste } = await import(pathToFileURL(path.join(ROOT, "web/js/taste.js")));
 const { roles } = await import(pathToFileURL(path.join(ROOT, "web/js/roles.js")));
 const { review } = await import(pathToFileURL(path.join(ROOT, "web/js/review.js")));
@@ -201,6 +202,18 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- key journey (web/js/keyline.js) */
+for (const slug of ["worship-part-1", "worship-part-2"]) {
+  const D = demo(slug), K = keyTimeline(D);
+  check(`${slug}: stretches tile the set in order, one per run of a key`, K.segs, (s) => s.every((x, i) => x.end > x.start && (!i || (x.start >= s[i - 1].start && x.key !== s[i - 1].key))));
+  check(`${slug}: unwrapping keeps every move within half the wheel`, K.moves.map((m) => Math.abs(m.step)), (v) => v.every((x) => x <= 6));
+  check(`${slug}: up + down + relative moves add up to the changes`, [K.up, K.down, K.moves.filter((m) => m.step === 0).length, K.moves.length], ([u, d, r, n]) => u + d + r === n);
+}
+{
+  const wrap = { duration: 600, summary: {}, tracks: ["11A", "12A", "1A", "2A"].map((k, i) => ({ n: i + 1, start: i * 150, end: (i + 1) * 150, key: { camelot: k } })) };
+  check("key journey: 11A → 12A → 1A → 2A climbs steadily (12 → 1 is one step up)", keyTimeline(wrap).segs.map((s) => s.level), (l) => l.join() === "11,12,13,14");
 }
 
 /* ---------------- taste across sets (web/js/taste.js) */

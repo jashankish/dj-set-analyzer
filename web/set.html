@@ -223,6 +223,12 @@
       <p class="j-sub" id="wheelSub">Each dot is a track, placed on the Camelot wheel. Neighboring keys mix cleanly.</p>
       <svg id="wheel" viewBox="-200 -200 400 400" role="img" aria-label="Camelot wheel with the set’s key path"></svg>
       <div class="keytime" id="keyTime" aria-label="Time spent in each key"></div>
+      <div class="kj" id="keyJourney" hidden>
+        <h3 class="h3">Key journey</h3>
+        <div class="kj-box" id="kjBox"><canvas id="kjCanvas" role="img" aria-label="The set's key over time, on the Camelot wheel unwrapped into a line"></canvas><div class="tip" hidden></div></div>
+        <p class="kj-legend"><span><i class="kj-sw"></i>clean move</span><span><i class="kj-sw part"></i>bolder</span><span><i class="kj-sw clash"></i>clash</span></p>
+        <p class="j-sub" id="kjLine"></p>
+      </div>
     </div>
     <div class="j-curves">
       <div class="j-block">
