@@ -470,6 +470,18 @@ button { font-family: inherit; color: inherit; }
 .kt-bar i { display: block; height: 100%; border-radius: 4px; }
 .kt-v { text-align: right; font-size: .8rem; font-stretch: 75%; color: var(--muted); }
 .kt-row.now .kt-v { color: var(--ink); }
+.pacing { margin-top: 30px; }
+.pc-box { position: relative; height: 170px; margin-top: 10px; }
+.pc-box svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.pc-bar { cursor: pointer; }
+.pc-bar:hover { filter: brightness(1.2); }
+.pc-quick { fill: rgba(255,255,255,.05); }
+.pc-med { stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.pc-val { position: absolute; transform: translate(-50%, -120%); color: var(--ink-2); font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
+.pc-medl { position: absolute; right: 0; transform: translateY(-120%); color: var(--ink-2); font-size: .74rem; font-stretch: 88%; background: var(--bg); padding: 0 4px; pointer-events: none; }
+.pc-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 0; color: var(--muted); font-size: .76rem; font-stretch: 88%; }
+.pc-foot span { display: inline-flex; align-items: center; gap: 6px; }
+.pc-sw { width: 12px; height: 10px; background: rgba(255,255,255,.12); border-radius: 2px; }
 .sh-wrap { display: grid; grid-template-columns: 1fr 280px; gap: 18px; align-items: start; }
 .sh-svg { width: 100%; height: 150px; display: block; overflow: visible; }
 .sh-area { fill: rgba(239,236,245,.08); }

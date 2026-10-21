@@ -31,6 +31,7 @@ import { dropsSection } from "./sections/drops-ui.js";
 import { keylineSection } from "./sections/keyline-ui.js";
 import { balanceSection } from "./sections/balance-ui.js";
 import { shapeSection } from "./sections/shape-ui.js";
+import { pacingSection } from "./sections/pacing-ui.js";
 
 (function () {
   "use strict";
@@ -1114,6 +1115,7 @@ import { shapeSection } from "./sections/shape-ui.js";
     renderKeyTime();
     renderKeyline();
     renderShape();
+    renderPacing();
     renderBalance();
     updateWheel();
   }
@@ -1565,7 +1567,7 @@ import { shapeSection } from "./sections/shape-ui.js";
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1580,6 +1582,7 @@ import { shapeSection } from "./sections/shape-ui.js";
   ({ renderKeyline, drawKeyline } = keylineSection(ctx));
   ({ renderBalance, drawBalance } = balanceSection(ctx));
   ({ renderShape } = shapeSection(ctx));
+  ({ renderPacing } = pacingSection(ctx));
 
   boot();
 })();

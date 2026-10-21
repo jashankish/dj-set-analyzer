@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { pacing } = await import(pathToFileURL(path.join(ROOT, "web/js/pacing.js")));
 const { setShape, SHAPES } = await import(pathToFileURL(path.join(ROOT, "web/js/shape.js")));
 const { soundBalance } = await import(pathToFileURL(path.join(ROOT, "web/js/balance.js")));
 const { keyTimeline } = await import(pathToFileURL(path.join(ROOT, "web/js/keyline.js")));
@@ -204,6 +205,18 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("youtube: stamps under 10 s apart merge into one chapter", Lc.youtube, (y) => y.includes("1:00 Y – B / Z – C") && Lc.chapters === 3);
   check("cue: an .mp3 recording is FILE … MP3", Lc.cue, (c) => c.includes('FILE "x.mp3" MP3'));
   check("stamp: hours when the set runs past an hour", [stamp(59), stamp(3725)], ([a, b]) => a === "0:59" && b === "1:02:05");
+}
+
+/* ---------------- pacing (web/js/pacing.js) */
+{
+  const D = demo("worship-part-2"), P = pacing(D);
+  check("pacing: every track's play time, summing to the set", [P.tracks.length, Math.round(P.tracks.reduce((a, t) => a + t.play, 0))], ([n, s]) => n === D.tracks.length && Math.abs(s - (P.s1 - P.s0)) < 5);
+  check("pacing: median 1:56, shortest 0:48, longest 4:46", [Math.round(P.stats.median), Math.round(P.stats.shortest.play), Math.round(P.stats.longest.play)], ([m, a, b]) => m === 116 && a === 48 && b === 286);
+  check("pacing: the quickest 8 minutes hold 6 tracks", P.quick, (q) => q.count === 6 && q.t1 - q.t0 === 480);
+  const mk = (lens) => { let t = 0; return { duration: lens.reduce((a, b) => a + b, 0), summary: {}, tracks: lens.map((l, i) => ({ n: i + 1, start: t, end: (t += l), bpm: 128 })) }; };
+  check("pacing: 60 s tracks are quick-fire; 5-minute ones long-form", [pacing(mk(Array(12).fill(60))).style.id, pacing(mk(Array(8).fill(300))).style.id], ([a, b]) => a === "quick" && b === "long");
+  check("pacing: shorter tracks in the second half speed it up", pacing(mk([240, 240, 240, 240, 90, 90, 90, 90, 90, 90])).trend, (t) => t === "speeds up");
+  check("pacing: bars at the track's tempo (120 s at 128 BPM = 64 bars)", pacing(mk([120, 120, 120, 120])).tracks[0].bars, (b) => b === 64);
 }
 
 /* ---------------- set shape (web/js/shape.js) */
