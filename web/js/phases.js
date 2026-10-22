@@ -70,7 +70,8 @@ export function findPhases(D) {
   const total = len.reduce((a, b) => a + b, 0);
   const w = len.map((l) => l / total);
   const X = T.map(point);
-  const minLen = Math.max(150, 0.1 * total);
+  // (never longer than the recording: a 2-minute song is still one chapter, not none)
+  const minLen = Math.min(total, Math.max(150, 0.1 * total));
   const fits = partition(X, w, Math.min(5, T.length), minLen, len);
   const spread = fits[0].cost;
   // a phase must remove at least 18% of the set's spread (and a bit more for each extra one)

@@ -30,7 +30,7 @@ There are two ways to run it, and both produce the same JSON:
 1. [What you get](#what-you-get)
 2. [Run it yourself](#run-it-yourself)
 3. [Hosting details](#hosting-details)
-4. [Naming tracks with the helper](#naming-tracks-with-the-helper)
+4. [Naming tracks with the helper](#naming-tracks-with-the-helper) (and [YouTube and SoundCloud links](#youtube-and-soundcloud-links))
 5. [Spotify: the set as a playlist prompt](#spotify-the-set-as-a-playlist-prompt)
 6. [Command-line options](#command-line-options)
 7. [Architecture](#architecture)
@@ -60,6 +60,14 @@ There are two ways to run it, and both produce the same JSON:
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
   over an hour carry a note that a laptop works best.
+- **Or a link:** under the drop zone, paste the link of a **YouTube video or
+  SoundCloud track** of a set (pasting onto the drop zone works too). The
+  audio is fetched on the visitor's computer by the [Set Replay
+  helper](#youtube-and-soundcloud-links), shows in the list as *Fetching
+  “title” · 42%*, then becomes an ordinary item named after the video, ready
+  to **Analyze**. Without the helper running, the item waits with a *Set it
+  up* button and the setup pop-up opens. The finished set keeps the link,
+  and its header links back (*From: YouTube ↗ channel*).
 - **Naming bar:** under the drop zone. Without the naming helper it reads
   *Tracks will show as IDs. Want them named?* and opens the setup pop-up.
   With the helper connected, it becomes a *Name tracks with Shazam* checkbox.
@@ -465,6 +473,61 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
 Browsers: Chrome, Edge and Firefox work. Safari may refuse to let an https
 page talk to `127.0.0.1`, and the pop-up says so. The rest of the site runs
 in all three engines, checked on every push.
+
+### YouTube and SoundCloud links
+
+The same helper (version 2) also fetches a set from a link, so visitors can
+analyze a set that's on YouTube or SoundCloud without downloading it
+themselves. A browser can't do this: neither site allows cross-site requests,
+and YouTube's streams need deciphering that only dedicated tools keep up
+with. The helper uses the open-source **yt-dlp**, on the visitor's own
+computer, and the page analyzes the audio exactly like a dropped file.
+
+```
+browser: paste link → parseLink() (a single video or track?)
+    └─ POST 127.0.0.1:8789/fetch {url} ─► helper: link_ok() again; yt-dlp looks it up
+                                           (≤ 6 h; no playlist, no live stream), downloads
+    ◄── GET /fetch/<id> every 0.7 s: {state, pct, title, uploader, duration} ──┘
+    └─ GET /fetch/<id>/audio ─► the audio file (then deleted from the helper's folder)
+browser: a File named after the video → the queue → analyzeFile() → the set keeps {link}
+```
+
+- **Only single YouTube videos and SoundCloud tracks:** youtube.com,
+  m./music.youtube.com and youtu.be links to one video (`watch?v=`,
+  `/live/`, `/shorts/`), and soundcloud.com/*artist*/*track* (or
+  on.soundcloud.com short links), checked by the page (`fetchlink.parseLink`)
+  and again by the helper (`link_ok`), so it can't be used as a general
+  downloader. Playlists, channels and SoundCloud sets are refused before
+  anything is listed; live streams and anything over 6 hours after the
+  lookup.
+- **No ffmpeg needed:** it asks for M4A/AAC first (then WebM/Opus, MP3), with
+  yt-dlp's container fix-up off. Tested: YouTube's DASH M4A and WebM/Opus and
+  SoundCloud's HLS AAC all decode in Chrome, Firefox and Safari (WebKit)
+  without it.
+- **Endpoints:** `POST /fetch` → `{id}`; `GET /fetch/<id>` → progress;
+  `GET /fetch/<id>/audio` → the file; `POST /fetch/<id>/cancel` (the page's ✕
+  and *Clear*). One fetch at a time, each in its own folder under
+  `~/.set-replay-helper/fetched/`, deleted a minute after the page takes it
+  (or after 30 minutes, and on every start). `/health` says `"fetch": true`;
+  the pop-up tells visitors with an older helper to download it again.
+- **Keeping working:** yt-dlp isn't pinned (YouTube changes often and old
+  versions stop working). Helpers set up before links existed install it on
+  their next start, and it updates itself in the background every three days.
+- **Errors in plain words:** private, sign-in-only (age-restricted or
+  members-only), unavailable or blocked videos, YouTube's "confirm you're not
+  a bot", and *the helper stopped answering*. A failed fetch can be retried.
+- **Privacy:** like everything else, the audio stays on the visitor's
+  computer: it goes from YouTube or SoundCloud to the helper to the page,
+  and nothing is uploaded anywhere.
+- **Terms:** downloading may be restricted by YouTube's and SoundCloud's
+  terms. The page and the helper say to fetch only what you have the right to
+  download (your own sets, or ones you have permission for). The site
+  doesn't host or relay any audio.
+
+Why not a server that fetches links for everyone? YouTube blocks downloads
+from cloud servers ("confirm you're not a bot"), it would cost bandwidth for
+every set, and the host would be the one downloading. On each visitor's own
+computer, none of that applies.
 
 ---
 
@@ -1455,6 +1518,7 @@ dj-set-analyzer/
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
 │   ├── js/cover.js       # a 640 × 640 JPEG cover for playlists saved to Spotify
+│   ├── js/engine/fetchlink.js  # a set from a YouTube / SoundCloud link, through the helper
 │   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
 │   ├── js/vendor/        # qrcode.js (qrcode-generator 2.0.4, MIT), loaded on first use
 │   ├── js/vocals.js      # vocal map: where the singing is, per window and per track (no DOM)
@@ -1469,7 +1533,7 @@ dj-set-analyzer/
 │   ├── js/vibe-ui.js  # "Take the vibe to Spotify": radar, chips, prompt, actions
 │   ├── js/spotify.js  # OAuth PKCE sign-in, track matching, playlist save
 │   ├── js/engine/     # the browser engine (see "The browser engine")
-│   ├── helper/set-replay-helper.py  # the optional naming helper visitors run
+│   ├── helper/set-replay-helper.py  # the optional helper visitors run: Shazam names, YouTube/SoundCloud links (yt-dlp)
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
 │   ├── demo/          # bundled demo sets (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages
@@ -1485,6 +1549,7 @@ dj-set-analyzer/
 │   ├── selftest.mjs      # engine self-test on synthetic audio (known tempo/key/change)
 │   ├── selftest_py.py    # the same checks for the Python pipeline
 │   ├── e2e.mjs           # whole-site test in headless Chromium (drop → analyze → result)
+│   ├── helper-test.py    # the helper's link rules (only single YouTube videos / SoundCloud tracks)
 │   ├── pool-test.mjs     # the worker pool retries a range after a worker crash or stall (stand-in Worker)
 │   ├── demux-test.mjs    # the video soundtrack extractor on fixtures/set-replay-e2e.mov
 │   ├── fixtures/set-replay-e2e.mov  # the synthetic test set as a 2.4 MB video (H.264 + AAC, QuickTime sound entry)

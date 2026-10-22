@@ -1,6 +1,7 @@
 /* "Want these IDs named?" — the pop-up that explains the naming helper and
    watches for it to come online. Shared by the landing page and the viewer. */
 import { helperStatus, HELPER_URL, markHelperWanted } from "./engine/naming.js";
+import { canFetch } from "./engine/fetchlink.js";
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const isWin = /Win/i.test(navigator.platform || navigator.userAgent);
@@ -9,12 +10,14 @@ const isSafari = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.use
 const isPublic = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 /**
- * @param opts.mode     "landing" | "viewer"
+ * @param opts.mode     "landing" | "viewer" | "link" (fetching a YouTube / SoundCloud link)
+ * @param opts.onReady  link mode: called when a helper that fetches links is connected and the visitor goes on
  * @param opts.ids      number of unnamed tracks (viewer)
  * @param opts.onNameNow async (progress) => void — viewer: re-run the analysis with names
  * @returns the <dialog>
  */
-export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) {
+export function openNamingDialog({ mode = "landing", ids = 0, onNameNow, onReady } = {}) {
+  const link = mode === "link";
   document.getElementById("namingDialog")?.remove();
   markHelperWanted();   // from now on, pages in this browser may look for the helper
   const helperHref = new URL("helper/set-replay-helper.py", document.baseURI).href;
@@ -24,13 +27,15 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) 
   d.className = "nm";
   d.innerHTML = `
     <form method="dialog" class="nm-close"><button aria-label="Close">✕</button></form>
-    <h2 class="nm-title">${mode === "viewer" && ids ? `Want these ${ids} ID${ids === 1 ? "" : "s"} named?` : "Want your tracks named instead of “ID”?"}</h2>
-    <p class="nm-lead">Your browser can't ask Shazam on its own, but a tiny helper on this computer can. Set it up once and Set Replay will send it short clips of the set; it asks Shazam what's playing. Your recording stays on this computer.</p>
+    <h2 class="nm-title">${link ? "Fetch sets from YouTube and SoundCloud" : mode === "viewer" && ids ? `Want these ${ids} ID${ids === 1 ? "" : "s"} named?` : "Want your tracks named instead of “ID”?"}</h2>
+    <p class="nm-lead">${link
+      ? "Browsers can't download audio from YouTube or SoundCloud, but a tiny helper on this computer can (with the open-source yt-dlp). Set it up once; links you paste are fetched on this computer and analyzed here like a dropped file. The same helper can also name your tracks with Shazam. Only fetch what you have the right to download."
+      : "Your browser can't ask Shazam on its own, but a tiny helper on this computer can. Set it up once and Set Replay will send it short clips of the set; it asks Shazam what's playing. Your recording stays on this computer."}</p>
     <ol class="nm-steps">
       <li>
         <b>Download the helper</b>
         <a class="solid" href="${esc(helperHref)}" download="set-replay-helper.py">Download set-replay-helper.py</a>
-        <span class="nm-small">One small Python file. It only talks to this page and to Shazam.</span>
+        <span class="nm-small">${link ? "One small Python file. It only talks to this page, to Shazam, and to YouTube or SoundCloud for the links you paste." : "One small Python file. It only talks to this page and to Shazam."}</span>
       </li>
       <li>
         <b>Run it</b>
@@ -45,20 +50,25 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) 
       </li>
     </ol>
     <div class="nm-actions" id="nmActions"></div>
-    <p class="nm-foot">${isSafari ? "Safari may block pages from talking to programs on your computer; if it never connects, use Chrome, Edge or Firefox. " : ""}Lookups are paced gently; Shazam can still pause answering after a few hundred clips, so long sessions may leave a few IDs. Stop the helper any time with Ctrl+C.</p>`;
+    <p class="nm-foot">${isSafari ? "Safari may block pages from talking to programs on your computer; if it never connects, use Chrome, Edge or Firefox. " : ""}${link ? "Single videos and tracks up to six hours; no playlists or live streams." : "Lookups are paced gently; Shazam can still pause answering after a few hundred clips, so long sessions may leave a few IDs."} Stop the helper any time with Ctrl+C.</p>`;
   document.body.appendChild(d);
   d.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; } catch (e) { b.textContent = "Select and copy"; }
     setTimeout(() => (b.textContent = "Copy"), 1800);
   }));
 
-  let connected = false, busy = false;
+  let connected = false, busy = false, old = false;
   const status = d.querySelector("#nmStatus"), actions = d.querySelector("#nmActions");
   const render = () => {
     status.classList.toggle("on", connected);
-    status.querySelector("span").textContent = connected ? `Connected to the helper on ${HELPER_URL.replace("http://", "")}` : "Not connected yet. Checking every few seconds…";
+    status.querySelector("span").textContent = connected ? `Connected to the helper on ${HELPER_URL.replace("http://", "")}`
+      : old ? "Connected, but this is an older helper without links: download it again (step 1), stop the old one with Ctrl+C and run the new one."
+      : "Not connected yet. Checking every few seconds…";
     if (busy) return;
-    if (mode === "viewer" && onNameNow) {
+    if (link) {
+      actions.innerHTML = connected ? `<button class="solid big" id="nmFetch">Fetch it</button><span class="nm-small">Downloads on this computer, then it's ready to analyze.</span>` : "";
+      d.querySelector("#nmFetch")?.addEventListener("click", () => { d.close(); if (onReady) onReady(); });
+    } else if (mode === "viewer" && onNameNow) {
       actions.innerHTML = `<button class="solid big" id="nmGo" ${connected ? "" : "disabled"}>Name the tracks now</button><span class="nm-small" id="nmProgress">${connected ? "Re-listens to this set with names; takes a few minutes." : ""}</span>`;
       d.querySelector("#nmGo").addEventListener("click", async () => {
         busy = true;
@@ -81,7 +91,9 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow } = {}) 
   render();
   const poll = async () => {
     const was = connected;
-    connected = !!(await helperStatus());
+    const h = await helperStatus();
+    old = link && !!h && !canFetch(h);
+    connected = !!h && (!link || canFetch(h));
     if (connected !== was || !status.dataset.init) { status.dataset.init = "1"; render(); d.dispatchEvent(new CustomEvent("helper", { detail: connected })); }
   };
   poll();

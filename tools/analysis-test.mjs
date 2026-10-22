@@ -362,6 +362,11 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   check(`${slug}: the prose draws on the shape, vocals and pacing`, Rv.paragraphs, (p) => /arc is closest to a wind-down/.test(p[1]) && /Vocals/.test(p[0]) && /The pacing is steady: a typical track gets \d+:\d\d/.test(p[2]));
   check(`${slug}: the prose reads as description, not instruction`, Rv.paragraphs.join(" "), (t) => !/, turn |and end |keep the mood|\) \(/.test(t));
 }
+{
+  // a single short song (a SoundCloud track, say) is one chapter, not none: the page used to crash on it
+  const song = { duration: 143, summary: { set_start: 0, set_end: 143 }, curves: {}, tracks: [{ n: 1, start: 0, end: 143, energy: 5, bpm: 97 }] };
+  check("phases: a 2-minute single song is one chapter", findPhases(song).length, (n) => n === 1);
+}
 check("review: fewer than four tracks, none", review({ tracks: [{ n: 1 }], summary: {} }), (v) => v === null);
 
 /* ---------------- track by track (web/js/similarity.js) */

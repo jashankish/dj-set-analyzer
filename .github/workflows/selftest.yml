@@ -27,6 +27,9 @@ jobs:
       - name: Python compiles
         run: python3 -m py_compile analyzer/*.py web/helper/set-replay-helper.py web/serve.py tools/*.py
 
+      - name: Helper link rules (only single YouTube videos and SoundCloud tracks)
+        run: python3 tools/helper-test.py
+
       - name: Engine libraries (same pinned versions the site loads)
         run: |
           mkdir -p .engine-deps && cd .engine-deps

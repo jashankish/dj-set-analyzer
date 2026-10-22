@@ -5,6 +5,8 @@ import { listSets, listPayloads, deleteSet, saveSet, importSet, storageEstimate 
 import { taste } from "./taste.js";
 import { helperStatus, helperWanted } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
+import { parseLink, fetchLink, canFetch } from "./engine/fetchlink.js";
+import { markHelperWanted } from "./engine/naming.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -243,7 +245,7 @@ function addFiles(list) {
   for (const f of list) {
     if (/\.json$/i.test(f.name) || f.type === "application/json") { importJson(f); continue; }
     if (!(f.type.startsWith("audio/") || f.type.startsWith("video/") || AUDIO_EXT.test(f.name))) { skipped++; continue; }
-    if (queue.some((q) => q.file.name === f.name && q.file.size === f.size)) continue;
+    if (queue.some((q) => q.file && q.file.name === f.name && q.file.size === f.size)) continue;
     const item = { file: f, state: "ready", f: 0, stage: "" };
     queue.push(item);
     probeDuration(item);
@@ -252,6 +254,45 @@ function addFiles(list) {
   renderQueue();
   // start downloading the analysis models while the visitor is still choosing
   if (queue.some((q) => q.state === "ready")) import("./engine/pipeline.js").then((m) => m.loadModels()).catch(() => {});
+}
+
+/* ------------------------------------------------ a YouTube or SoundCloud link (through the helper) */
+async function addLink(text) {
+  const L = parseLink(text);
+  if (!L) { toast("Paste the link of a single YouTube video or SoundCloud track"); return false; }
+  if (queue.some((q) => q.link && q.link.url === L.url)) { toast("That link is already in the list"); return false; }
+  const item = { link: L, label: L.url, state: "waiting", f: 0, stage: "" };
+  queue.push(item);
+  renderQueue();
+  markHelperWanted();
+  if (canFetch(await helperStatus())) startFetch(item);
+  else { item.state = "needs-helper"; renderQueue(); linkHelp(item); }
+  return true;
+}
+function linkHelp(item) {
+  openNamingDialog({ mode: "link", onReady: () => startFetch(item) }).addEventListener("helper", (e) => { helperOn = e.detail; renderNaming(); });
+}
+async function startFetch(item) {
+  if (!queue.includes(item) || item.state === "fetching") return;
+  item.state = "fetching"; item.f = 0; item.stage = "Looking up the link";
+  item.ctl = new AbortController();
+  renderQueue();
+  import("./engine/pipeline.js").then((m) => m.loadModels()).catch(() => {});   // the models download meanwhile
+  try {
+    const r = await fetchLink(item.link.url, {
+      signal: item.ctl.signal,
+      onProgress: (stage, f, job) => { item.stage = stage; item.f = f; if (job && job.title) item.label = job.title; renderQueue(); },
+    });
+    item.file = r.file; item.meta = r; item.label = r.title || item.label;
+    item.state = "ready"; item.f = 0; item.duration = r.duration || undefined;
+    if (!item.duration) probeDuration(item);
+    announce(`${item.label} fetched from ${item.link.label}. Press Analyze.`);
+  } catch (e) {
+    if (e && e.name === "AbortError") return;           // removed or cleared: the item is already gone
+    item.state = "error";
+    item.error = /Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message)) ? "The helper stopped answering. Is it still running?" : (e && e.message) || "Couldn't fetch it";
+  }
+  renderQueue();
 }
 
 function probeDuration(item) {
@@ -271,18 +312,22 @@ function renderQueue() {
       if (q.duration > 3 * 3600) state += ` · long set, needs about ${Math.ceil((q.duration * 16000 * 4 * 3) / 1e9)} GB of free memory`;
       else if (LOW_MEMORY && q.duration > 3600) state += " · may run out of memory on this device; a laptop works best";
     }
-    if (q.state === "running") state = `${q.stage} · ${Math.round(q.f * 100)}%`;
+    if (q.state === "running" || q.state === "fetching") state = `${esc(q.stage)} · ${Math.round(q.f * 100)}%`;
+    if (q.state === "waiting") state = "Looking for the helper…";
+    if (q.state === "needs-helper") state = `Needs the Set Replay helper on this computer. <button class="ghost hl-setup" data-i="${i}">Set it up</button>`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
-    if (q.state === "error") state = esc(q.error);
+    if (q.state === "error") state = esc(q.error) + (q.link && !q.file ? ` <button class="ghost hl-retry" data-i="${i}">Try again</button>` : "");
     if (q.state === "unsaved") state = `Analyzed, but ${esc(q.error)}. <button class="ghost dl" data-i="${i}">Download the analysis</button>`;
     return `<li class="q-item">
-      <div class="q-name"><b>${esc(q.file.name)}</b><span>${mb(q.file.size)}</span></div>
+      <div class="q-name"><b>${esc(q.link ? q.label : q.file.name)}</b><span>${q.link ? `${esc(q.link.label)}${q.file ? ` · ${mb(q.file.size)}` : ""}` : mb(q.file.size)}</span></div>
       <div class="q-state${q.state === "error" || q.state === "unsaved" ? " err" : ""}">${state}</div>
-      ${q.state === "ready" && !running ? `<button class="q-x" data-i="${i}" aria-label="Remove ${esc(q.file.name)}">✕</button>` : "<span></span>"}
-      <div class="q-bar" style="width:${["running", "done", "unsaved"].includes(q.state) ? q.f * 100 : 0}%"></div>
+      ${["ready", "fetching", "waiting", "needs-helper", "error"].includes(q.state) && !running ? `<button class="q-x" data-i="${i}" aria-label="Remove ${esc(q.link ? q.label : q.file.name)}">✕</button>` : "<span></span>"}
+      <div class="q-bar" style="width:${["running", "done", "unsaved", "fetching"].includes(q.state) ? q.f * 100 : 0}%"></div>
     </li>`;
   }).join("");
-  $("qList").querySelectorAll(".q-x").forEach((b) => b.addEventListener("click", () => { queue.splice(+b.dataset.i, 1); renderQueue(); }));
+  $("qList").querySelectorAll(".q-x").forEach((b) => b.addEventListener("click", () => { const [q] = queue.splice(+b.dataset.i, 1); if (q && q.ctl) q.ctl.abort(); renderQueue(); }));
+  $("qList").querySelectorAll(".hl-setup").forEach((b) => b.addEventListener("click", () => linkHelp(queue[+b.dataset.i])));
+  $("qList").querySelectorAll(".hl-retry").forEach((b) => b.addEventListener("click", async () => { const q = queue[+b.dataset.i]; if (canFetch(await helperStatus())) startFetch(q); else { q.state = "needs-helper"; renderQueue(); linkHelp(q); } }));
   $("qList").querySelectorAll(".dl").forEach((b) => b.addEventListener("click", () => downloadPayload(queue[+b.dataset.i].payload)));
   const ready = queue.filter((q) => q.state === "ready").length;
   $("analyzeBtn").disabled = running || !ready;
@@ -311,7 +356,7 @@ async function analyzeAll() {
     if (q.state !== "ready") continue;
     if (controller.signal.aborted) break;
     q.state = "running"; q.stage = "Starting"; q.f = 0; renderQueue();
-    announce(`Analyzing ${q.file.name}. This takes a minute or two.`);
+    announce(`Analyzing ${q.link ? q.label : q.file.name}. This takes a minute or two.`);
     try {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
@@ -319,6 +364,11 @@ async function analyzeAll() {
         onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
         onAudio: (a) => { q.audio = a; },              // a video: keep its soundtrack, not the video
       });
+      if (q.meta) {
+        // from a link: its own title, and where it came from (the set page links back)
+        if (q.meta.title) payload.title = q.meta.title;
+        payload.link = { url: q.meta.url, service: q.meta.service, title: q.meta.title || null, uploader: q.meta.uploader || null };
+      }
       try {
         q.id = await saveSet(payload, q.audio || q.file);
       } catch (e) {
@@ -382,8 +432,15 @@ function bindDrop() {
   $("analyzeBtn").addEventListener("click", analyzeAll);
   $("clearBtn").addEventListener("click", () => {
     if (running) { controller && controller.abort(); toast("Stopping…"); return; }
+    queue.forEach((q) => q.ctl && q.ctl.abort());
     queue.splice(0, queue.length); renderQueue();
   });
+  $("linkForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (await addLink($("linkInput").value)) $("linkInput").value = "";
+  });
+  // a link dropped or pasted onto the drop zone works too
+  $("drop").addEventListener("paste", (e) => { const t = e.clipboardData && e.clipboardData.getData("text"); if (t && parseLink(t)) { e.preventDefault(); addLink(t); } });
   window.addEventListener("beforeunload", (e) => {
     if (running || queue.some((q) => q.state === "unsaved")) { e.preventDefault(); e.returnValue = ""; }
   });
@@ -400,3 +457,4 @@ renderNaming();
 checkHelper();
 window.addEventListener("focus", checkHelper);
 $("faqNaming")?.addEventListener("click", showNaming);
+$("faqLink")?.addEventListener("click", () => openNamingDialog({ mode: "link", onReady: () => $("linkInput").focus() }));

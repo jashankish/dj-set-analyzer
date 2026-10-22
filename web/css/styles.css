@@ -902,3 +902,6 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .naming label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink); }
 .naming input { width: 16px; height: 16px; accent-color: #EFECF5; }
 .linkish { background: none; border: 0; padding: 0; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font: inherit; }
+
+.src-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.src-by { color: var(--muted); font-size: .8em; }

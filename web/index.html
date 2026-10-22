@@ -36,7 +36,7 @@
   <main>
     <section class="hero" aria-labelledby="heroTitle">
       <h1 class="hero-title" id="heroTitle">Drop a DJ set.<br>Get the whole night back.</h1>
-      <p class="hero-sub">Set Replay listens to a recording or a video of a set and hands you the setlist, every transition, the keys, tempo and energy, a written review, and a playlist prompt in the set's sound for Spotify. Replay any moment. It all runs in your browser. Your audio never leaves this computer.</p>
+      <p class="hero-sub">Set Replay listens to a recording or a video of a set (or a YouTube or SoundCloud link) and hands you the setlist, every transition, the keys, tempo and energy, a written review, and a playlist prompt in the set's sound for Spotify. Replay any moment. It all runs in your browser. Your audio never leaves this computer.</p>
 
       <div class="drop" id="drop" tabindex="0" role="button" aria-labelledby="dropTitle dropHint">
         <canvas class="drop-ribbon" id="dropRibbon" aria-hidden="true"></canvas>
@@ -47,6 +47,13 @@
         </div>
         <input type="file" id="fileInput" accept="audio/*,video/mp4,video/quicktime,.m4a,.mp3,.wav,.flac,.aac,.ogg,.aif,.aiff,.mp4,.mov,.m4v,.json" multiple hidden />
       </div>
+
+      <form class="link-row" id="linkForm" autocomplete="off">
+        <label class="link-k" for="linkInput">Or a link</label>
+        <input class="link-in" id="linkInput" type="text" inputmode="url" spellcheck="false" placeholder="Paste a YouTube or SoundCloud link to a set" />
+        <button class="ghost" id="linkBtn" type="submit">Add</button>
+      </form>
+      <p class="link-note">Links are fetched on this computer by the free Set Replay helper (set up once, two minutes). Only fetch what you're allowed to download.</p>
 
       <div class="naming" id="naming" aria-live="polite"></div>
 
@@ -160,6 +167,8 @@
         <dd>Yes. Each set gets a prompt for Spotify's Prompted Playlist (or YouTube Music, Apple Music, Deezer or any AI chat) written from what Set Replay measured: the genres it trusts, the tempo, the mood and its route through the set, the artists and songs to start from, and what to leave out. Switch keywords on and off, copy it, and paste it into the app. With a Spotify app's Client ID it can also save the set's named tracks to your Spotify as a playlist.</dd>
         <dt>Can I drop in a video?</dt>
         <dd>Yes: an MP4 or MOV of the set, straight from a phone. Only its soundtrack is taken out (without re-encoding and without loading the video into memory), analyzed and kept, so an hour of video costs about 60 MB in your browser.</dd>
+        <dt>Can I use a YouTube or SoundCloud link?</dt>
+        <dd>Yes: paste the link of a single video or track under the drop zone. Browsers can't download from those sites themselves, so the audio is fetched by the small <button class="linkish" id="faqLink" type="button">Set Replay helper</button> running on your computer (it uses the open-source yt-dlp), then analyzed here like a dropped file. Up to six hours; no playlists or live streams. Only fetch what you have the right to download: YouTube's and SoundCloud's terms apply.</dd>
         <dt>How accurate is it?</dt>
         <dd>Tempo, key and swap points are reliable. Mix-in and mix-out are estimates to within a few seconds. Style labels are best read as relative: “harder than the last track” rather than a definitive genre.</dd>
         <dt>Which browsers work?</dt>

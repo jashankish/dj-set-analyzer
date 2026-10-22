@@ -323,6 +323,9 @@ import { tableSection } from "./sections/table-ui.js";
       ["BPM", bpm],
       ["Harmonic mixes", s.harmonic_pct != null ? `${s.harmonic_pct}%` : "—"],
     ];
+    // a set fetched from a link: back to where it came from
+    if (D.link && /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|soundcloud\.com)\//.test(D.link.url))
+      facts.push(["From", `<a class="src-link" href="${esc(D.link.url)}" target="_blank" rel="noopener noreferrer">${D.link.service === "soundcloud" ? "SoundCloud" : "YouTube"} ↗</a>${D.link.uploader ? ` <span class="src-by">${esc(D.link.uploader)}</span>` : ""}`]);
     $("facts").innerHTML = facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
     $("story").innerHTML = story();
   }

@@ -45,6 +45,12 @@ body.landing { padding-bottom: 0; }
 .drop-icon { width: 46px; height: 46px; color: var(--ink); margin-bottom: 12px; }
 .drop-title { margin: 0; font-stretch: 118%; font-weight: 800; font-size: clamp(1.4rem, 3vw, 2rem); }
 .drop-hint { margin: 8px 0 0; color: var(--ink-2); font-size: .98rem; }
+.link-row { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+.link-k { color: var(--muted); font-size: .86rem; font-stretch: 90%; white-space: nowrap; }
+.link-in { flex: 1; min-width: 0; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font: inherit; font-size: .95rem; }
+.link-in:focus { outline: 2px solid var(--ink-2); outline-offset: 1px; }
+.link-note { margin: 6px 0 0 4px; color: var(--muted); font-size: .8rem; font-stretch: 90%; }
+@media (max-width: 560px) { .link-k { display: none; } }
 .link-like { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 /* ---------------------------------------------------------------- queue */

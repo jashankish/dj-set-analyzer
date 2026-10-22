@@ -404,13 +404,18 @@ try {
    knows the answer: clips before 90 s are "Track A", later ones "Track B" */
 const probeTimes = [];
 for (let t = 4; t <= SYNTH.duration - 12; t += 24) probeTimes.push(t);
-let asked = 0;
+let asked = 0, fetchPolls = 0;
 const mock = http.createServer((req, res) => {
   const cors = { "Access-Control-Allow-Origin": req.headers.origin || "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Private-Network": "true" };
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
   const json = (o) => { res.writeHead(200, { ...cors, "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
-  if (req.url.startsWith("/health")) return json({ ok: true, name: "set-replay-helper", version: 1 });
+  if (req.url.startsWith("/health")) return json({ ok: true, name: "set-replay-helper", version: 2, fetch: true });
+  // links: one stand-in fetch that's "downloading" on the first poll and ready on the next, whose audio is the synthetic set
+  if (req.url === "/fetch" && req.method === "POST") { req.resume(); return req.on("end", () => { fetchPolls = 0; json({ id: "0123456789ab", state: "queued", pct: 0 }); }); }
+  if (req.url === "/fetch/0123456789ab") return json(fetchPolls++ < 1 ? { id: "0123456789ab", state: "downloading", pct: 0.5, title: "Test Set (Live)", service: "youtube" }
+    : { id: "0123456789ab", state: "ready", pct: 1, title: "Test Set (Live)", uploader: "Test Channel", duration: SYNTH.duration, service: "youtube", ext: "wav" });
+  if (req.url === "/fetch/0123456789ab/audio") { res.writeHead(200, { ...cors, "Content-Type": "audio/wav" }); return res.end(fs.readFileSync(wav)); }
   req.resume();
   req.on("end", () => {
     const t = probeTimes[Math.min(asked, probeTimes.length - 1)];
@@ -453,6 +458,36 @@ try {
     check("Save to Spotify: uploads a cover drawn from the set (a JPEG under 256 KB)", raw && [raw[0], raw[1], coverBody.length], (v) => v && v[0] === 0xff && v[1] === 0xd8 && v[2] <= 256 * 1024);
     await cs.close();
   }
+
+  // a YouTube link, fetched through the (stand-in) helper and analyzed like a dropped file
+  {
+    const cl = await browser.newContext();
+    await cl.addInitScript((url) => { localStorage.setItem("set-replay:helper-url", url); localStorage.setItem("set-replay:naming-helper", "1"); }, helperUrl);
+    const pl = await cl.newPage();
+    const errsL = [];
+    pl.on("pageerror", (e) => errsL.push(String(e)));
+    await pl.goto(BASE);
+    await pl.fill("#linkInput", "youtube.com/watch?v=abcdefghijk");
+    await pl.click("#linkBtn");
+    await pl.waitForSelector("#analyzeBtn:not([disabled])", { timeout: 15000 }).catch(() => {});
+    check("a YouTube link is fetched by the helper into the queue, named after the video", (await pl.locator("#qList .q-item").first().textContent()).replace(/\s+/g, " "), (t) => /Test Set \(Live\)/.test(t) && /YouTube/.test(t) && /of audio|Ready/.test(t));
+    await pl.click("#analyzeBtn");
+    await pl.waitForURL(/set\.html\?id=/, { timeout: 180000 }).catch(() => {});
+    await pl.waitForSelector(".trk", { timeout: 30000 }).catch(() => {});
+    check("…and analyzed like a file; the set page links back to the video", [await pl.locator("#title").textContent().catch(() => ""), await pl.locator(".src-link").getAttribute("href").catch(() => null), await pl.locator(".trk").count()], ([t, h, n]) => t === "Test Set (Live)" && h === "https://youtube.com/watch?v=abcdefghijk" && n === 2);
+    // no helper running: the item waits, and the pop-up explains how to get one
+    const pn = await cl.newPage();
+    await pn.addInitScript(() => localStorage.setItem("set-replay:helper-url", "http://127.0.0.1:9"));
+    await pn.goto(BASE);
+    await pn.fill("#linkInput", "https://soundcloud.com/some-dj/a-set");
+    await pn.click("#linkBtn");
+    await pn.waitForSelector("#namingDialog[open]", { timeout: 8000 }).catch(() => {});
+    check("without the helper, a link waits and the pop-up explains how to fetch links", [await pn.locator("#namingDialog .nm-title").textContent().catch(() => ""), await pn.locator("#qList .q-state").first().textContent()], ([h, s]) => h === "Fetch sets from YouTube and SoundCloud" && /Needs the Set Replay helper/.test(s));
+    check("a link that isn't a single YouTube video or SoundCloud track is refused", await pn.evaluate(async () => { const m = await import("./js/engine/fetchlink.js"); return ["https://www.youtube.com/playlist?list=PL1", "https://vimeo.com/1", "https://soundcloud.com/x/sets/y"].map((u) => m.parseLink(u)); }), (v) => v.every((x) => x === null));
+    check("link flow: no page errors", errsL, (e) => e.length === 0);
+    await cl.close();
+  }
+  asked = 0;   // the link's analysis asked the stand-in for names too; the naming test counts from zero
 
   const ctx2 = await browser.newContext();
   await ctx2.addInitScript((url) => {
