@@ -19,6 +19,7 @@
 import { tempoLikelihood } from "./engine/music.js";
 import { moodMap } from "./moodmap.js";
 import { setShape } from "./shape.js";
+import { tempoJourney } from "./tempo.js";
 
 /* Discogs style → how listeners (and Spotify) say it */
 const SAY = {
@@ -241,7 +242,13 @@ export function vibeProfile(D, names = {}) {
   if (bpm) {
     const word = bpm >= 160 ? "high-tempo" : bpm >= 135 ? "fast" : bpm >= 118 ? "driving" : bpm >= 100 ? "mid-tempo" : "laid-back";
     chip("t:word", "Tempo", word);
-    chip("t:bpm", "Tempo", spread < 6 ? `around ${Math.round(bpm)} BPM` : `${Math.round(s.bpm_min)}–${Math.round(s.bpm_max)} BPM`);
+    // from the tempo journey when it can say more: a long ramp as a direction, else the range
+    // with half/double-time folded in (a single half-time track won't read as "65–130 BPM")
+    const TJ = tempoJourney(D), big = TJ && !TJ.locked && TJ.ramps.find((r) => Math.abs(r.to - r.from) >= 5 && r.t1 - r.t0 >= (TJ.s1 - TJ.s0) / 3);
+    const range = TJ && !TJ.locked ? `${Math.round(TJ.lo)}–${Math.round(TJ.hi)} BPM` : `${Math.round(s.bpm_min)}–${Math.round(s.bpm_max)} BPM`;
+    chip("t:bpm", "Tempo", big ? `${big.dir > 0 ? "climbing" : "easing"} from ${Math.round(big.from)} ${big.dir > 0 ? "to" : "down to"} ${Math.round(big.to)} BPM`
+      : spread < 6 || (TJ && TJ.locked) ? `around ${Math.round(bpm)} BPM` : range,
+    true, big ? `the tempo journey's biggest ramp, over ${Math.round((big.t1 - big.t0) / 60)} minutes` : "");
   }
   if (ax.aggr >= 0.45) chip("m:aggr", "Mood", "hard-hitting");
   else if (ax.aggr >= 0.28) chip("m:aggr", "Mood", "punchy");

@@ -538,7 +538,11 @@ Node by `tools/analysis-test.mjs`):
   45% of the best are switched on. Ambient and experimental are treated as
   texture ("atmospheric breakdowns", "experimental edges"), not genre.
 - **Tempo:** a word (laid-back → driving → fast → high-tempo) plus "around
-  175 BPM", or a range when the set moves.
+  175 BPM" when the tempo is locked; for a set that moves, the tempo
+  journey's direction when one ramp of 5+ BPM covers a third of the set
+  ("climbing from 122 to 130 BPM", "easing from 128 down to 122 BPM"), else
+  its range, with half- and double-time tracks folded in so one half-time
+  track doesn't make it "65–130 BPM".
 - **Mood** from the duration-weighted model scores: aggressive → *punchy* or
   *hard-hitting*, happy → *euphoric*, or *dark* when the set is low on happy
   and mostly in minor keys, party → *clubby* or *rave-ready*, danceability
@@ -645,12 +649,19 @@ to whichever section it belongs to, which finishes the save.
 *&lt;set title&gt; · Set Replay* holding the set's named tracks, with the
 keywords as its description. Each track is matched by ISRC first (Shazam
 supplies it), then by title and lead artist; doubtful Shazam matches are
-left out and listed. Spotify has no public API for Prompted Playlist itself,
-so the page can't run the prompt for you. The saved playlist is the seed,
-and the prompt is what you paste.
+left out and listed. It gets a **cover** drawn from the set (`cover.js`): a
+640 × 640 JPEG of the set's waveform in key colors with the title and the
+chapter, part or length, kept under Spotify's 256 KB limit by lowering the
+quality. The running order and the two-set blend get one too ("a smoother
+order", "two sets"). The upload is best-effort: a session signed in before
+the cover scope was asked for, or any upload error, leaves Spotify's own
+mosaic and the save still succeeds. Spotify has no public API for Prompted
+Playlist itself, so the page can't run the prompt for you. The saved
+playlist is the seed, and the prompt is what you paste.
 
 It signs in with OAuth 2 + PKCE entirely in the browser (`web/js/spotify.js`):
-no secret, no server, scopes `playlist-modify-private playlist-modify-public`,
+no secret, no server, scopes `playlist-modify-private playlist-modify-public
+ugc-image-upload` (the last for the cover),
 and the token lives in `sessionStorage` for the tab. It needs a Spotify
 app's Client ID:
 
@@ -1442,6 +1453,7 @@ dj-set-analyzer/
 │   ├── js/tracklist.js   # tracklist as text, YouTube chapters, 1001Tracklists and a CUE sheet (no DOM)
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
+│   ├── js/cover.js       # a 640 × 640 JPEG cover for playlists saved to Spotify
 │   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
 │   ├── js/vendor/        # qrcode.js (qrcode-generator 2.0.4, MIT), loaded on first use
 │   ├── js/vocals.js      # vocal map: where the singing is, per window and per track (no DOM)

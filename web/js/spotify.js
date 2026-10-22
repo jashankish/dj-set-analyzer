@@ -5,7 +5,8 @@
    the AI playlist itself. What it can do, with the visitor's permission:
    create a private playlist of the set's named tracks (matched by ISRC
    first, then by title and artist) and put the vibe prompt in its
-   description, ready to grow in the Spotify app.
+   description, ready to grow in the Spotify app, with a cover drawn from
+   the set (cover.js).
 
    Authorization is OAuth 2 with PKCE, entirely in the browser: no secret,
    no server. It needs a Spotify app's Client ID, from either
@@ -21,7 +22,9 @@
 const AUTH = "https://accounts.spotify.com/authorize";
 const TOKEN = "https://accounts.spotify.com/api/token";
 const API = "https://api.spotify.com/v1";
-const SCOPES = "playlist-modify-private playlist-modify-public";
+// ugc-image-upload: the playlist's cover (cover.js); a session from before it was asked
+// for can't upload, and the save goes ahead without one
+const SCOPES = "playlist-modify-private playlist-modify-public ugc-image-upload";
 const K_ID = "set-replay:spotify-client-id";
 const K_FLOW = "set-replay:spotify-flow";        // sessionStorage: verifier, state, where to come back to
 const K_TOKEN = "set-replay:spotify-token";      // sessionStorage: access token + expiry
@@ -138,7 +141,7 @@ export async function findTrack({ title, artist, isrc }) {
 }
 
 /* the whole export: returns { url, found: [...], missed: [...] } */
-export async function savePlaylist({ name, description, tracks }, progress = () => {}) {
+export async function savePlaylist({ name, description, tracks, cover }, progress = () => {}) {
   const found = [], missed = [];
   for (let i = 0; i < tracks.length; i++) {
     progress(`Finding track ${i + 1} of ${tracks.length} on Spotify…`);
@@ -153,5 +156,15 @@ export async function savePlaylist({ name, description, tracks }, progress = () 
   for (let i = 0; i < found.length; i += 100) {
     await api(`/playlists/${pl.id}/items`, { method: "POST", body: JSON.stringify({ uris: found.slice(i, i + 100).map((f) => f.uri) }) });
   }
-  return { url: (pl.external_urls && pl.external_urls.spotify) || `https://open.spotify.com/playlist/${pl.id}`, found, missed };
+  // the cover is a nice-to-have: any failure (an older session without the scope, a slow
+  // upload) leaves Spotify's own mosaic and the save still succeeds
+  let covered = false;
+  if (cover) {
+    progress("Adding the cover…");
+    try {
+      const b64 = await cover();
+      if (b64) { await api(`/playlists/${pl.id}/images`, { method: "PUT", body: b64, headers: { "Content-Type": "image/jpeg" } }); covered = true; }
+    } catch (e) { /* no cover; the playlist and its tracks are saved */ }
+  }
+  return { covered, url: (pl.external_urls && pl.external_urls.spotify) || `https://open.spotify.com/playlist/${pl.id}`, found, missed };
 }

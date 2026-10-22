@@ -8,6 +8,7 @@ import { compareSets, mergePayloads } from "../compare.js";
 import { similarity } from "../similarity.js";
 import { getSet } from "../store.js";
 import { spotifySave, takePending } from "../vibe-ui.js";
+import { coverJpeg } from "../cover.js";
 import { AXES, buildPrompt, vibeProfile } from "../vibe.js";
 
 export function compareSection(ctx) {
@@ -69,6 +70,7 @@ export function compareSection(ctx) {
       tracks: M.tracks, names: S.names,                  // the first set's own names; its track numbers are unchanged
       name: `${ta} + ${tb} · Set Replay`, description: blend.short,
       say: (h) => ($("cmpStatus").innerHTML = h), btn: $("cmpSave"), pending: { action: "blend", slug },
+      cover: () => coverJpeg(M, { title: `${ta} + ${tb}`, sub: "two sets", keyColor }),
     });
     $("cmpSave").onclick = saveBlend;
     const p = takePending("blend");

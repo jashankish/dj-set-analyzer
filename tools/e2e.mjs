@@ -414,6 +414,38 @@ const mock = http.createServer((req, res) => {
 await new Promise((r) => mock.listen(0, "127.0.0.1", r));
 const helperUrl = `http://127.0.0.1:${mock.address().port}`;
 try {
+  // Save the set to Spotify, against a stand-in for Spotify's Web API: tracks are looked up,
+  // a private playlist made, the tracks added, and a cover drawn from the set uploaded
+  {
+    const cs = await browser.newContext();
+    await cs.addInitScript(() => {
+      localStorage.setItem("set-replay:spotify-client-id", "test-client-id");
+      sessionStorage.setItem("set-replay:spotify-token", JSON.stringify({ token: "test-token", until: Date.now() + 3600e3 }));
+    });
+    const calls = [];
+    let coverBody = null;
+    await cs.route("https://api.spotify.com/v1/**", async (r) => {
+      const u = new URL(r.request().url()), m = r.request().method();
+      calls.push(`${m} ${u.pathname}`);
+      if (u.pathname === "/v1/search") return r.fulfill({ json: { tracks: { items: [{ uri: `spotify:track:${calls.length}`, name: (u.searchParams.get("q").match(/track:"([^"]+)"/) || [, "x"])[1], artists: [{ name: "A" }] }] } } });
+      if (u.pathname === "/v1/me/playlists") return r.fulfill({ status: 201, json: { id: "pl1", external_urls: { spotify: "https://open.spotify.com/playlist/pl1" }, name: JSON.parse(r.request().postData()).name } });
+      if (u.pathname.endsWith("/items")) return r.fulfill({ status: 201, json: { snapshot_id: "s" } });
+      if (u.pathname.endsWith("/images")) { coverBody = r.request().postData(); return r.fulfill({ status: 202, body: "" }); }
+      return r.fulfill({ status: 404, json: {} });
+    });
+    const sp = await cs.newPage();
+    await sp.goto(`${BASE}set.html?demo=worship-part-2`);
+    await sp.waitForSelector(".trk");
+    await sp.locator('#vibeTarget [data-t="spotify"]').click();
+    await sp.locator("#vibeSave").click();
+    await sp.waitForFunction(() => /Saved/.test(document.getElementById("vibeStatus").textContent), null, { timeout: 20000 }).catch(() => {});
+    const status = await sp.locator("#vibeStatus").textContent();
+    check("Save to Spotify: finds the named tracks, makes the playlist, adds them", [status, calls.includes("POST /v1/me/playlists"), calls.some((c) => /^POST \/v1\/playlists\/pl1\/items$/.test(c))], ([s, made, added]) => /^Saved \d+ tracks? to Worship Part 2 · Set Replay/.test(s) && made && added);
+    const raw = coverBody ? Buffer.from(coverBody, "base64") : null;
+    check("Save to Spotify: uploads a cover drawn from the set (a JPEG under 256 KB)", raw && [raw[0], raw[1], coverBody.length], (v) => v && v[0] === 0xff && v[1] === 0xd8 && v[2] <= 256 * 1024);
+    await cs.close();
+  }
+
   const ctx2 = await browser.newContext();
   await ctx2.addInitScript((url) => {
     localStorage.setItem("set-replay:helper-url", url);

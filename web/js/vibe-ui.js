@@ -9,6 +9,7 @@
 import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions, LENGTHS } from "./vibe.js";
 import { slicePayload, around } from "./phases.js";
 import { promptLink, qrSvg } from "./handoff.js";
+import { coverJpeg } from "./cover.js";
 import * as spotify from "./spotify.js";
 
 const $ = (id) => document.getElementById(id);
@@ -240,7 +241,7 @@ function exportTracks(trackList, names = {}) {
 /* Save named tracks to a new Spotify playlist. Shared by this section, the
    two-set blend and the suggested running order (app.js): `say` shows status
    where the button is, `pending` is what to resume after Spotify's sign-in. */
-export async function spotifySave({ tracks: trackList, names = {}, name, description, say, btn, pending }) {
+export async function spotifySave({ tracks: trackList, names = {}, name, description, say, btn, pending, cover }) {
   if (!spotify.clientId()) {
     $("vibeConnect").hidden = false;
     $("vibeConnect").open = true;
@@ -262,7 +263,7 @@ export async function spotifySave({ tracks: trackList, names = {}, name, descrip
   if (!out.length) { say("None of these tracks are named yet, so there's nothing to look up. The prompt still works on its own."); return; }
   if (btn) btn.disabled = true;
   try {
-    const r = await spotify.savePlaylist({ name, description, tracks: out }, (m) => say(esc(m)));
+    const r = await spotify.savePlaylist({ name, description, tracks: out, cover }, (m) => say(esc(m)));
     const miss = r.missed.length ? ` Not on Spotify: ${r.missed.map((t) => esc([t.artist, t.title].filter(Boolean).join(" – "))).join("; ")}.` : "";
     const skip = doubtful.length ? ` Left out ${doubtful.length} doubtful Shazam match${doubtful.length > 1 ? "es" : ""}.` : "";
     say(`Saved <b>${r.found.length}</b> track${r.found.length === 1 ? "" : "s"} to <a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(name)}</a>.${miss}${skip} Open it in Spotify and use the prompt to grow it.`);
@@ -285,7 +286,8 @@ export function takePending(action) {
 function saveToSpotify() {
   const part = V.scope === -1 ? null : V.scope === HERE ? V.here.label : V.phases[V.scope].label;
   const name = part ? `${V.title} · ${part} · Set Replay` : `${V.title} · Set Replay`;
-  return spotifySave({ tracks: V.Ds.tracks, names: V.names, name, description: prompt().short, say: status, btn: $("vibeSave"), pending: { action: "save" } });
+  return spotifySave({ tracks: V.Ds.tracks, names: V.names, name, description: prompt().short, say: status, btn: $("vibeSave"), pending: { action: "save" },
+    cover: () => coverJpeg(V.Ds, { title: V.title, sub: part || `${Math.round((V.D.summary.set_length || V.D.duration) / 60)} minutes`, keyColor: V.keyColor }) });
 }
 
 /* ------------------------------------------------ wiring */

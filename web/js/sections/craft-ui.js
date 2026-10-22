@@ -7,6 +7,7 @@
 import { craftProfile, relationClass, reorder } from "../craft.js";
 import { harmonicRelation } from "../engine/music.js";
 import { hasPending, spotifySave, takePending } from "../vibe-ui.js";
+import { coverJpeg } from "../cover.js";
 
 export function craftSection(ctx) {
   const { $, S, arc, esc, fmt, fmtDur, keyColor, keyOf, load, mixes, playMix, selectMix, shortName, showTip, span, tracks } = ctx;
@@ -110,6 +111,7 @@ export function craftSection(ctx) {
       name: `${S.title || S.D.title} · smoother order · Set Replay`,
       description: `The tracks of ${S.title || S.D.title}, re-sequenced: ${S.order.after.clean} of ${S.order.mixes} mixes in key.`,
       say, btn: $("roSave"), pending: { action: "order" },
+      cover: () => coverJpeg(S.D, { title: S.title || S.D.title, sub: "a smoother order", keyColor }),
     });
   }
   function markCraft() {

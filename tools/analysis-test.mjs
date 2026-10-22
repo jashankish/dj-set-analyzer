@@ -230,6 +230,14 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   const S2 = tempoJourney(mk([128, 128, 129, 130, 131, 132, 132, 130, 129, 128, 127, 126, 125, 124]));
   check("tempo: a climb then a longer slowdown leads with the slowdown", S2.sentence, (s) => /biggest slowdown: 132 to 124 BPM/.test(s));
   check("tempo: a 14 BPM jump is a sudden change, not a ramp", tempoJourney(mk([124, 124, 125, 140, 140, 141])), (T) => T.jumps.length === 1 && T.jumps[0].kind === "jump up" && T.ramps.every((r) => Math.abs(r.to - r.from) < 14));
+  {
+    const ramp = demo("worship-part-2");
+    ramp.tracks.forEach((t, i) => (t.bpm = i === 12 ? 63.5 : 122 + (8 * i) / (ramp.tracks.length - 1)));
+    ramp.summary.bpm_min = 63.5; ramp.summary.bpm_max = 130;
+    const t = buildPrompt(vibeProfile(ramp)).full;
+    check("tempo → prompt: a long climb reads as one, and half-time doesn't widen it", t, (x) => /climbing from 122 to 130 BPM/.test(x) && !/64–130|63–130/.test(x));
+    check("tempo → prompt: a locked set stays 'around 175 BPM'", buildPrompt(vibeProfile(demo("worship-part-1"))).full, (x) => /around 17[56] BPM/.test(x));
+  }
   check("tempo: fewer than three tracks with a tempo, none", tempoJourney(mk([128, 130])), (v) => v === null);
 }
 
