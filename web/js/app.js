@@ -1533,7 +1533,10 @@ import { glanceSection } from "./sections/glance-ui.js";
   /* a link to a section of a set (set.html?demo=…#vibe): go there once the page has drawn */
   function deepLink() {
     const want = decodeURIComponent(location.hash.slice(1));
-    if (!SECTIONS.some(([id]) => id === want)) return;            // the local server uses the hash for its sets
+    // the sections, and a few charts inside them; anything else is left alone (the local server uses the hash for its sets)
+    const PARTS = ["shapeBlock", "keyJourney", "vocBlock", "balBlock", "dropBlock", "pacing"];
+    if (PARTS.includes(want)) { setTimeout(() => { const el = $(want); if (el && !el.hidden) window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - ($("pnav") ? $("pnav").offsetHeight : 0) - 16 }); }, 300); return; }
+    if (!SECTIONS.some(([id]) => id === want)) return;
     setTimeout(() => {
       const b = $("pnav") && $("pnav").querySelector(`[data-to="${want}"]`);
       if (b) b.click();

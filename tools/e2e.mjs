@@ -261,7 +261,7 @@ try {
   await p3.locator("#taste").scrollIntoViewIfNeeded();
   await p3.waitForFunction(() => document.getElementById("tasteText").textContent.length > 20, null, { timeout: 8000 }).catch(() => {});
   check("phone: with no sets saved, the landing shows one prompt across the demos", [await p3.locator("#tasteTitle").textContent(), await p3.locator("#tasteText").textContent()], ([h, t]) => h === "One playlist from several sets" && /drum & bass/.test(t));
-  check("phone: the landing page links nine features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 9 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
+  check("phone: the landing page links twelve features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 12 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
   await p3.goto(BASE + "set.html?demo=worship-part-2");
   await p3.waitForSelector(".trk");
   check("phone: replay page has no sideways scroll", await overflow(), (px) => px <= 0);
@@ -336,7 +336,17 @@ try {
     const got = code && (code.data.startsWith("http") ? new URLSearchParams(new URL(code.data).hash.slice(1)).get("p") : code.data);
     check("phone: Send to your phone shows a QR code that decodes to the prompt", [got === want, code && code.data.slice(0, 60)], ([ok]) => ok);
   } else check("phone: Send to your phone shows a QR code", await p3.locator("#phoneQr svg").count(), (n) => n === 1);
+  check("phone: Copy link shows only when the code holds a link", [await p3.locator("#phoneLink").isVisible(), BASE.startsWith("http://127.0.0.1")], ([v, local]) => v === !local);
   await p3.locator("#phoneClose").click();
+  {
+    const dl = await phone.newPage();
+    await dl.goto(`${BASE}set.html?demo=worship-part-2#shapeBlock`);
+    await dl.waitForSelector(".trk");
+    await dl.waitForTimeout(900);
+    const top = await dl.evaluate(() => document.getElementById("shapeBlock").getBoundingClientRect().top);
+    check("a link to a chart inside a section (#shapeBlock) lands on it", top, (y) => y > 0 && y < 260);
+    await dl.close();
+  }
   const pp = await phone.newPage();
   await pp.goto(`${BASE}prompt.html#${new URLSearchParams({ t: "spotify", p: "dark drum & bass – like Sub Focus" })}`);
   check("prompt.html shows the prompt from its link, with Copy and Open Spotify", [await pp.locator("#p").inputValue(), await pp.locator("#h").textContent(), await pp.locator("#open").textContent()], ([t, h, o]) => t === "dark drum & bass – like Sub Focus" && h === "Your Spotify playlist prompt" && o === "Open Spotify");

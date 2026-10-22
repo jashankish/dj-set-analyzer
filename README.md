@@ -79,10 +79,11 @@ There are two ways to run it, and both produce the same JSON:
   the section comes near the screen.
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. Under it, **And there's more on every set**:
-  nine cards (the playlist prompt, highlights, the review, how it was mixed,
-  chapters and drops, the mood map, track by track, comparing sets,
-  tracklists and the set card), each linking straight to that section of a
-  demo (`set.html?demo=…#vibe`). The animated ribbons are drawn once and cached,
+  twelve cards (the playlist prompt, the set at a glance, highlights, the
+  review, how it was mixed, the set's shape, chapters, keys and drops, vocals
+  and the low end, the mood map, track by track, comparing sets, tracklists
+  and the set card), each linking straight to that section, or that chart,
+  of a demo (`set.html?demo=…#vibe`, `#shapeBlock`). The animated ribbons are drawn once and cached,
   so each frame only moves the playhead (~0.01 ms rather than ~6 ms). They
   pause when scrolled out of view and while an analysis runs. Below it are the demo sets, *How it works* and a
   short FAQ.
@@ -605,7 +606,9 @@ use). It encodes a link to `prompt.html` next to the page with the prompt in
 the URL **fragment**, which the phone never sends to any server; that page
 shows it with a big **Copy prompt** button, **Open Spotify** (or the chosen
 service) and the steps. Served from localhost, where a phone can't follow
-the link, the code holds the prompt's text instead. Each module is drawn at
+the link, the code holds the prompt's text instead. With a link, **Copy
+link** puts it on the clipboard too, to send to a friend: it opens the same
+prompt on their phone. Each module is drawn at
 a whole number of pixels, since uneven modules trip some cameras.
 
 **Or just this part.** Heard a stretch you'd like a whole playlist of? The
@@ -1210,8 +1213,10 @@ that `tools/analysis-test.mjs` runs in Node.
 - **Links to a section:** `set.html?…#<section id>` (e.g. `#vibe`, `#rv`)
   opens the set at that section once it has drawn (`deepLink()`); every
   section has `scroll-margin-top`, so the browser's own jump and the bar's
-  both stop below the sticky bar. The local server's `#<slug>` links are left
-  alone, since only section ids are matched.
+  both stop below the sticky bar. A few charts inside sections can be linked
+  too: `#shapeBlock`, `#keyJourney`, `#vocBlock`, `#balBlock`, `#dropBlock`,
+  `#pacing`. The local server's `#<slug>` links are left alone, since only
+  those ids are matched.
 - **Section bar:** `renderNav()` builds the chips from the visible sections;
   `spyNav()` (on scroll, once per frame) marks the last section whose top has
   passed 30% of the way down the screen, or the last section at the bottom of

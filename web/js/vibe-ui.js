@@ -199,6 +199,8 @@ async function sendToPhone() {
   const dlg = $("phoneDlg");
   $("phoneQr").innerHTML = "";
   $("phoneLine").textContent = "";
+  $("phoneLink").hidden = $("phoneLinkNote").hidden = L.kind !== "link";
+  $("phoneLink").dataset.href = L.kind === "link" ? L.data : "";
   dlg.showModal();
   try {
     const Q = await qrSvg(L.data);
@@ -330,6 +332,7 @@ function bind() {
   $("vibeCopy").addEventListener("click", copyPrompt);
   $("vibePhone").addEventListener("click", sendToPhone);
   $("phoneClose").addEventListener("click", () => $("phoneDlg").close());
+  $("phoneLink").addEventListener("click", () => copyText($("phoneLink").dataset.href).then((ok) => V.toast(ok ? "Link copied: it opens this prompt on any phone" : "Couldn't copy the link")));
   $("phoneDlg").addEventListener("click", (e) => { if (e.target === $("phoneDlg")) $("phoneDlg").close(); });
   $("vibeCopyAll").addEventListener("click", async () => {
     const ok = await copyText(`${V.title}: ${V.phases.length} playlists, one per chapter\n\n${chapterPrompts()}`);
