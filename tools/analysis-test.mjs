@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { trackTable, toCSV } = await import(pathToFileURL(path.join(ROOT, "web/js/table.js")));
 const { tempoJourney } = await import(pathToFileURL(path.join(ROOT, "web/js/tempo.js")));
 const { vocalMap } = await import(pathToFileURL(path.join(ROOT, "web/js/vocals.js")));
 const { pacing } = await import(pathToFileURL(path.join(ROOT, "web/js/pacing.js")));
@@ -218,6 +219,17 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   const u = new URL(L.data), q = new URLSearchParams(u.hash.slice(1));
   check("handoff: a link to prompt.html next to the page, the prompt in its fragment only", [L.kind, u.pathname, u.search, q.get("p") === text, q.get("t")], ([k, p, s, ok, t]) => k === "link" && p === "/sets/prompt.html" && s === "" && ok && t === "apple");
   check("handoff: on localhost the code carries the text itself", [promptLink(text, "spotify", new URL("http://127.0.0.1:8791/set.html")), promptLink(text, "spotify", new URL("http://localhost/set.html"))], (v) => v.every((x) => x.kind === "text" && x.data === text));
+}
+
+/* ---------------- track table (web/js/table.js) */
+{
+  const D = demo("worship-part-2"), T = trackTable(D);
+  check("table: a row per track, every column filled where the data exists", [T.rows.length, T.rows[2].cells.title.text, T.rows[2].cells.key.v, T.rows[1].cells.smooth.v], ([n, t, k, s]) => n === 19 && t === "Renaissance (Edit)" && k === "4A" && s >= 0 && s <= 100);
+  check("table: the opener has no mix in; the rest each have one", T.rows.map((r) => r.cells.mix.v != null), (v) => !v[0] && v.slice(1).every(Boolean));
+  const csv = toCSV(T), lines = csv.trim().split("\r\n");
+  check("CSV: a header and a row per track, CRLF, plays in seconds", [lines.length, lines[0].split(",").slice(0, 4).join(), lines[3].split(",")[2]], ([n, h, p]) => n === 20 && h === "n,start,plays_s,track" && /^\d+$/.test(p));
+  const q = toCSV({ cols: [{ id: "title", label: "Track" }], rows: [{ cells: { title: { v: 'A, "B"', text: 'A, "B"' } } }] });
+  check("CSV: commas and quotes are quoted", q, (s) => s === 'track\r\n"A, ""B"""\r\n');
 }
 
 /* ---------------- tempo journey (web/js/tempo.js) */

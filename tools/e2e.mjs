@@ -355,6 +355,14 @@ try {
   check("phone: pacing gives a typical track's play time", await p3.locator("#paceLine").textContent(), (t) => /A typical track plays \d+:\d\d/.test(t));
   check("phone: the set shape names its closest shape", await p3.locator("#shapeLine").textContent(), (t) => /^Closest to wind-down \(\d+% match\)/.test(t));
   check("phone: the frequency balance sums up the bass, mids and highs", await p3.locator("#balLine").textContent(), (t) => /^On average \d+% bass, \d+% mids, \d+% highs/.test(t));
+  {
+    const n = await p3.locator("#ttBody tr").count();
+    await p3.locator('#ttHead button[data-c="bpm"]').click();
+    const first = await p3.locator("#ttBody tr:first-child td:nth-child(7)").textContent();
+    const [dl] = await Promise.all([p3.waitForEvent("download"), p3.locator("#ttCsv").click()]);
+    const csv = fs.readFileSync(await dl.path(), "utf8");
+    check("phone: the track table lists every track, sorts by BPM, downloads as CSV", [n, first, dl.suggestedFilename(), csv.split("\r\n")[0].slice(0, 22)], ([c, f, name, h]) => c === 19 && f === "176.7" && name === "worship-part-2-tracks.csv" && h === "n,start,plays_s,track,");
+  }
   check("phone: the tempo journey says the demo is locked", await p3.locator("#tjLine").textContent(), (t) => /^Locked at \d+ BPM/.test(t));
   check("phone: the key journey counts the key changes", await p3.locator("#kjLine").textContent(), (t) => /^\d+ key changes?: \d+ up the wheel/.test(t));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);

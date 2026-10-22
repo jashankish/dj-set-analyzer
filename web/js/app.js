@@ -35,6 +35,7 @@ import { pacingSection } from "./sections/pacing-ui.js";
 import { vocalsSection } from "./sections/vocals-ui.js";
 import { glanceSection } from "./sections/glance-ui.js";
 import { tempoSection } from "./sections/tempo-ui.js";
+import { tableSection } from "./sections/table-ui.js";
 
 (function () {
   "use strict";
@@ -1123,6 +1124,7 @@ import { tempoSection } from "./sections/tempo-ui.js";
     renderBalance();
     renderVocals();
     renderGlance();
+    renderTable();
     updateWheel();
   }
   /* minutes in each key, under the wheel; the top one is the set's home key */
@@ -1579,7 +1581,7 @@ import { tempoSection } from "./sections/tempo-ui.js";
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, renderVocals, drawVocals, renderGlance, drawGlance, renderTempo, drawTempo, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, renderVocals, drawVocals, renderGlance, drawGlance, renderTempo, drawTempo, renderTable, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1598,6 +1600,7 @@ import { tempoSection } from "./sections/tempo-ui.js";
   ({ renderVocals, drawVocals } = vocalsSection(ctx));
   ({ renderGlance, drawGlance } = glanceSection(ctx));
   ({ renderTempo, drawTempo } = tempoSection(ctx));
+  ({ renderTable } = tableSection(ctx));
 
   boot();
 })();

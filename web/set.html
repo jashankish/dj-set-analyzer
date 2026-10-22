@@ -339,6 +339,20 @@
   </section>
 
   <!-- two sets side by side -->
+  <section class="ttab" id="ttab" aria-labelledby="ttH" hidden>
+    <div class="c-head">
+      <h2 class="h2" id="ttH">Track table</h2>
+      <p class="j-sub">Every track with everything this page measured. Sort by any column; click a row to play it.</p>
+    </div>
+    <div class="tt-wrap" tabindex="0" role="region" aria-labelledby="ttH">
+      <table class="tt">
+        <thead id="ttHead"></thead>
+        <tbody id="ttBody"></tbody>
+      </table>
+    </div>
+    <div class="v-actions"><button class="ghost" id="ttCsv">Download CSV</button><span class="card-note">For a spreadsheet: one row per track, the same columns</span></div>
+  </section>
+
   <section class="compare" id="compare" aria-labelledby="cmpH" hidden>
     <div class="c-head cmp-head">
       <h2 class="h2" id="cmpH">Compare with another set</h2>

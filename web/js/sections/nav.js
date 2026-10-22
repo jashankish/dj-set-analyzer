@@ -9,7 +9,7 @@ export function navSection(ctx) {
   const { $ } = ctx;
 
   const SECTIONS = [["hl", "Highlights"], ["rv", "Review"], ["glance", "At a glance"], ["desk", "Setlist"], ["mix", "The mix"], ["craft", "How it was mixed"], ["journey", "Journey"],
-    ["moodmap", "Mood map"], ["simx", "Track by track"], ["compare", "Compare"], ["vibe", "Spotify"]];
+    ["moodmap", "Mood map"], ["simx", "Track by track"], ["ttab", "Track table"], ["compare", "Compare"], ["vibe", "Spotify"]];
   function renderNav() {
     if (!$("pnav")) return;                          // a page without the bar (e.g. a stale cached set.html)
     const live = SECTIONS.filter(([id]) => $(id) && !$(id).hidden);
