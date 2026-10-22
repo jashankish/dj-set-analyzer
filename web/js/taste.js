@@ -18,7 +18,7 @@ export function taste(entries) {
   const merged = sets.map((e) => e.payload).reduce((a, b) => mergePayloads(a, b, "Across your sets"));
   const P = vibeProfile(merged);
   const off = defaultOff(P);
-  ["f:flow", "f:mood", "n:len"].forEach((id) => off.add(id));
+  ["f:flow", "f:mood"].forEach((id) => off.add(id));
   const prompt = buildPrompt(P, off);
 
   const hours = sets.reduce((s, e) => s + (e.payload.summary.set_length || e.payload.duration || 0), 0) / 3600;

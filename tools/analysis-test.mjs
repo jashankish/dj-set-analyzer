@@ -69,6 +69,7 @@ for (const slug of ["worship-part-1", "worship-part-2"]) {
   const [close, bal, disc] = ["close", "balanced", "discover"].map((range) => buildPrompt(P, off, "", { range }));
   check(`${slug}: balanced is the default prompt`, bal.full, (t) => t === buildPrompt(P, off).full);
   check(`${slug}: close asks to stay with the set's artists and keeps its songs`, close.full, (t) => /Stay close to these artists/.test(t) && /Start from songs like/.test(t));
+  check(`${slug}: length asks for a number of songs only when chosen`, [buildPrompt(P, off).full, buildPrompt(P, off, "", { length: "two" }).full, buildPrompt(P, off, "", { length: "three" }).short], ([a, b, c]) => !/songs\.$/.test(a) && !/about \d+ songs/.test(a) && /Make it about 35 songs\.$/.test(b) && /, about 50 songs$/.test(c));
   check(`${slug}: discover keeps the sound, drops the set's songs, asks for new names`, disc.full, (t) => /drum & bass/.test(t) && !/Start from songs/.test(t) && /lesser-known names and deeper cuts/.test(t));
   check(`${slug}: every range's keywords-only prompt fits in 300 characters`, [close.short, disc.short].map((x) => x.length), (v) => v.every((n) => n > 20 && n <= 300));
   check(`${slug}: in discover the strength meter doesn't count or tip about songs`, promptStrength(P, off, { range: "discover" }), (S) => !S.parts.some((p) => p.id === "songs") && S.score >= 85);

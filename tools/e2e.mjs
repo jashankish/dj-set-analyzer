@@ -311,6 +311,9 @@ try {
   await p3.waitForTimeout(400);
   check("phone: Playlist like this part scopes the prompt to the tracks around now", [await p3.locator('#vibeScope [aria-selected="true"]').textContent(), await p3.locator("#vibePrompt").inputValue()], ([s, t]) => /^Around now · \d+–\d+$/.test(s) && /drum & bass/.test(t) && !/Order it like a DJ set|order it like a DJ set/i.test(t));
   await p3.locator('#vibeScope [data-i="-1"]').click();
+  await p3.locator('#vibeLength [data-l="two"]').click();
+  check("phone: Length asks for a number of songs", await p3.locator("#vibePrompt").inputValue(), (t) => /about 35 songs/.test(t));
+  await p3.locator('#vibeLength [data-l="auto"]').click();
   await p3.locator("#vibeCopyAll").click();
   await p3.waitForTimeout(300);
   check("phone: Copy a prompt per chapter copies one for each chapter", [await p3.locator("#vibeCopyAll").isVisible(), await p3.locator("#toast").textContent()], ([v, t]) => v && /^2 prompts copied|^Couldn't copy/.test(t));

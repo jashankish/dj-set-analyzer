@@ -276,7 +276,6 @@ export function vibeProfile(D, names = {}) {
     chip("f:mood", "Flow", mood.chip, true, `the mood map's route: ${mood.say}`);
   }
   const songs = Math.max(15, Math.min(50, Math.round(mins / 3.5)));
-  chip("n:len", "Length", `about ${songs} songs`, false);
 
   /* what the set is not, so the playlist doesn't drift */
   if (bpm && spread < 12) chip("x:slow", "Avoid", `tracks under ${Math.round(((s.bpm_min || bpm) - 6) / 5) * 5} BPM`, true, `the set never drops below ${Math.round(s.bpm_min || bpm)} BPM`);
@@ -297,7 +296,12 @@ export const defaultOff = (P) => new Set(P.chips.filter((c) => !c.on).map((c) =>
      discover  the set's sound, new names: its artists only as a pointer,
                lesser-known artists and deeper cuts, none of its own songs */
 export const RANGES = ["close", "balanced", "discover"];
-export function buildPrompt(P, off = defaultOff(P), extra = "", { range = "balanced" } = {}) {
+/* how long a playlist to ask for. Left out, Spotify picks (a reviewer saw about 90
+   minutes by default, and 210 when asking for 50 songs), so a number only helps when
+   it asks for more: an hour, two or three, at about 3.5 minutes a song */
+export const LENGTHS = { auto: null, hour: 20, two: 35, three: 50 };
+export function buildPrompt(P, off = defaultOff(P), extra = "", { range = "balanced", length = "auto" } = {}) {
+  const n = LENGTHS[length] || null;
   const live = (g) => P.chips.filter((c) => c.group === g && !off.has(c.id)).map((c) => c.text);
   const one = (id) => { const c = P.chips.find((x) => x.id === id); return c && !off.has(id) ? c : null; };
   const genres = live("Genre"), moods = live("Mood"), sound = live("Sound"), artists = live("Artists"), labels = live("Labels");
@@ -328,7 +332,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "", { range = "balan
   if (avoid.length) parts.push(`Leave out ${list(avoid)}.`);
   if (one("f:flow")) parts.push(`Order it like a DJ set: ${P.flow.say}.`);
   if (one("f:mood")) parts.push(`Let the mood move as the set does: ${P.mood.say}.`);
-  if (one("n:len")) parts.push(`${cap(one("n:len").text)}.`);
+  if (n) parts.push(`Make it about ${n} songs.`);
   if (x) parts.push(/[.!?]$/.test(x) ? x : `${x}.`);
   const full = parts.join(" ").replace(/\s+/g, " ").trim();
 
@@ -337,6 +341,7 @@ export function buildPrompt(P, off = defaultOff(P), extra = "", { range = "balan
   if (artists.length && range === "discover") short += `${short ? ", " : ""}in the spirit of ${list(artists.slice(0, 3))}, lesser-known artists, deep cuts`;
   else if (artists.length) short += `${short ? ", " : ""}like ${list(artists.slice(0, 4))}${range === "close" ? ", and their circle" : ""}`;
   if (avoid.length) short += `, no ${avoid.join(", no ")}`;
+  if (n) short += `, about ${n} songs`;
   if (x) short += `, ${x.replace(/[.!?]$/, "")}`;
   if (short.length > 300) short = `${short.slice(0, 299).replace(/,?\s*\S*$/, "")}…`;
   return { full, short };

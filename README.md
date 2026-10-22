@@ -117,7 +117,7 @@ top; its color swatches are the set's track keys in order. Then:
 | **ID clues** | For each unnamed track, the trusted named track in the same set it sounds most like (from the Track by track matrix: at least 80% alike, ranked by how much more alike than that track is to the set in general, so no single "generic" track answers for every ID). Shown as "Unidentified · sounds like *Title*" in the setlist, as a line under Now playing ("Sounds most like Illuminate (Sub Focus & Wilkinson), 98% alike"), and added to the ID's clues in every tracklist format, e.g. `ID – ID (4A, 175 BPM, sounds like Sub Focus & Wilkinson – Illuminate)`: what you'd post when asking who made an ID | Click the Now playing line to hear the track it sounds like |
 | **Track by track** | A similarity matrix: every track against every other, brighter where two tracks sound more alike (the style model hears the same styles in them, half; they sit close on the eight vibe axes, half), scaled to the set's own range, with the chapters boxed along the diagonal and the playing track's row and column outlined in its key color. Beside it: how alike the set's hand-overs are on average, its most consistent stretch (the longest run of hand-overs smoother than its median), where it comes back to an earlier sound (the most alike pair at least four tracks apart), and its hardest turn (the least alike neighbors) | Hover a cell for the pair; click a cell, or an insight, to play that track |
 | **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's color); the biggest differences in words ("Worship Part 1 is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt**; **Save both sets to Spotify** (both sets' named tracks in one playlist, the blend keywords as its description) |
-| **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's color, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid, length) and the prompt they make | Pick **Whole set**, a chapter or **Around now** (the playing track and its neighbors; also the deck's **Playlist like this part**) to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
+| **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's color, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid) and the prompt they make | Pick **Whole set**, a chapter or **Around now** (the playing track and its neighbors; also the deck's **Playlist like this part**) to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); pick a **Range** and a **Length**; switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
 ### Keyboard
 
@@ -474,8 +474,9 @@ Spotify's **Prompted Playlist** (Premium; launched in New Zealand in December
 writes that description for you, from what the analysis measured, in the
 section **Take the vibe to Spotify**.
 
-**Using it:** press **Copy prompt** (or `C`). In the Spotify app, tap
-**Create** (+), then **Prompted Playlist**, and paste.
+**Using it:** press **Copy prompt** (or `C`). In the Spotify app, go to
+**Your Library**, tap **Create**, then **Prompted Playlist**, and paste (or
+use **Send to your phone**, below).
 
 **Range: how far the playlist may wander.** *Close to the set* keeps the
 song anchors and adds "Stay close to these artists and the artists around
@@ -486,6 +487,15 @@ other artists: lesser-known names and deeper cuts", and leaves the set's
 own songs out. The keywords-only version and the Spotify playlist's
 description follow the range, and in Discover the strength meter doesn't
 count song anchors. The choice is remembered per set.
+
+**Length: how long a playlist to ask for.** *Let it pick* (the default)
+says nothing, and Spotify chooses (one reviewer saw about 90 minutes by
+default and 210 when asking for 50 songs). *About an hour*, *Two hours* and
+*Three hours* add "Make it about 20 / 35 / 50 songs." (", about N songs" in
+the keywords). It replaced a chip that asked for one song per 3.5 minutes
+of the set, which for a short set asked for fewer songs than Spotify's
+default. For *Any AI chat*, the length sets the list's size in the ask.
+Remembered per set; per-chapter prompts use it too.
 
 **How well the prompt pins the set down.** Above the prompt, a meter
 (`vibe.promptStrength`) scores what it gives a playlist AI to go on, out of

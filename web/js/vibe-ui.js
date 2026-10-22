@@ -6,7 +6,7 @@
    Per-set choices (chips switched off, per scope; own direction; prompt
    length; scope) are kept in localStorage under set-replay:vibe:<slug>.
    ============================================================ */
-import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions } from "./vibe.js";
+import { vibeProfile, buildPrompt, defaultOff, AXES, trust, trackFit, promptStrength, occasions, LENGTHS } from "./vibe.js";
 import { slicePayload, around } from "./phases.js";
 import { promptLink, qrSvg } from "./handoff.js";
 import * as spotify from "./spotify.js";
@@ -14,7 +14,7 @@ import * as spotify from "./spotify.js";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const R = 112;                                   // radar radius in viewBox units
-const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Tracks", "Labels", "Era", "Flow", "Avoid", "Length"];
+const GROUPS = ["Genre", "Tempo", "Mood", "Sound", "Artists", "Tracks", "Labels", "Era", "Flow", "Avoid"];
 
 /* where the prompt goes. Every service builds its own playlist from the text;
    only Spotify can also take a saved playlist from this page. */
@@ -41,7 +41,7 @@ const HERE = -2;
 
 function storeKey() { return `set-replay:vibe:${V.D.slug}`; }
 function save() {
-  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope, here: V.here && V.here.center, range: V.range })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(storeKey(), JSON.stringify({ offs: Object.assign(V.offs, { [V.scope]: [...V.off] }), extra: V.extra, form: V.form, scope: V.scope, here: V.here && V.here.center, range: V.range, length: V.length })); } catch (e) { /* private mode */ }
 }
 function restore() {
   try { return JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch (e) { return null; }
@@ -145,9 +145,9 @@ function renderChips() {
 }
 
 function prompt() {
-  const p = buildPrompt(V.P, V.off, V.extra, { range: V.range });
+  const p = buildPrompt(V.P, V.off, V.extra, { range: V.range, length: target.id === "chat" ? "auto" : V.length });
   if (target.id !== "chat") return p;
-  const ask = `Make me a playlist of about ${V.P.songs} songs, as a numbered list of "Artist – Title", using only real, released tracks.`;
+  const ask = `Make me a playlist of about ${LENGTHS[V.length] || V.P.songs} songs, as a numbered list of "Artist – Title", using only real, released tracks.`;
   return { full: `${ask} ${p.full}`, short: `${ask} Keywords: ${p.short}` };
 }
 function renderTarget() {
@@ -173,6 +173,7 @@ function renderOccasions() {
 function renderPrompt() {
   renderStrength();
   $("vibeRange").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.r === V.range)));
+  $("vibeLength").querySelectorAll("button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.l === V.length)));
   const p = prompt(), text = V.form === "short" ? p.short : p.full;
   $("vibePrompt").value = text;
   $("vibeCount").textContent = `${text.length} characters`;
@@ -312,6 +313,12 @@ function bind() {
     V.range = b.dataset.r;
     save(); renderPrompt();
   });
+  $("vibeLength").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    V.length = b.dataset.l;
+    save(); renderPrompt();
+  });
   $("vibeOcc").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
@@ -377,7 +384,7 @@ export function chapterPrompts() {
   return V.phases.map((p, i) => {
     const { P } = profileFor(p);
     const off = V.offs[String(i)] ? new Set(V.offs[String(i)]) : defaultOff(P);
-    const pr = buildPrompt(P, off, V.extra, { range: V.range });
+    const pr = buildPrompt(P, off, V.extra, { range: V.range, length: V.length });
     return `${i + 1}. ${p.label} (tracks ${p.from}–${p.to}): ${V.form === "short" ? pr.short : pr.full}`;
   }).join("\n\n");
 }
@@ -386,7 +393,7 @@ function useOff() {
   const k = String(V.scope);
   V.off = V.offs[k] ? new Set(V.offs[k]) : defaultOff(V.P);
   // a few tracks have no arc to follow: no running order, mood route or set length by default
-  if (!V.offs[k] && V.scope === HERE) ["f:flow", "f:mood", "n:len"].forEach((id) => V.off.add(id));
+  if (!V.offs[k] && V.scope === HERE) ["f:flow", "f:mood"].forEach((id) => V.off.add(id));
 }
 function renderScope() {
   $("vibeCopyAll").hidden = V.phases.length < 2;
@@ -433,6 +440,7 @@ export function mountVibe(ctx) {
   V.extra = (saved && saved.extra) || "";
   V.form = (saved && saved.form) || "full";
   V.range = (saved && saved.range) || "balanced";
+  V.length = saved && saved.length in LENGTHS ? saved.length : "auto";
   $("vibeExtra").value = V.extra;
   renderTarget(); renderScope(); renderRadar(); renderFit(); renderChips(); renderPrompt(); renderOccasions();
   if (!pending) status(notice);
