@@ -346,7 +346,14 @@ try {
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");
   check("phone: tapping a track on the mood map plays it", await p3.locator(".mm-pt.now").getAttribute("data-i"), (i) => i === "9");
-  check("phone: the section bar lists the page's sections", await p3.locator("#pnav button").allTextContents(), (v) => v.includes("Highlights") && v.includes("Spotify") && v.includes("Compare"));
+  check("phone: the section bar lists the page's sections", await p3.locator("#pnav button").allTextContents(), (v) => v.includes("Highlights") && v.includes("At a glance") && v.includes("Spotify") && v.includes("Compare"));
+  {
+    await p3.locator("#glanceBox").scrollIntoViewIfNeeded();
+    const gb = await p3.locator("#glanceBox").boundingBox();
+    await p3.mouse.move(gb.x + gb.width * 0.6, gb.y + 40);
+    const tip = await p3.locator("#glanceBox .tip").textContent();
+    check("phone: At a glance reads every row at the pointer", tip, (t) => /\d+:\d\d/.test(t) && /(Peak|Cool-down)/.test(t) && /energy \d/.test(t));
+  }
   await p3.locator('#pnav button[data-to="vibe"]').tap();
   await p3.waitForTimeout(1200);
   check("phone: tapping a section jumps there and marks it current", await p3.evaluate(() => [Math.round(document.getElementById("vibe").getBoundingClientRect().top), document.querySelector('#pnav [aria-current="true"]')?.dataset.to]), ([top, cur]) => top > 0 && top < 160 && cur === "vibe");
