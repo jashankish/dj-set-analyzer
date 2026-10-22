@@ -34,6 +34,7 @@ import { shapeSection } from "./sections/shape-ui.js";
 import { pacingSection } from "./sections/pacing-ui.js";
 import { vocalsSection } from "./sections/vocals-ui.js";
 import { glanceSection } from "./sections/glance-ui.js";
+import { tempoSection } from "./sections/tempo-ui.js";
 
 (function () {
   "use strict";
@@ -1116,6 +1117,7 @@ import { glanceSection } from "./sections/glance-ui.js";
     $("wheelSub").textContent = `Each dot is a track on the Camelot wheel, joined in the order played. Neighboring keys mix cleanly${harmonic != null ? `; ${harmonic}% of these mixes did` : ""}.`;
     renderKeyTime();
     renderKeyline();
+    renderTempo();
     renderShape();
     renderPacing();
     renderBalance();
@@ -1422,7 +1424,7 @@ import { glanceSection } from "./sections/glance-ui.js";
     }
     updatePulse(t);
     drawSpectrum();
-    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); drawBalance(t); drawVocals(t); drawGlance(t); tick._rows = t; }
+    if (force || (tick._rows || 0) + 0.5 < t || t < (tick._rows || 0)) { drawRows(t); drawKeyline(t); drawBalance(t); drawVocals(t); drawGlance(t); drawTempo(t); tick._rows = t; }
     // the highlights reel: on to the next moment, or stop if the listener went elsewhere
     if (S.reel && !isPaused()) {
       const h = S.hl.items[S.reel.i];
@@ -1572,11 +1574,12 @@ import { glanceSection } from "./sections/glance-ui.js";
     drawBalance(now());
     drawVocals(now());
     drawGlance(now());
+    drawTempo(now());
   }
 
   /* ------------------------------------------------ the analysis sections (web/js/sections/) */
   // each section module gets the state and helpers it uses, and hands back what the page calls
-  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, renderVocals, drawVocals, renderGlance, drawGlance, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
+  let renderKeyline, drawKeyline, renderBalance, drawBalance, renderShape, renderPacing, renderVocals, drawVocals, renderGlance, drawGlance, renderTempo, drawTempo, markCraft, renderCraft, renderMoodMap, updateMoodMap, renderCompare, cardBlob, openCard, renderPhases, SECTIONS, renderNav, spyNav, renderReview, drawSim, renderSim, playHighlight, renderHighlights, stopReel, drawDrops, renderDrops;
   const ctx = { $, S, X, arc, audio, clamp, copyText, esc, fit, fmt, fmtDur, keyColor, keyOf, load, mixes, nameOf, now, playMix, seek, selectMix, shortName, showTip, span, store, toast, tracks };
   ({ markCraft, renderCraft } = craftSection(ctx));
   ({ renderMoodMap, updateMoodMap } = moodMapSection(ctx));
@@ -1594,6 +1597,7 @@ import { glanceSection } from "./sections/glance-ui.js";
   ({ renderPacing } = pacingSection(ctx));
   ({ renderVocals, drawVocals } = vocalsSection(ctx));
   ({ renderGlance, drawGlance } = glanceSection(ctx));
+  ({ renderTempo, drawTempo } = tempoSection(ctx));
 
   boot();
 })();

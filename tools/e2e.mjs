@@ -355,6 +355,7 @@ try {
   check("phone: pacing gives a typical track's play time", await p3.locator("#paceLine").textContent(), (t) => /A typical track plays \d+:\d\d/.test(t));
   check("phone: the set shape names its closest shape", await p3.locator("#shapeLine").textContent(), (t) => /^Closest to wind-down \(\d+% match\)/.test(t));
   check("phone: the frequency balance sums up the bass, mids and highs", await p3.locator("#balLine").textContent(), (t) => /^On average \d+% bass, \d+% mids, \d+% highs/.test(t));
+  check("phone: the tempo journey says the demo is locked", await p3.locator("#tjLine").textContent(), (t) => /^Locked at \d+ BPM/.test(t));
   check("phone: the key journey counts the key changes", await p3.locator("#kjLine").textContent(), (t) => /^\d+ key changes?: \d+ up the wheel/.test(t));
   check("phone: the mood map places every track", await p3.locator(".mm-pt").count(), (n) => n === 19);
   await p3.locator(".mm-pt").nth(9).dispatchEvent("click");

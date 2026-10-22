@@ -20,6 +20,7 @@ const { craftProfile, relationClass, mixScore, mixTips, bridgeKeys, reorder } = 
 const { moodMap } = await import(pathToFileURL(path.join(ROOT, "web/js/moodmap.js")));
 const { cardData } = await import(pathToFileURL(path.join(ROOT, "web/js/card.js")));
 const { tracklist, stamp } = await import(pathToFileURL(path.join(ROOT, "web/js/tracklist.js")));
+const { tempoJourney } = await import(pathToFileURL(path.join(ROOT, "web/js/tempo.js")));
 const { vocalMap } = await import(pathToFileURL(path.join(ROOT, "web/js/vocals.js")));
 const { pacing } = await import(pathToFileURL(path.join(ROOT, "web/js/pacing.js")));
 const { setShape, SHAPES } = await import(pathToFileURL(path.join(ROOT, "web/js/shape.js")));
@@ -217,6 +218,19 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   const u = new URL(L.data), q = new URLSearchParams(u.hash.slice(1));
   check("handoff: a link to prompt.html next to the page, the prompt in its fragment only", [L.kind, u.pathname, u.search, q.get("p") === text, q.get("t")], ([k, p, s, ok, t]) => k === "link" && p === "/sets/prompt.html" && s === "" && ok && t === "apple");
   check("handoff: on localhost the code carries the text itself", [promptLink(text, "spotify", new URL("http://127.0.0.1:8791/set.html")), promptLink(text, "spotify", new URL("http://localhost/set.html"))], (v) => v.every((x) => x.kind === "text" && x.data === text));
+}
+
+/* ---------------- tempo journey (web/js/tempo.js) */
+{
+  for (const slug of ["worship-part-1", "worship-part-2"]) check(`${slug}: the tempo is locked near 175 BPM`, tempoJourney(demo(slug)), (T) => T.locked && /^Locked at 17[56] BPM/.test(T.sentence) && !/climb|slowdown/.test(T.sentence));
+  const mk = (bp) => ({ duration: bp.length * 300, summary: {}, tracks: bp.map((b, i) => ({ n: i + 1, start: i * 300, end: (i + 1) * 300, bpm: b })) });
+  const G = tempoJourney(mk(Array.from({ length: 19 }, (_, i) => (i === 12 ? 63.5 : 122 + (8 * i) / 18))));
+  check("tempo: a gradual climb (0.4 BPM a track) is a ramp, through a half-time track", [Math.round(G.ramps[0].from), Math.round(G.ramps[0].to), G.ramps[0].dir], ([a, b, d]) => a === 122 && b === 130 && d === 1);
+  check("tempo: half-time doesn't stretch the range; the switches are named", [Math.round(G.lo), Math.round(G.hi), G.jumps.map((j) => j.kind).join()], ([lo, hi, k]) => lo === 122 && hi === 130 && k === "half-time,double-time");
+  const S2 = tempoJourney(mk([128, 128, 129, 130, 131, 132, 132, 130, 129, 128, 127, 126, 125, 124]));
+  check("tempo: a climb then a longer slowdown leads with the slowdown", S2.sentence, (s) => /biggest slowdown: 132 to 124 BPM/.test(s));
+  check("tempo: a 14 BPM jump is a sudden change, not a ramp", tempoJourney(mk([124, 124, 125, 140, 140, 141])), (T) => T.jumps.length === 1 && T.jumps[0].kind === "jump up" && T.ramps.every((r) => Math.abs(r.to - r.from) < 14));
+  check("tempo: fewer than three tracks with a tempo, none", tempoJourney(mk([128, 130])), (v) => v === null);
 }
 
 /* ---------------- vocal map (web/js/vocals.js) */
