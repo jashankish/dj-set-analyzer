@@ -7,6 +7,7 @@ import { helperStatus, helperWanted } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
 import { parseLink, fetchLink, canFetch } from "./engine/fetchlink.js";
 import { markHelperWanted } from "./engine/naming.js";
+import { progressHTML, eta } from "./progress.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -274,7 +275,7 @@ function linkHelp(item) {
 }
 async function startFetch(item) {
   if (!queue.includes(item) || item.state === "fetching") return;
-  item.state = "fetching"; item.f = 0; item.stage = "Looking up the link";
+  item.state = "fetching"; item.f = 0; item.stage = "Looking up the link"; item.t0 = Date.now(); item.f0 = 0;
   item.ctl = new AbortController();
   renderQueue();
   import("./engine/pipeline.js").then((m) => m.loadModels()).catch(() => {});   // the models download meanwhile
@@ -312,7 +313,7 @@ function renderQueue() {
       if (q.duration > 3 * 3600) state += ` · long set, needs about ${Math.ceil((q.duration * 16000 * 4 * 3) / 1e9)} GB of free memory`;
       else if (LOW_MEMORY && q.duration > 3600) state += " · may run out of memory on this device; a laptop works best";
     }
-    if (q.state === "running" || q.state === "fetching") state = `${esc(q.stage)} · ${Math.round(q.f * 100)}%`;
+    if (q.state === "running" || q.state === "fetching") state = "";
     if (q.state === "waiting") state = "Looking for the helper…";
     if (q.state === "needs-helper") state = `Needs the Set Replay helper on this computer. <button class="ghost hl-setup" data-i="${i}">Set it up</button>`;
     if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
@@ -322,7 +323,8 @@ function renderQueue() {
       <div class="q-name"><b>${esc(q.link ? q.label : q.file.name)}</b><span>${q.link ? `${esc(q.link.label)}${q.file ? ` · ${mb(q.file.size)}` : ""}` : mb(q.file.size)}</span></div>
       <div class="q-state${q.state === "error" || q.state === "unsaved" ? " err" : ""}">${state}</div>
       ${["ready", "fetching", "waiting", "needs-helper", "error"].includes(q.state) && !running ? `<button class="q-x" data-i="${i}" aria-label="Remove ${esc(q.link ? q.label : q.file.name)}">✕</button>` : "<span></span>"}
-      <div class="q-bar" style="width:${["running", "done", "unsaved", "fetching"].includes(q.state) ? q.f * 100 : 0}%"></div>
+      ${q.state === "running" || q.state === "fetching" ? `<div class="q-prog">${progressHTML(q.stage, q.f, eta(q.t0, q.f0, q.f))}</div>` : ""}
+      <div class="q-bar" style="width:${["done", "unsaved"].includes(q.state) ? 100 : 0}%"></div>
     </li>`;
   }).join("");
   $("qList").querySelectorAll(".q-x").forEach((b) => b.addEventListener("click", () => { const [q] = queue.splice(+b.dataset.i, 1); if (q && q.ctl) q.ctl.abort(); renderQueue(); }));
@@ -355,7 +357,7 @@ async function analyzeAll() {
   for (const q of queue) {
     if (q.state !== "ready") continue;
     if (controller.signal.aborted) break;
-    q.state = "running"; q.stage = "Starting"; q.f = 0; renderQueue();
+    q.state = "running"; q.stage = "Starting"; q.f = 0; q.t0 = Date.now(); q.f0 = 0; renderQueue();
     announce(`Analyzing ${q.link ? q.label : q.file.name}. This takes a minute or two.`);
     try {
       const payload = await engine.analyzeFile(q.file, {

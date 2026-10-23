@@ -9,6 +9,7 @@
 import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./store.js";
 import { isVideo, extractAudio } from "./engine/demux.js";
 import { openNamingDialog } from "./naming-ui.js";
+import { restoreProbes } from "./engine/naming.js";
 import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt, vibeHere } from "./vibe-ui.js";
 import { findPhases } from "./phases.js";
 import { mixScore, mixTips } from "./craft.js";
@@ -194,16 +195,21 @@ import { tableSection } from "./sections/table-ui.js";
     const btn = $("nameBtn");
     btn.hidden = !ids || !rec.audio;
     btn.textContent = ids === rec.payload.tracks.length ? "Name these IDs" : `Name the ${ids} remaining ID${ids === 1 ? "" : "s"}`;
+    // an earlier run that stopped part-way (Shazam rate-limiting) carries on from there
+    const known = restoreProbes(rec.payload), last = known.length ? known[known.length - 1].t : null;
+    const resumeAt = rec.payload.naming_note && last != null ? fmt(last + 24) : null;
+    if (resumeAt) btn.textContent = `Name the ${ids} remaining ID${ids === 1 ? "" : "s"} (from ${resumeAt})`;
     btn.onclick = () => openNamingDialog({
-      mode: "viewer", ids,
+      mode: "viewer", ids, resumeAt,
       onNameNow: async (progress) => {
         audio.pause();
         const engine = await import("./engine/pipeline.js");
         const file = rec.audio instanceof File ? rec.audio : new File([rec.audio], rec.payload.file || "set.m4a");
         const payload = await engine.analyzeFile(file, {
-          identify: true, title: rec.payload.title,
+          identify: true, title: rec.payload.title, knownProbes: known,
           onProgress: ({ stage, f }) => progress(stage, f),
         });
+        if (rec.payload.link) payload.link = rec.payload.link;      // still from that YouTube / SoundCloud link
         engine.releaseEngine();
         await replacePayload(rec.id, payload);
         // track numbers change once names anchor the setlist; keep the title, drop per-number names

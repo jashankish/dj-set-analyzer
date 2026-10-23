@@ -2,6 +2,7 @@
    watches for it to come online. Shared by the landing page and the viewer. */
 import { helperStatus, HELPER_URL, markHelperWanted } from "./engine/naming.js";
 import { canFetch } from "./engine/fetchlink.js";
+import { progressBar } from "./progress.js";
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const isWin = /Win/i.test(navigator.platform || navigator.userAgent);
@@ -11,12 +12,13 @@ const isPublic = !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 /**
  * @param opts.mode     "landing" | "viewer" | "link" (fetching a YouTube / SoundCloud link)
+ * @param opts.resumeAt viewer: where an earlier naming run stopped ("52:52"), to carry on from there
  * @param opts.onReady  link mode: called when a helper that fetches links is connected and the visitor goes on
  * @param opts.ids      number of unnamed tracks (viewer)
  * @param opts.onNameNow async (progress) => void — viewer: re-run the analysis with names
  * @returns the <dialog>
  */
-export function openNamingDialog({ mode = "landing", ids = 0, onNameNow, onReady } = {}) {
+export function openNamingDialog({ mode = "landing", ids = 0, onNameNow, onReady, resumeAt = null } = {}) {
   const link = mode === "link";
   document.getElementById("namingDialog")?.remove();
   markHelperWanted();   // from now on, pages in this browser may look for the helper
@@ -69,15 +71,18 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow, onReady
       actions.innerHTML = connected ? `<button class="solid big" id="nmFetch">Fetch it</button><span class="nm-small">Downloads on this computer, then it's ready to analyze.</span>` : "";
       d.querySelector("#nmFetch")?.addEventListener("click", () => { d.close(); if (onReady) onReady(); });
     } else if (mode === "viewer" && onNameNow) {
-      actions.innerHTML = `<button class="solid big" id="nmGo" ${connected ? "" : "disabled"}>Name the tracks now</button><span class="nm-small" id="nmProgress">${connected ? "Re-listens to this set with names; takes a few minutes." : ""}</span>`;
+      actions.innerHTML = `<button class="solid big" id="nmGo" ${connected ? "" : "disabled"}>${resumeAt ? "Carry on naming" : "Name the tracks now"}</button><span class="nm-small" id="nmProgress">${connected ? resumeAt ? `Picks up where naming stopped (${resumeAt}); the lookups already made are kept.` : "Re-listens to this set with names; takes a few minutes." : ""}</span><div class="nm-prog" id="nmBar" hidden></div>`;
       d.querySelector("#nmGo").addEventListener("click", async () => {
         busy = true;
-        const go = d.querySelector("#nmGo"), prog = d.querySelector("#nmProgress");
+        const go = d.querySelector("#nmGo"), prog = d.querySelector("#nmProgress"), barBox = d.querySelector("#nmBar");
+        const bar = progressBar();
+        barBox.hidden = false; barBox.replaceChildren(bar.el); prog.textContent = "";
         go.disabled = true; go.textContent = "Naming…";
         try {
-          await onNameNow((stage, f) => { prog.textContent = `${stage} · ${Math.round(f * 100)}%`; });
+          await onNameNow((stage, f) => bar.update(stage, f));
         } catch (e) {
           busy = false; go.disabled = false; go.textContent = "Try again";
+          barBox.hidden = true;
           prog.textContent = (e && e.message) || "Naming failed";
         }
       });

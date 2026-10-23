@@ -56,7 +56,13 @@ There are two ways to run it, and both produce the same JSON:
   A **video** of a set works too (MP4 or MOV, what phones record): only its
   soundtrack is taken out and analyzed, and only that audio is kept for
   playback, so an hour of 1080p video (5–8 GB) costs about 60 MB of storage.
-  Each file shows its progress, and **Stop** cancels the run. When a single
+  Each file shows a progress bar (`progress.js`): the stage in words
+  (*Listening to the set*, *Naming tracks · clip 63 of 255 · 41 matched*,
+  *Shazam is busy · trying again in 15 s*), the percent and, once there's
+  enough to go on, the time left. The bar is shared by how long each part
+  takes (listening about a minute per hour of audio, naming about 3.2 s a
+  clip), so it doesn't stall near the end while tracks are named. **Stop**
+  cancels the run. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
   over an hour carry a note that a laptop works best.
@@ -464,8 +470,22 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   from the PATH, or `py -3.12` on Windows. It checks the import in a separate
   process before starting. On Python 3.13 it also installs `audioop-lts`,
   which `pydub` needs.
-- **Rate limits:** after 3 failed clips in a row, the browser stops asking.
-  The set keeps the names it has, and an explanatory note is saved with it.
+- **Rate limits:** when a lookup fails (Shazam rate-limiting, a timeout, the
+  helper not answering), the page waits and asks again for the same clip:
+  5 s, 15 s, 30 s, 60 s, then 2 min, saying *Shazam is busy · trying again in
+  15 s* meanwhile. Only after all five (about 4 minutes of refusals in a row)
+  does it stop, and the saved note says where (*Shazam stopped answering at
+  52:52*). (It used to give up after three failures in a row, which ended
+  naming halfway through a 1 h 42 min set over a brief rate limit.)
+- **Carrying on:** the set's **Name the remaining IDs (from 52:52)** keeps
+  every lookup already made (`naming.restoreProbes`) and asks only for the
+  clips after that. Sets now save each probe's offset and the songs matched
+  (`probe_tracks`), so a resumed run loses nothing; older sets get their songs
+  back from the named tracks, and the odd match that can't be is asked again.
+- **Progress:** naming is the long part of a long set (about 3.2 s a clip,
+  so ~13 minutes for 1 h 40 min), and the progress bar is shared by time,
+  not by step, so it keeps moving through it (*Naming tracks · clip 63 of
+  255 · 41 matched*), with the time left.
 - **Timing:** expect about 3 s per lookup, so roughly 8 minutes of naming per
   hour of set on top of the analysis. On Recording 9 it named 10 tracks,
   matching the Python pipeline.
@@ -1518,6 +1538,7 @@ dj-set-analyzer/
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
 │   ├── js/cover.js       # a 640 × 640 JPEG cover for playlists saved to Spotify
+│   ├── js/progress.js    # the progress bar: stage, bar, percent, time left
 │   ├── js/engine/fetchlink.js  # a set from a YouTube / SoundCloud link, through the helper
 │   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
 │   ├── js/vendor/        # qrcode.js (qrcode-generator 2.0.4, MIT), loaded on first use

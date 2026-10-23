@@ -12,7 +12,7 @@ import { assets, HEADS } from "./config.js";
 import { buildPayload } from "./payload.js";
 import { SR, FPS } from "./extract.js";
 import { musicSpan } from "./setlist.js";
-import { identifyClips } from "./naming.js";
+import { identifyClips, probeTimes, SECONDS_PER_CLIP } from "./naming.js";
 import { isVideo, extractAudio } from "./demux.js";
 
 const RANGE = 120;          // seconds per job (a multiple of 10)
@@ -287,7 +287,7 @@ function buildInWorker(F, classes, meta) {
 
 /* ------------------------------------------------ the whole thing */
 let pool = null;
-export async function analyzeFile(file, { onProgress = () => {}, onAudio = () => {}, title, bpmRange, signal, identify = false } = {}) {
+export async function analyzeFile(file, { onProgress = () => {}, onAudio = () => {}, title, bpmRange, signal, identify = false, knownProbes = [] } = {}) {
   const say = (stage, f) => onProgress({ stage, f });
   const check = () => { if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" }); };
   const source = file;                       // names and titles come from what was dropped
@@ -332,13 +332,19 @@ export async function analyzeFile(file, { onProgress = () => {}, onAudio = () =>
   const onAbort = () => releaseEngine();
   if (signal) signal.addEventListener("abort", onAbort, { once: true });
 
+  // the bar is shared by time, not by step: listening takes about a minute per hour of audio,
+  // naming about 3.2 s per clip it still has to ask, which for a long set is the longer part
+  const listenS = Math.max(20, duration / 60);
+  const clipsLeft = identify ? Math.max(0, Math.round(duration / 24) - knownProbes.length) : 0;
+  const nameS = clipsLeft * SECONDS_PER_CLIP;
+  const listenEnd = 0.06 + 0.91 * (listenS / (listenS + nameS));
   const jobs = planJobs(y);
   const prog = new Array(jobs.length).fill(0);
   let parts;
   try {
     parts = await pool.run(jobs, (id, f) => {
       prog[id] = f;
-      say("Listening to the set", 0.06 + 0.88 * (prog.reduce((s, x) => s + x, 0) / jobs.length));
+      say("Listening to the set", 0.06 + (listenEnd - 0.06) * (prog.reduce((s, x) => s + x, 0) / jobs.length));
     });
   } catch (e) {
     // a failed pool may hold a dead or wedged worker: start fresh next time
@@ -350,9 +356,14 @@ export async function analyzeFile(file, { onProgress = () => {}, onAudio = () =>
   let probes = [], namingNote = null;
   if (identify) {
     // name tracks through the visitor's naming helper (optional)
-    const r = await identifyClips(y, musicSpan(F.bands.rms, duration), {
-      signal,
-      onProgress: (i, n, hits) => say(`Naming tracks · ${i} of ${n} clips, ${hits} matched`, 0.93 + 0.05 * (i / Math.max(1, n))),
+    const span = musicSpan(F.bands.rms, duration), n0 = knownProbes.length, all = probeTimes(duration, span).length;
+    const r = await identifyClips(y, span, {
+      signal, known: knownProbes,
+      onProgress: (i, n, hits, { waiting, retry, unreachable } = {}) => {
+        const f = listenEnd + (0.97 - listenEnd) * ((i - n0) / Math.max(1, all - n0));
+        say(waiting ? `${unreachable ? "The helper isn't answering" : "Shazam is busy"} · trying again in ${waiting} s (retry ${retry} of 5)`
+          : `Naming tracks · clip ${i} of ${n} · ${hits} matched`, f);
+      },
     });
     probes = r.probes; namingNote = r.stopped;
   }

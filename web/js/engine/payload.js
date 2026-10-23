@@ -150,7 +150,9 @@ export function buildPayload(F, classes, meta) {
       styles: { step, names: [...top.map((j) => classes[j].split("---").pop()), "Other"], v: styleV },
       keys: { t: q(F.keys.map((k) => k[0]), 1), v: F.keys.map((k) => M.camelot(k[1], k[2])), strength: F.keys.map((k) => Math.round(k[3] * 100) / 100) },
     },
-    probes: (meta.probes || []).map((p) => ({ t: p.t, dur: p.dur, id: p.track ? p.track.id : null })),
+    probes: (meta.probes || []).map((p) => ({ t: p.t, dur: p.dur, id: p.track ? p.track.id : null, ...(p.offset != null ? { offset: p.offset } : {}) })),
+    // each song a probe matched, once: enough to rebuild the probes and carry on naming later
+    probe_tracks: Object.fromEntries((meta.probes || []).filter((p) => p.track && p.track.id != null).map((p) => [String(p.track.id), p.track])),
     credits: {
       beats_key_tempo: "Essentia.js (RhythmExtractor2013, PercivalBpmEstimator, KeyExtractor/edma), in your browser",
       styles_moods: "Discogs-EffNet + classification heads (MTG, UPF), via ONNX Runtime Web, in your browser",

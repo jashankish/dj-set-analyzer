@@ -59,36 +59,83 @@ function wav(samples, sr) {
   return new Blob([buf], { type: "audio/wav" });
 }
 
+/* when a lookup fails (Shazam rate-limiting, a timeout, the network), wait and ask again
+   for the same clip, longer each time; only after all of these (about 4 minutes of
+   refusals in a row) does naming stop, and it says where, so it can be resumed */
+export const RETRY_WAITS = [5, 15, 30, 60, 120];
+export const SECONDS_PER_CLIP = 3.2;          // measured: a lookup plus the helper's pacing
+
+const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+const pause = (s, signal) => new Promise((res, rej) => {
+  const t = setTimeout(res, s * 1000);
+  if (signal) signal.addEventListener("abort", () => { clearTimeout(t); rej(Object.assign(new Error("Analysis stopped"), { name: "AbortError" })); }, { once: true });
+});
+
+/** The clip times naming asks about for a recording of `duration` s with music in [lo, hi]. */
+export function probeTimes(duration, [lo, hi]) {
+  const times = [];
+  for (let t = 4; t <= duration - PROBE_CLIP; t += PROBE_STEP) if (t >= lo - PROBE_CLIP && t <= hi) times.push(Math.round(t * 100) / 100);
+  return times;
+}
+
 /**
  * Probe the set for track names.
  * @param y      mono Float32Array at engine SR
  * @param span   [start, end] of the music (setlist.musicSpan)
- * @returns { probes: [{t, dur, track, offset}], stopped: string|null }
+ * @param known  probes already asked (resuming): their times are skipped and they're kept
+ * @param wait   (s, signal) => Promise: how to wait between retries (tests pass a fast one)
+ * @returns { probes: [{t, dur, track, offset}], stopped: string|null, stoppedAt: number|null }
+ *   onProgress(done, total, matched, { waiting, retry }) reports each clip, and each wait
  */
-export async function identifyClips(y, [lo, hi], { onProgress = () => {}, signal } = {}) {
-  const duration = y.length / SR, times = [];
-  for (let t = 4; t <= duration - PROBE_CLIP; t += PROBE_STEP) if (t >= lo - PROBE_CLIP && t <= hi) times.push(Math.round(t * 100) / 100);
-  const probes = [];
-  let failures = 0, stopped = null;
-  for (let i = 0; i < times.length; i++) {
+export async function identifyClips(y, span, { onProgress = () => {}, signal, known = [], wait = pause } = {}) {
+  const duration = y.length / SR, all = probeTimes(duration, span);
+  const done = new Set(known.map((p) => Math.round(p.t)));
+  const todo = all.filter((t) => !done.has(Math.round(t)));
+  const probes = [...known];
+  const matched = () => probes.filter((p) => p.track).length;
+  const base = all.length - todo.length;
+  let stopped = null, stoppedAt = null;
+  for (let i = 0; i < todo.length; i++) {
     if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" });
-    const t = times[i];
-    onProgress(i, times.length, probes.filter((p) => p.track).length);
+    const t = todo[i];
+    onProgress(base + i, all.length, matched(), {});
     const clip = y.subarray(Math.round(t * SR), Math.round((t + PROBE_CLIP) * SR));
-    let res = null;
-    try {
-      const r = await fetch(`${HELPER_URL}/identify`, { method: "POST", body: wav(clip, SR), signal });
-      if (r.ok) res = await r.json();
-    } catch (e) {
-      if (e && e.name === "AbortError") throw e;
+    let res = null, unreachable = false;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const r = await fetch(`${HELPER_URL}/identify`, { method: "POST", body: wav(clip, SR), signal });
+        if (r.ok) res = await r.json();
+        unreachable = false;
+      } catch (e) {
+        if (e && e.name === "AbortError") throw e;
+        unreachable = true;                   // the helper itself didn't answer
+      }
+      if (res || attempt >= RETRY_WAITS.length) break;
+      onProgress(base + i, all.length, matched(), { waiting: RETRY_WAITS[attempt], retry: attempt + 1, unreachable });
+      await wait(RETRY_WAITS[attempt], signal);
     }
     if (!res) {
-      if (++failures >= 3) { stopped = "Shazam stopped answering (probably rate-limiting), so some tracks are still IDs. Try naming them again later."; break; }
-      continue;
+      stoppedAt = t;
+      stopped = unreachable
+        ? `The naming helper stopped answering at ${clock(t)}, so tracks after that are still IDs. Start the helper again and press “Name the remaining IDs” to carry on from there.`
+        : `Shazam stopped answering at ${clock(t)} (it was still refusing after about 4 minutes of retries), so tracks after that are still IDs. Press “Name the remaining IDs” later to carry on from there.`;
+      break;
     }
-    failures = 0;
     probes.push({ t, dur: PROBE_CLIP, track: res.track, offset: res.offset });
   }
-  onProgress(times.length, times.length, probes.filter((p) => p.track).length);
-  return { probes, stopped };
+  probes.sort((a, b) => a.t - b.t);
+  onProgress(stopped ? all.indexOf(stoppedAt) : all.length, all.length, matched(), {});
+  return { probes, stopped, stoppedAt };
+}
+
+/** A saved set's probes, ready to resume naming: each matched one gets its song back (from
+ *  payload.probe_tracks, or for sets saved before that existed, from the named track with the
+ *  same Shazam id). A match whose song can't be found is left out, so it's asked again;
+ *  clips that matched nothing stay as they are. */
+export function restoreProbes(payload) {
+  const songs = { ...(payload.probe_tracks || {}) };
+  for (const t of payload.tracks || []) if (t.meta && t.meta.id != null && !songs[String(t.meta.id)]) songs[String(t.meta.id)] = t.meta;
+  return (payload.probes || [])
+    .filter((p) => p.id == null || songs[String(p.id)])
+    .map((p) => ({ t: p.t, dur: p.dur, track: p.id == null ? null : songs[String(p.id)], offset: p.offset != null ? p.offset : null }));
 }

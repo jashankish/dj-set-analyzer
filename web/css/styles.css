@@ -905,3 +905,13 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
 .src-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .src-by { color: var(--muted); font-size: .8em; }
+
+/* progress (progress.js): analysis, naming, fetching */
+.prog { width: 100%; }
+.prog-top { display: flex; justify-content: space-between; gap: 12px; font-size: .84rem; font-stretch: 90%; margin-bottom: 6px; }
+.prog-stage { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.prog-pc { color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.prog-track { height: 8px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.prog-track i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9085E9, #3987E5); transition: width .4s ease; }
+@media (prefers-reduced-motion: reduce) { .prog-track i { transition: none; } }
+.nm-prog { flex-basis: 100%; margin-top: 6px; }

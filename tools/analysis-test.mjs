@@ -221,6 +221,35 @@ check("fewer than three tracks: no mood map", moodMap({ tracks: [{ n: 1, moods: 
   check("handoff: on localhost the code carries the text itself", [promptLink(text, "spotify", new URL("http://127.0.0.1:8791/set.html")), promptLink(text, "spotify", new URL("http://localhost/set.html"))], (v) => v.every((x) => x.kind === "text" && x.data === text));
 }
 
+/* ---------------- naming: retries, resuming (web/js/engine/naming.js), with a stand-in helper */
+{
+  const N = await import(pathToFileURL(path.join(ROOT, "web/js/engine/naming.js")));
+  const SRATE = 16000, dur = 600, y = new Float32Array(dur * SRATE), span = [0, dur];
+  const all = N.probeTimes(dur, span);
+  const noWait = () => Promise.resolve();
+  const realFetch = globalThis.fetch;
+  // the stand-in answers every clip with "Song <t>", except as each test arranges
+  const helper = (fail) => { let calls = 0; globalThis.fetch = async () => { calls++; if (fail(calls)) return { ok: false, json: async () => ({}) }; return { ok: true, json: async () => ({ track: { id: `s${calls}`, title: `Song ${calls}`, artist: "A" }, offset: 3 }) }; }; return () => calls; };
+  try {
+    let waits = [];
+    const calls1 = helper((c) => c >= 10 && c < 13);            // three failures in a row around the 10th clip
+    const r1 = await N.identifyClips(y, span, { wait: (s) => (waits.push(s), Promise.resolve()) });
+    check("naming: three failures in a row are retried, not the end (every clip named)", [r1.stopped, r1.probes.length, all.length, waits.join()], ([s, n, a, w]) => s === null && n === a && w === "5,15,30");
+    helper((c) => c >= 8);                                       // Shazam never comes back after the 8th lookup
+    waits = [];
+    const r2 = await N.identifyClips(y, span, { wait: (s) => (waits.push(s), Promise.resolve()) });
+    check("naming: a long outage stops after 5 retries, saying where", [r2.stoppedAt, r2.probes.length, waits.join(), r2.stopped], ([at, n, w, s]) => at === all[7] && n === 7 && w === "5,15,30,60,120" && /stopped answering at 2:52/.test(s));
+    const calls3 = helper(() => false);
+    const r3 = await N.identifyClips(y, span, { wait: noWait, known: r2.probes });
+    check("naming: resuming asks only the clips not asked yet, and keeps the earlier ones", [calls3(), r3.probes.length, r3.probes[0].track.title], ([c, n, t]) => c === all.length - 7 && n === all.length && t === "Song 1");
+  } finally { globalThis.fetch = realFetch; }
+  // a set saved before probe_tracks existed: matched probes get their song back from the named tracks
+  const saved = { probes: [{ t: 4, dur: 12, id: "111" }, { t: 28, dur: 12, id: null }, { t: 52, dur: 12, id: "222" }, { t: 76, dur: 12, id: "999" }],
+    tracks: [{ meta: { id: "111", title: "One" } }, { meta: { id: "222", title: "Two" } }, { meta: null }] };
+  check("naming: restoreProbes rebuilds an older set (an unknown match is left to ask again)", N.restoreProbes(saved).map((p) => `${p.t}:${p.track ? p.track.title : "-"}`).join(), (s) => s === "4:One,28:-,52:Two");
+  check("naming: restoreProbes prefers the saved song table", N.restoreProbes({ ...saved, probe_tracks: { 999: { id: "999", title: "Nine" } } }).length, (n) => n === 4);
+}
+
 /* ---------------- track table (web/js/table.js) */
 {
   const D = demo("worship-part-2"), T = trackTable(D);

@@ -104,6 +104,8 @@ try {
   await page.waitForSelector(".q-item");
   check("queue shows the file", await page.locator(".q-name b").first().textContent(), (t) => t === "set-replay-e2e.wav");
   await page.click("#analyzeBtn");
+  const bar = await page.waitForSelector(".q-prog [role=progressbar]", { timeout: 15000 }).then(() => page.locator(".q-prog [role=progressbar]").first()).catch(() => null);
+  check("a progress bar shows the stage and how far along the analysis is", bar && [await bar.getAttribute("aria-valuenow").catch(() => null), await bar.locator(".prog-stage").textContent().catch(() => "")], (v) => v && +v[0] >= 0 && +v[0] <= 100 && v[1].length > 3);
   await waitForResult(page, consoleErrs);
   await page.waitForSelector(".trk");
   const story = await page.locator("#story").textContent();
