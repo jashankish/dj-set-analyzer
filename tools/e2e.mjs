@@ -78,6 +78,17 @@ if (!pw[engine]) { console.error(`Unknown --browser ${engine}`); process.exit(2)
 // Access); headless can't click Allow, so switch the check off to stand in for that click.
 const lnaArgs = remote && engine === "chromium" && !/\/\/(localhost|127\.0\.0\.1)[:/]/.test(remote) ? ["--disable-features=LocalNetworkAccessChecks"] : [];
 const browser = await pw[engine].launch(useChrome && engine === "chromium" ? { channel: "chrome", headless: true, args: lnaArgs } : { headless: true, args: lnaArgs });
+// The checks below were written against two worship sets, which are test fixtures now
+// (tools/fixtures/), not demos the site lists: every context serves them at demo/<slug>.json,
+// for the local build and a deployed copy alike.
+{
+  const open = browser.newContext.bind(browser);
+  browser.newContext = async (...a) => {
+    const c = await open(...a);
+    await c.route(/\/demo\/worship-part-[12]\.json$/, (r) => r.fulfill({ path: path.join(ROOT, "tools/fixtures", path.basename(new URL(r.request().url()).pathname)), contentType: "application/json" }));
+    return c;
+  };
+}
 console.log(`browser: ${engine} ${browser.version()}`);
 const context = await browser.newContext({ acceptDownloads: true });
 // only Chromium lets a test grant clipboard access; elsewhere that check is skipped
@@ -260,9 +271,18 @@ try {
   await p3.goto(BASE);
   await p3.waitForSelector("#demoList .card");
   check("phone: landing has no sideways scroll", await overflow(), (px) => px <= 0);
-  await p3.locator("#taste").scrollIntoViewIfNeeded();
-  await p3.waitForFunction(() => document.getElementById("tasteText").textContent.length > 20, null, { timeout: 8000 }).catch(() => {});
-  check("phone: with no sets saved, the landing shows one prompt across the demos", [await p3.locator("#tasteTitle").textContent(), await p3.locator("#tasteText").textContent()], ([h, t]) => h === "One playlist from several sets" && /drum & bass/.test(t));
+  {
+    // the demo the site ships (whatever web/demo/index.json lists first) opens cleanly
+    const idx = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/index.json")));
+    const dp = await phone.newPage(), errsD = [];
+    dp.on("pageerror", (e) => errsD.push(String(e)));
+    await dp.goto(`${BASE}set.html?demo=${idx[0].slug}`);
+    await dp.waitForSelector(".trk", { timeout: 20000 }).catch(() => {});
+    check("the bundled demo opens: every track listed, no page errors", [await dp.locator(".trk").count(), idx[0].tracks, errsD], ([n, want, e]) => n === want && e.length === 0);
+    await dp.close();
+  }
+  await p3.waitForTimeout(600);
+  check("phone: with no sets saved and a single demo, the across-sets panel stays hidden", await p3.locator("#taste").isHidden(), (h) => h === true);
   check("phone: the landing page links twelve features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 12 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
   await p3.goto(BASE + "set.html?demo=worship-part-2");
   await p3.waitForSelector(".trk");
@@ -510,8 +530,9 @@ try {
   refuseOnce = true;
   await p2.click("#analyzeBtn");
   // the banner at the top, and its rate-limit warning while the page waits to ask again
-  const bannerTitle = await p2.waitForSelector(".activity:not([hidden]) .act-title", { timeout: 20000 }).then((e) => e.textContent()).catch(() => "");
-  const warnText = await p2.waitForSelector(".activity .act-warn:not([hidden]):not(.soft)", { timeout: 60000 }).then((e) => e.textContent()).catch(() => "");
+  // (generous waits: on slow CI runners, Firefox and WebKit take minutes to reach the naming step)
+  const bannerTitle = await p2.waitForSelector(".activity:not([hidden]) .act-title", { timeout: 60000 }).then((e) => e.textContent()).catch(() => "");
+  const warnText = await p2.waitForSelector(".activity .act-warn:not([hidden]):not(.soft)", { timeout: 240000 }).then((e) => e.textContent()).catch(() => "");
   check("a banner at the top shows the analysis while it runs", bannerTitle, (t) => /^Analyzing “set-replay-e2e”/.test(t));
   check("when Shazam refuses, a warning beside the bar says it's rate-limiting", warnText, (t) => /rate-limiting lookups/.test(t) && /carry on later/.test(t));
   await waitForResult(p2, consoleErrs2);

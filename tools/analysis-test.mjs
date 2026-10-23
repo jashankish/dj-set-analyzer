@@ -34,7 +34,8 @@ const { similarity, idClues } = await import(pathToFileURL(path.join(ROOT, "web/
 const { highlights } = await import(pathToFileURL(path.join(ROOT, "web/js/highlights.js")));
 const { dropAnatomy } = await import(pathToFileURL(path.join(ROOT, "web/js/drops.js")));
 const { compareSets, mergePayloads } = await import(pathToFileURL(path.join(ROOT, "web/js/compare.js")));
-const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo", `${s}.json`)));
+// the two worship sets the checks were written against (the site's demo is now another set)
+const demo = (s) => JSON.parse(fs.readFileSync(path.join(ROOT, "tools/fixtures", `${s}.json`)));
 
 const checks = [];
 const check = (name, value, ok) => checks.push([name, JSON.stringify(value), !!ok(value)]);

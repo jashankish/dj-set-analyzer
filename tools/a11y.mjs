@@ -39,7 +39,7 @@ const browser = await chromium.launch(args.includes("--chrome") ? { channel: "ch
 let total = 0;
 for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]]) {
   const ctx = await browser.newContext({ viewport, reducedMotion: "reduce" });
-  for (const url of ["index.html", "set.html?demo=worship-part-2", `prompt.html#${new URLSearchParams({ t: "spotify", p: "A dark, high-tempo drum & bass playlist" })}`]) {
+  for (const url of ["index.html", "set.html?demo=fred-again-rooftop-live", `prompt.html#${new URLSearchParams({ t: "spotify", p: "A dark, high-tempo drum & bass playlist" })}`]) {
     const page = await ctx.newPage();
     await page.goto(BASE + url);
     await page.waitForSelector(url.startsWith("set") ? ".trk" : url.startsWith("prompt") ? "#how li" : "#demoList .card");

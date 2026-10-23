@@ -34,9 +34,11 @@ function toast(msg) {
 
 /* ------------------------------------------------ demos + teaser */
 let demo = null;
+// the demo list, fetched once and shared (the teaser and the across-sets panel both need it)
+let demoIndex = null;
+const demoList = () => (demoIndex ||= fetch("demo/index.json").then((r) => r.json()).catch(() => []));
 async function loadDemos() {
-  let idx = [];
-  try { idx = await (await fetch("demo/index.json")).json(); } catch (e) { /* no demos bundled */ }
+  const idx = await demoList();
   $("demoList").innerHTML = idx.map((d) => `
     <li><a class="card" href="set.html?demo=${encodeURIComponent(d.slug)}">
       <canvas data-segs='${JSON.stringify(d.segs)}' data-end="${d.set_length || d.duration}"></canvas>
@@ -157,11 +159,13 @@ async function showTaste(count) {
   }
   const load = async () => {
     try {
-      const idx = await (await fetch("demo/index.json")).json();
+      const idx = await demoList();
       const entries = await Promise.all(idx.slice(0, 4).map(async (d) => ({ title: d.title, payload: await (await fetch(`demo/${encodeURIComponent(d.slug)}.json`)).json() })));
       renderTaste(taste(entries), `Here, across the ${entries.length} demo sets. Analyze two or more of your own and this becomes yours.`, "One playlist from several sets");
     } catch (e) { /* no demos bundled */ }
   };
+  // it takes two or more demos: with fewer, the panel stays hidden rather than flashing empty
+  if ((await demoList()).length < 2) { $("taste").hidden = true; return; }
   if (!("IntersectionObserver" in window)) { load(); return; }
   $("taste").hidden = false;                       // so it can be watched; empty until loaded
   tasteWatch = new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) { tasteWatch.disconnect(); tasteWatch = null; load(); } }, { rootMargin: "400px 0px" });

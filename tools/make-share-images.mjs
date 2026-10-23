@@ -17,7 +17,7 @@ const pwDir = args.includes("--pw") ? args[args.indexOf("--pw") + 1] : null;
 const require = createRequire(pwDir ? path.join(path.resolve(pwDir), "x.js") : import.meta.url);
 const { chromium } = require("playwright");
 
-const D = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/worship-part-1.json")));
+const D = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/fred-again-rooftop-live.json")));
 const s0 = D.summary.set_start || 0, s1 = D.summary.set_end || D.duration;
 const fps = D.curves.wave_fps, low = D.curves.wave.low, mid = D.curves.wave.mid;
 // the set's waveform as 240 columns, each in the color of the track playing there

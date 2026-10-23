@@ -2,10 +2,13 @@
 """
 Turn analyzed sets into the bundled demos the hosted site shows.
 
-  venv/bin/python tools/make_demos.py recording-9:worship-part-1 recording-10:worship-part-2
+  venv/bin/python tools/make_demos.py recording-9:my-demo
+  python3 tools/make_demos.py path/to/exported.setreplay.json:fred-again-rooftop-live
 
-Reads web/data/sets/<slug>.json (written by analyzer/analyze.py), writes
-web/demo/<demo>.json and web/demo/index.json. Locally cached cover art is
+Reads web/data/sets/<slug>.json (written by analyzer/analyze.py), or a
+.json path (an analysis exported from the site: Download the analysis), and
+writes web/demo/<demo>.json and web/demo/index.json (listing only the
+demos given, in that order: the first is the landing page's teaser). Locally cached cover art is
 dropped in favor of the original art URL, and no audio is bundled unless you
 pass --audio <demo>=<url> (e.g. a file on your own CDN).
 """
@@ -26,9 +29,11 @@ def main():
     os.makedirs(os.path.join(WEB, "demo"), exist_ok=True)
     index = []
     for pair in args.pairs:
-        src, demo = pair.split(":")
-        with open(os.path.join(WEB, "data", "sets", f"{src}.json")) as f:
+        src, demo = pair.rsplit(":", 1)
+        path = src if src.endswith(".json") else os.path.join(WEB, "data", "sets", f"{src}.json")
+        with open(path) as f:
             d = json.load(f)
+        d.pop("user_names", None)                       # a browser export's own renames stay out
         d["slug"], d["source"] = demo, "demo"
         for t in d["tracks"]:
             if t.get("meta"):

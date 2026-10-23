@@ -100,7 +100,8 @@ There are two ways to run it, and both produce the same JSON:
   range, home keys, genres and the artists who keep coming back. **Copy
   prompt** / **Open Spotify**. With fewer than two saved, it shows the same
   across the demo sets (*One playlist from several sets*), loaded only when
-  the section comes near the screen.
+  the section comes near the screen, if the site lists two or more demos
+  (with one, as now, it stays hidden).
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. Under it, **And there's more on every set**:
   twelve cards (the playlist prompt, the set at a glance, highlights, the
@@ -141,7 +142,7 @@ top; its color swatches are the set's track keys in order. Then:
 | **Track roles** | Up to two tags on each setlist row and under Now playing for what the track does in the set, each with its reason as a tooltip: *Opener*, *Closer*, *Peak* (the most energetic track), *Lift* (energy up 1.5+ on the track before), *Breather* (1.5+ under the set's median, between higher tracks), *Core* and *Curveball* (the two tracks that sound most and least like the whole set), *Echo* (returns to an earlier track's sound) and *Key bridge* (a different key that mixes cleanly in and out, carrying the set between keys that don't mix directly). From `roles.js` | Hover a tag for why |
 | **ID clues** | For each unnamed track, the trusted named track in the same set it sounds most like (from the Track by track matrix: at least 80% alike, ranked by how much more alike than that track is to the set in general, so no single "generic" track answers for every ID). Shown as "Unidentified · sounds like *Title*" in the setlist, as a line under Now playing ("Sounds most like Illuminate (Sub Focus & Wilkinson), 98% alike"), and added to the ID's clues in every tracklist format, e.g. `ID – ID (4A, 175 BPM, sounds like Sub Focus & Wilkinson – Illuminate)`: what you'd post when asking who made an ID | Click the Now playing line to hear the track it sounds like |
 | **Track by track** | A similarity matrix: every track against every other, brighter where two tracks sound more alike (the style model hears the same styles in them, half; they sit close on the eight vibe axes, half), scaled to the set's own range, with the chapters boxed along the diagonal and the playing track's row and column outlined in its key color. Beside it: how alike the set's hand-overs are on average, its most consistent stretch (the longest run of hand-overs smoother than its median), where it comes back to an earlier sound (the most alike pair at least four tracks apart), and its hardest turn (the least alike neighbors) | Hover a cell for the pair; click a cell, or an insight, to play that track |
-| **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's color); the biggest differences in words ("Worship Part 1 is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt**; **Save both sets to Spotify** (both sets' named tracks in one playlist, the blend keywords as its description) |
+| **Compare with another set** | Shown when there's another set to compare with (another demo, another set in this browser, or another set on the local server). A **similarity score** out of 100 with a verdict (*close siblings* ≥ 85, *same world* ≥ 70, *related* ≥ 50, else *different nights*), broken into **sound** (cosine of the style shares, 35%), **feel** (the vibe axes, 30%), **tempo** (0 at 30+ BPM apart, 20%) and **shared artists** (15%); both vibe fingerprints overlaid (this set filled, the other dashed, each in its home key's color); the biggest differences in words ("Set A is more vocal (62% vs 47%)"); genres and artists in common; and a **blend prompt**: both sets joined end to end and written up as one, for a playlist covering both | Pick the set from the menu (remembered per set); **Copy blend prompt**; **Save both sets to Spotify** (both sets' named tracks in one playlist, the blend keywords as its description) |
 | **Track table** | Every track with everything the page measured, in one sortable table: start, time in the set, track and artist (your renames included), key (in its color), BPM, energy, vocal share, frequency lean, roles, fit to the whole set, and the mix into it (type, key move, smoothness). Built by `table.js`, which also writes it as CSV | Click a column to sort (again to reverse); click a row (or Enter) to play the track; **Download CSV** for a spreadsheet: one row per track, the same columns, plays in seconds |
 | **Take the vibe to Spotify** | Where to send it (Spotify, YouTube Music, Apple Music, Deezer or any AI chat). A *vibe fingerprint* radar (tempo, energy, danceable, party, aggressive, bright, vocal, minor key): the whole set filled in its main key's color, the playing track as a dashed outline that moves as the set plays, and the values in a table. Next to it, keyword chips by group (genre, tempo, mood, sound, artists, tracks to start from, labels, era, flow, things to avoid) and the prompt they make | Pick **Whole set**, a chapter or **Around now** (the playing track and its neighbors; also the deck's **Playlist like this part**) to prompt for; hover an axis for set vs. track values; click chips to take keywords out (hover a genre chip for its evidence); pick a **Range** and a **Length**; switch between the full prompt and keywords only; add your own direction; **Copy prompt**, **Open Spotify** (copies too), **Save the set to Spotify** (see [Spotify](#spotify-the-set-as-a-playlist-prompt)). Your choices are remembered per set |
 
@@ -339,15 +340,24 @@ relative.
    `window.SET_REPLAY_ASSETS = { essentiaWasm, essentiaCore, ort, ortWasmPath, models }`
    in a script before `js/landing.js` runs. Each library entry may be one URL
    or a list tried in order; `ortWasmPath[i]` pairs with `ort[i]`.
-5. **Demos.** Analyze sets with the Python pipeline, then run:
+5. **Demos.** The site ships one demo: Fred again.. *Rooftop Live (Arun's
+   Roof, London)*, analyzed in the browser from its YouTube link and named
+   with the helper (55 tracks, 48 named). To make your own, analyze a set
+   (in the browser, then **Download the analysis**, or with the Python
+   pipeline) and run:
 
    ```bash
-   venv/bin/python tools/make_demos.py recording-9:worship-part-1 recording-10:worship-part-2
+   python3 tools/make_demos.py path/to/set.setreplay.json:my-demo     # a browser export
+   venv/bin/python tools/make_demos.py recording-9:my-demo            # Python output (web/data/sets/)
    ```
 
-   That writes `web/demo/`. Demos ship without audio unless you add
-   `--audio worship-part-1=https://…/part1.m4a` (a file on your own host or
-   CDN). Without audio, a demo is fully explorable but silent.
+   That writes `web/demo/` and lists only the demos given, the first as the
+   landing page's teaser. Demos ship without audio unless you add
+   `--audio my-demo=https://…/set.m4a` (a file on your own host or CDN, and
+   only one you're allowed to share). Without audio, a demo is fully
+   explorable but silent. The two worship sets the earlier demos used are
+   now test fixtures (`tools/fixtures/`): the unit tests read them, and
+   `tools/e2e.mjs` serves them to the page at `demo/worship-part-*.json`.
 
 6. **Your site's own tags** (analytics, a consent banner, a theme script):
    the repo ships no tracking code. Put the HTML in a file and pass it at
@@ -1189,8 +1199,8 @@ access. That matrix found and fixed three real issues:
 - Firefox: an unhandled `AudioContext.resume()` promise
 - WebKit: no Blob storage in private sessions
 
-Each run takes a few minutes. Results on Recording 9 (one of the bundled
-demo sets) with identification off: the browser engine and Python both give
+Each run takes a few minutes. Results on Recording 9 (*Worship Part 1*, a
+test fixture) with identification off: the browser engine and Python both give
 18 tracks with identical start times.
 
 **Speed** (Chrome, Apple M4, 6 workers): about 2 minutes per hour of
@@ -1572,7 +1582,7 @@ dj-set-analyzer/
 │   ├── js/engine/     # the browser engine (see "The browser engine")
 │   ├── helper/set-replay-helper.py  # the optional helper visitors run: Shazam names, YouTube/SoundCloud links (yt-dlp)
 │   ├── models/        # ONNX models served to browsers (CC BY-NC-SA 4.0)
-│   ├── demo/          # bundled demo sets (tools/make_demos.py)
+│   ├── demo/          # the bundled demo set (tools/make_demos.py)
 │   ├── _headers       # cache rules for Netlify / Cloudflare Pages
 │   ├── favicon.svg    # site icon (key-colored waveform)
 │   ├── og-image.png   # the 1200 × 630 link-preview card (tools/make-share-images.mjs)
@@ -1595,7 +1605,8 @@ dj-set-analyzer/
 │   ├── a11y.mjs          # axe-core accessibility check (WCAG 2.1 A/AA), landing + set page, desktop + phone
 │   ├── make-share-images.mjs  # draws og-image.png and apple-touch-icon.png from a demo (Playwright)
 │   ├── engine-check.mjs  # run the browser engine under Node, compare with Python
-│   ├── make_demos.py     # Python output → web/demo/
+│   ├── make_demos.py     # an analysis (browser export or Python output) → web/demo/
+│   ├── fixtures/         # test data: the worship sets (worship-part-1/2.json), a short .mov
 │   └── tune_segmentation.py  # score audio-only segmentation vs Shazam-labeled sets
 ├── requirements.txt
 ├── run.sh             # starts the server (default port 8778)
