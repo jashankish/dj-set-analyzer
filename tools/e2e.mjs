@@ -406,7 +406,7 @@ try {
    knows the answer: clips before 90 s are "Track A", later ones "Track B" */
 const probeTimes = [];
 for (let t = 4; t <= SYNTH.duration - 12; t += 24) probeTimes.push(t);
-let asked = 0, fetchPolls = 0;
+let asked = 0, fetchPolls = 0, refuseOnce = false;
 const mock = http.createServer((req, res) => {
   const cors = { "Access-Control-Allow-Origin": req.headers.origin || "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Private-Network": "true" };
@@ -420,6 +420,8 @@ const mock = http.createServer((req, res) => {
   if (req.url === "/fetch/0123456789ab/audio") { res.writeHead(200, { ...cors, "Content-Type": "audio/wav" }); return res.end(fs.readFileSync(wav)); }
   req.resume();
   req.on("end", () => {
+    // Shazam rate-limiting, once: the helper answers 502 and the page must wait and ask again
+    if (refuseOnce && asked === 2) { refuseOnce = false; res.writeHead(502, { ...cors, "Content-Type": "application/json" }); return res.end(JSON.stringify({ error: "Shazam didn't answer" })); }
     const t = probeTimes[Math.min(asked, probeTimes.length - 1)];
     asked++;
     const first = t + 6 < SYNTH.change;
@@ -505,10 +507,16 @@ try {
   await p2.waitForSelector("#nameTracks", { timeout: 10000 });
   check("naming bar finds the helper", await p2.locator("#naming").textContent(), (t) => /connected/i.test(t));
   await p2.setInputFiles("#fileInput", wav);
+  refuseOnce = true;
   await p2.click("#analyzeBtn");
+  // the banner at the top, and its rate-limit warning while the page waits to ask again
+  const bannerTitle = await p2.waitForSelector(".activity:not([hidden]) .act-title", { timeout: 20000 }).then((e) => e.textContent()).catch(() => "");
+  const warnText = await p2.waitForSelector(".activity .act-warn:not([hidden]):not(.soft)", { timeout: 60000 }).then((e) => e.textContent()).catch(() => "");
+  check("a banner at the top shows the analysis while it runs", bannerTitle, (t) => /^Analyzing “set-replay-e2e”/.test(t));
+  check("when Shazam refuses, a warning beside the bar says it's rate-limiting", warnText, (t) => /rate-limiting lookups/.test(t) && /carry on later/.test(t));
   await waitForResult(p2, consoleErrs2);
   await p2.waitForSelector(".trk");
-  check("the helper was asked once per probe", asked, (n) => n === probeTimes.length);
+  check("the helper was asked once per probe, plus the one retry", asked, (n) => n === probeTimes.length);
   check("story credits the names", (await p2.locator("#story").textContent()).slice(0, 120), (t) => /Shazam named (2|every one)/.test(t));
   check("tracks carry the helper's names", await p2.locator(".trk .name .t").allTextContents(), (v) => v.length === 2 && v[0].startsWith("Track A") && v[1].startsWith("Track B"));
   check("named swap lands near 90 s", await p2.locator(".trk .when").nth(1).textContent(), (t) => { const [m, sec] = t.split(":").map(Number); return Math.abs(m * 60 + sec - SYNTH.change) <= 20; });

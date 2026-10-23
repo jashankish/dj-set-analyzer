@@ -7,7 +7,7 @@ import { helperStatus, helperWanted } from "./engine/naming.js";
 import { openNamingDialog } from "./naming-ui.js";
 import { parseLink, fetchLink, canFetch } from "./engine/fetchlink.js";
 import { markHelperWanted } from "./engine/naming.js";
-import { progressHTML, eta } from "./progress.js";
+import { progressHTML, eta, activity } from "./progress.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -282,14 +282,19 @@ async function startFetch(item) {
   try {
     const r = await fetchLink(item.link.url, {
       signal: item.ctl.signal,
-      onProgress: (stage, f, job) => { item.stage = stage; item.f = f; if (job && job.title) item.label = job.title; renderQueue(); },
+      onProgress: (stage, f, job) => {
+        item.stage = stage; item.f = f; if (job && job.title) item.label = job.title; renderQueue();
+        if (!running) activity().show({ title: `Fetching from ${item.link.label}${job && job.title ? `: “${job.title}”` : ""}`, stage, f });
+      },
     });
     item.file = r.file; item.meta = r; item.label = r.title || item.label;
     item.state = "ready"; item.f = 0; item.duration = r.duration || undefined;
+    if (!running) activity().finish({ title: `“${item.label}” is ready to analyze`, text: "", tone: "done" });
     if (!item.duration) probeDuration(item);
     announce(`${item.label} fetched from ${item.link.label}. Press Analyze.`);
   } catch (e) {
-    if (e && e.name === "AbortError") return;           // removed or cleared: the item is already gone
+    if (e && e.name === "AbortError") { if (!running) activity().hide(); return; }    // removed or cleared: the item is already gone
+    if (!running) activity().finish({ title: "Couldn't fetch the link", text: (e && e.message) || "", tone: "err" });
     item.state = "error";
     item.error = /Failed to fetch|NetworkError|Load failed/i.test(String(e && e.message)) ? "The helper stopped answering. Is it still running?" : (e && e.message) || "Couldn't fetch it";
   }
@@ -316,7 +321,7 @@ function renderQueue() {
     if (q.state === "running" || q.state === "fetching") state = "";
     if (q.state === "waiting") state = "Looking for the helper…";
     if (q.state === "needs-helper") state = `Needs the Set Replay helper on this computer. <button class="ghost hl-setup" data-i="${i}">Set it up</button>`;
-    if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>`;
+    if (q.state === "done") state = `<a class="ghost open" href="set.html?id=${encodeURIComponent(q.id)}">Open the set</a>${q.note ? `<span class="q-warn" title="${esc(q.note)}">⚠ Partly named: Shazam rate limit</span>` : ""}`;
     if (q.state === "error") state = esc(q.error) + (q.link && !q.file ? ` <button class="ghost hl-retry" data-i="${i}">Try again</button>` : "");
     if (q.state === "unsaved") state = `Analyzed, but ${esc(q.error)}. <button class="ghost dl" data-i="${i}">Download the analysis</button>`;
     return `<li class="q-item">
@@ -354,8 +359,12 @@ async function analyzeAll() {
   }
   const finished = [];
   controller = new AbortController();
+  const todo = queue.filter((q) => q.state === "ready"), A = activity();
+  let k = 0;
   for (const q of queue) {
     if (q.state !== "ready") continue;
+    k++;
+    const title = `Analyzing “${q.link ? q.label : q.file.name.replace(/\.[^.]+$/, "")}”${todo.length > 1 ? ` · set ${k} of ${todo.length}` : ""}`;
     if (controller.signal.aborted) break;
     q.state = "running"; q.stage = "Starting"; q.f = 0; q.t0 = Date.now(); q.f0 = 0; renderQueue();
     announce(`Analyzing ${q.link ? q.label : q.file.name}. This takes a minute or two.`);
@@ -363,7 +372,7 @@ async function analyzeAll() {
       const payload = await engine.analyzeFile(q.file, {
         signal: controller.signal,
         identify: helperOn && nameTracks && helperWanted() && !!(await helperStatus()),
-        onProgress: ({ stage, f }) => { q.stage = stage; q.f = f; renderQueue(); },
+        onProgress: ({ stage, f, warn }) => { q.stage = stage; q.f = f; renderQueue(); A.show({ title, stage, f, warn }); },
         onAudio: (a) => { q.audio = a; },              // a video: keep its soundtrack, not the video
       });
       if (q.meta) {
@@ -383,7 +392,7 @@ async function analyzeAll() {
         renderQueue();
         continue;
       }
-      q.state = "done"; q.f = 1;
+      q.state = "done"; q.f = 1; q.note = payload.naming_note || null;
       finished.push(q);
       announce(`${q.file.name} is ready: ${payload.summary.tracks} tracks.`);
     } catch (e) {
@@ -399,8 +408,12 @@ async function analyzeAll() {
   running = false;
   renderQueue();
   loadLibrary();
-  if (finished.length === 1 && queue.length === 1) location.href = `set.html?id=${encodeURIComponent(finished[0].id)}`;
-  else if (finished.length) toast(`${finished.length} set${finished.length > 1 ? "s" : ""} ready`);
+  const partly = finished.filter((q) => q.note);
+  if (finished.length === 1 && queue.length === 1) { A.hide(); location.href = `set.html?id=${encodeURIComponent(finished[0].id)}`; return; }
+  if (!finished.length) { A.finish(controller.signal.aborted ? {} : { title: "The analysis didn't finish", text: "See the list below for what went wrong.", tone: "err" }); return; }
+  A.finish(partly.length
+    ? { title: `${finished.length} set${finished.length > 1 ? "s" : ""} ready, ${partly.length === 1 ? "one" : partly.length} only partly named`, text: "Shazam rate-limited the lookups, so some tracks are still IDs. Open the set and press Carry on naming later to finish it.", tone: "warn" }
+    : { title: `${finished.length} set${finished.length > 1 ? "s" : ""} ready`, text: "", tone: "done" });
 }
 
 /* same format as the viewer's "Download the analysis"; drop it back in to import */

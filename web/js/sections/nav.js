@@ -14,7 +14,8 @@ export function navSection(ctx) {
     if (!$("pnav")) return;                          // a page without the bar (e.g. a stale cached set.html)
     const live = SECTIONS.filter(([id]) => $(id) && !$(id).hidden);
     $("pnav").innerHTML = live.map(([id, label]) => `<button data-to="${id}">${label}</button>`).join("");
-    const goal = () => $("pnav").offsetHeight + 12;
+    // below the bar, and below the activity banner while one shows (progress.js)
+    const goal = () => $("pnav").offsetHeight + 12 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--activity-h")) || 0);
     $("pnav").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
       const el = $(b.dataset.to), top = el.getBoundingClientRect().top + window.scrollY - goal();
       window.scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });

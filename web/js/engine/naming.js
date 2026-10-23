@@ -117,8 +117,8 @@ export async function identifyClips(y, span, { onProgress = () => {}, signal, kn
     if (!res) {
       stoppedAt = t;
       stopped = unreachable
-        ? `The naming helper stopped answering at ${clock(t)}, so tracks after that are still IDs. Start the helper again and press “Name the remaining IDs” to carry on from there.`
-        : `Shazam stopped answering at ${clock(t)} (it was still refusing after about 4 minutes of retries), so tracks after that are still IDs. Press “Name the remaining IDs” later to carry on from there.`;
+        ? `The naming helper stopped answering at ${clock(t)}, so tracks after that are still IDs. Start the helper again, then press Carry on naming.`
+        : `Shazam stopped answering at ${clock(t)} (it was still refusing after about 4 minutes of retries), so tracks after that are still IDs. Press Carry on naming in a while to finish them.`;
       break;
     }
     probes.push({ t, dur: PROBE_CLIP, track: res.track, offset: res.offset });

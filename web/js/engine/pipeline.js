@@ -288,7 +288,7 @@ function buildInWorker(F, classes, meta) {
 /* ------------------------------------------------ the whole thing */
 let pool = null;
 export async function analyzeFile(file, { onProgress = () => {}, onAudio = () => {}, title, bpmRange, signal, identify = false, knownProbes = [] } = {}) {
-  const say = (stage, f) => onProgress({ stage, f });
+  const say = (stage, f, extra = {}) => onProgress({ stage, f, ...extra });
   const check = () => { if (signal && signal.aborted) throw Object.assign(new Error("Analysis stopped"), { name: "AbortError" }); };
   const source = file;                       // names and titles come from what was dropped
   if (isVideo(file)) {
@@ -362,7 +362,7 @@ export async function analyzeFile(file, { onProgress = () => {}, onAudio = () =>
       onProgress: (i, n, hits, { waiting, retry, unreachable } = {}) => {
         const f = listenEnd + (0.97 - listenEnd) * ((i - n0) / Math.max(1, all - n0));
         say(waiting ? `${unreachable ? "The helper isn't answering" : "Shazam is busy"} · trying again in ${waiting} s (retry ${retry} of 5)`
-          : `Naming tracks · clip ${i} of ${n} · ${hits} matched`, f);
+          : `Naming tracks · clip ${i} of ${n} · ${hits} matched`, f, { warn: waiting ? (unreachable ? "helper" : "rate") : null, naming: true });
       },
     });
     probes = r.probes; namingNote = r.stopped;

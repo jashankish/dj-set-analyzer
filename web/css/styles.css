@@ -186,9 +186,9 @@ button { font-family: inherit; color: inherit; }
 
 /* ---------------------------------------------------------------- section navigator */
 /* jumping to a section (the bar, or a link like set.html?demo=…#vibe) stops below the sticky bar */
-.hl, .rv, .desk, .mix, .craft, .journey, .moodmap, .compare, .vibe { scroll-margin-top: 64px; }
+.hl, .rv, .desk, .mix, .craft, .journey, .moodmap, .compare, .vibe { scroll-margin-top: calc(64px + var(--activity-h, 0px)); }
 .pnav {
-  position: sticky; top: 0; z-index: 18; max-width: var(--maxw); margin: 10px auto 0; padding: 8px var(--gut);
+  position: sticky; top: var(--activity-h, 0px); z-index: 18; max-width: var(--maxw); margin: 10px auto 0; padding: 8px var(--gut);
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
   background: rgba(22,21,30,.9); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line-soft);
@@ -265,7 +265,7 @@ button { font-family: inherit; color: inherit; }
 }
 
 /* now playing */
-.deck { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 16px; }
+.deck { position: sticky; top: calc(16px + var(--activity-h, 0px)); display: flex; flex-direction: column; gap: 16px; }
 .deck-art {
   aspect-ratio: 1; border-radius: var(--r-m); overflow: hidden; position: relative;
   background: var(--panel);
@@ -915,3 +915,28 @@ code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 .prog-track i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #9085E9, #3987E5); transition: width .4s ease; }
 @media (prefers-reduced-motion: reduce) { .prog-track i { transition: none; } }
 .nm-prog { flex-basis: 100%; margin-top: 6px; }
+
+/* the activity banner (progress.js): pinned to the top while work runs, never blocking */
+:root { --activity-h: 0px; }
+body { padding-top: var(--activity-h); }
+.activity { position: fixed; top: 0; left: 0; right: 0; z-index: 60; background: #1F1D2B; border-bottom: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.act-in { max-width: var(--maxw); margin: 0 auto; padding: 12px var(--gut) 12px; }
+.act-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.act-title { font-weight: 700; font-stretch: 105%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.act-keep { color: var(--muted); font-size: .8rem; font-stretch: 90%; white-space: nowrap; margin-left: auto; }
+.act-x { background: none; border: 0; color: var(--muted); font-size: 1rem; cursor: pointer; margin-left: auto; padding: 0 4px; }
+.act-x:hover { color: var(--ink); }
+.activity .prog-track { height: 10px; }
+.act-warn { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; background: rgba(201,133,0,.14); border: 1px solid rgba(201,133,0,.5); color: #F2D29B; font-size: .86rem; line-height: 1.45; }
+.act-warn::before { content: "⚠ "; }
+.act-warn.soft { background: none; border-color: transparent; padding: 0; color: var(--muted); }
+.act-warn.soft::before { content: ""; }
+.activity.done .act-title::before { content: "✓ "; color: #1ED760; }
+.activity.err .act-warn { background: rgba(201,133,0,.14); }
+.act-do { margin-left: 6px; padding: 3px 12px; font-size: .84rem; }
+@media (max-width: 560px) { .act-keep { display: none; } }
+
+/* a set only partly named (Shazam rate limiting): said in the header, with the way to finish */
+.name-note { margin: 16px 0 0; padding: 12px 14px; border-radius: var(--r-m); background: rgba(201,133,0,.12); border: 1px solid rgba(201,133,0,.5); color: #F2D29B; font-size: .9rem; line-height: 1.5; max-width: 80ch; }
+.name-note b { color: #FBE3B6; }
+.name-note button { margin-left: 6px; padding: 4px 12px; font-size: .84rem; }

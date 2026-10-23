@@ -66,6 +66,7 @@ body.landing { padding-bottom: 0; }
 .q-state { color: var(--ink-2); font-size: .86rem; font-stretch: 88%; white-space: nowrap; }
 .q-state.err { color: #FFB4A8; white-space: normal; max-width: 42ch; }
 .q-item .open { white-space: nowrap; }
+.q-warn { margin-left: 10px; color: #F2D29B; font-size: .8rem; white-space: nowrap; }
 .q-prog { grid-column: 1 / -1; margin-top: 8px; }
 .q-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--ink); transition: width .3s; }
 .q-x { background: none; border: 0; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 2px 6px; }

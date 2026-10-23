@@ -62,7 +62,17 @@ There are two ways to run it, and both produce the same JSON:
   enough to go on, the time left. The bar is shared by how long each part
   takes (listening about a minute per hour of audio, naming about 3.2 s a
   clip), so it doesn't stall near the end while tracks are named. **Stop**
-  cancels the run. When a single
+  cancels the run. While anything runs (analyzing, naming, fetching a link),
+  a **banner pinned to the top of the page** shows it too: what's being
+  worked on (*Analyzing “Rooftop Live” · set 2 of 3*), the stage, a larger
+  bar, the percent and the time left, and *Keep this tab open: leaving stops
+  it* (leaving asks first). It never blocks the page. When Shazam refuses
+  lookups, an amber warning sits under the bar: *Shazam is rate-limiting
+  lookups. Naming will take longer than usual; if it keeps refusing, the set
+  is saved with the names found so far and you can carry on later* (or that
+  the helper isn't answering); once it recovers, a quieter line says the run
+  was slowed. At the end the banner says what's ready, and which sets were
+  only partly named. When a single
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
   over an hour carry a note that a laptop works best.
@@ -477,6 +487,12 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
   does it stop, and the saved note says where (*Shazam stopped answering at
   52:52*). (It used to give up after three failures in a row, which ended
   naming halfway through a 1 h 42 min set over a brief rate limit.)
+- **Telling you:** a set that was only partly named says so in its header,
+  not just a passing toast: *Partly named: 18 of 51 tracks have names.
+  Shazam stopped answering at 52:52 …* with **Carry on naming from 53:16**;
+  the landing list marks it *⚠ Partly named: Shazam rate limit*. Naming on a
+  set page runs under the top banner rather than in the pop-up, so the page
+  stays usable, and it warns before the page is left mid-run.
 - **Carrying on:** the set's **Name the remaining IDs (from 52:52)** keeps
   every lookup already made (`naming.restoreProbes`) and asks only for the
   clips after that. Sets now save each probe's offset and the songs matched
@@ -1538,7 +1554,7 @@ dj-set-analyzer/
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
 │   ├── js/cover.js       # a 640 × 640 JPEG cover for playlists saved to Spotify
-│   ├── js/progress.js    # the progress bar: stage, bar, percent, time left
+│   ├── js/progress.js    # the progress bar, and the activity banner pinned to the top while work runs
 │   ├── js/engine/fetchlink.js  # a set from a YouTube / SoundCloud link, through the helper
 │   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
 │   ├── js/vendor/        # qrcode.js (qrcode-generator 2.0.4, MIT), loaded on first use

@@ -10,6 +10,7 @@ import { getSet, listSets, deleteSet, attachAudio, replacePayload } from "./stor
 import { isVideo, extractAudio } from "./engine/demux.js";
 import { openNamingDialog } from "./naming-ui.js";
 import { restoreProbes } from "./engine/naming.js";
+import { activity } from "./progress.js";
 import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt, vibeHere } from "./vibe-ui.js";
 import { findPhases } from "./phases.js";
 import { mixScore, mixTips } from "./craft.js";
@@ -185,7 +186,6 @@ import { tableSection } from "./sections/table-ui.js";
     S.record = rec;
     renderSetNav();
     openPayload(rec.payload, rec.audio ? URL.createObjectURL(rec.audio) : null);
-    if (rec.payload.naming_note) toast(rec.payload.naming_note);
     setupNaming(rec);
   }
 
@@ -199,22 +199,40 @@ import { tableSection } from "./sections/table-ui.js";
     const known = restoreProbes(rec.payload), last = known.length ? known[known.length - 1].t : null;
     const resumeAt = rec.payload.naming_note && last != null ? fmt(last + 24) : null;
     if (resumeAt) btn.textContent = `Name the ${ids} remaining ID${ids === 1 ? "" : "s"} (from ${resumeAt})`;
+    // a set that was only partly named says so where it can't be missed, with the way to finish
+    const note = $("nameNote");
+    note.hidden = !(rec.payload.naming_note && ids);
+    if (!note.hidden) {
+      const T = rec.payload.tracks, named = T.length - ids;
+      note.innerHTML = `<b>Partly named: ${named} of ${T.length} tracks have names.</b> <span>${esc(rec.payload.naming_note)}</span> ${rec.audio ? `<button class="ghost" id="nameNoteGo" type="button">Carry on naming${resumeAt ? ` from ${resumeAt}` : ""}</button>` : ""}`;
+      $("nameNoteGo")?.addEventListener("click", () => btn.click());
+    }
     btn.onclick = () => openNamingDialog({
       mode: "viewer", ids, resumeAt,
-      onNameNow: async (progress) => {
+      onNameNow: async () => {
+        // naming runs under the banner at the top, not in this pop-up: the page stays usable
+        document.getElementById("namingDialog")?.close();
         audio.pause();
-        const engine = await import("./engine/pipeline.js");
-        const file = rec.audio instanceof File ? rec.audio : new File([rec.audio], rec.payload.file || "set.m4a");
-        const payload = await engine.analyzeFile(file, {
-          identify: true, title: rec.payload.title, knownProbes: known,
-          onProgress: ({ stage, f }) => progress(stage, f),
-        });
+        const A = activity(), title = `Naming the tracks of “${S.title || rec.payload.title}”`;
+        let payload;
+        try {
+          const engine = await import("./engine/pipeline.js");
+          const file = rec.audio instanceof File ? rec.audio : new File([rec.audio], rec.payload.file || "set.m4a");
+          payload = await engine.analyzeFile(file, {
+            identify: true, title: rec.payload.title, knownProbes: known,
+            onProgress: ({ stage, f, warn }) => A.show({ title, stage, f, warn }),
+          });
+          engine.releaseEngine();
+        } catch (e) {
+          A.finish({ title: "Naming stopped", text: (e && e.message) || "Something went wrong.", tone: "err", action: { label: "Try again", run: () => btn.click() } });
+          return;
+        }
         if (rec.payload.link) payload.link = rec.payload.link;      // still from that YouTube / SoundCloud link
-        engine.releaseEngine();
         await replacePayload(rec.id, payload);
         // track numbers change once names anchor the setlist; keep the title, drop per-number names
         const saved = load(`set-replay:${rec.id}`) || {};
         store(`set-replay:${rec.id}`, { title: saved.title || null, names: {} });
+        A.hide();                                       // lifts the "leaving stops it" guard before reloading
         location.reload();
       },
     });
