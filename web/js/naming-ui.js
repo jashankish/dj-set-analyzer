@@ -64,7 +64,7 @@ export function openNamingDialog({ mode = "landing", ids = 0, onNameNow, onReady
   const render = () => {
     status.classList.toggle("on", connected);
     status.querySelector("span").textContent = connected ? `Connected to the helper on ${HELPER_URL.replace("http://", "")}`
-      : old ? "Connected, but this is an older helper without links: download it again (step 1), stop the old one with Ctrl+C and run the new one."
+      : old ? "Connected, but this is an older helper that can't fetch from YouTube any more: download it again (step 1), stop the old one with Ctrl+C and run the new one."
       : "Not connected yet. Checking every few seconds…";
     if (busy) return;
     if (link) {

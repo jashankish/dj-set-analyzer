@@ -281,14 +281,23 @@ try {
     check("the bundled demo opens: every track listed, no page errors", [await dp.locator(".trk").count(), idx[0].tracks, errsD], ([n, want, e]) => n === want && e.length === 0);
     await dp.close();
   }
-  await p3.waitForTimeout(600);
-  check("phone: with no sets saved and a single demo, the across-sets panel stays hidden", await p3.locator("#taste").isHidden(), (h) => h === true);
+  // the panel needs two or more demos; with fewer it stays hidden
+  const nDemos = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/index.json"))).length;
+  if (nDemos >= 2) {
+    await p3.locator("#taste").scrollIntoViewIfNeeded();
+    await p3.waitForFunction(() => document.getElementById("tasteText").textContent.length > 20, null, { timeout: 10000 }).catch(() => {});
+    check("phone: with no sets saved, the landing shows one prompt across the demos", [await p3.locator("#tasteTitle").textContent(), await p3.locator("#tasteText").textContent()], ([h, t]) => h === "One playlist from several sets" && /^A .* playlist/.test(t));
+  } else {
+    await p3.waitForTimeout(600);
+    check("phone: with no sets saved and a single demo, the across-sets panel stays hidden", await p3.locator("#taste").isHidden(), (h) => h === true);
+  }
   check("phone: the landing page links twelve features to a demo", await p3.locator(".more-grid a").evaluateAll((as) => as.map((x) => x.getAttribute("href"))), (h) => h.length === 12 && h.every((x) => /^set\.html\?demo=[\w-]+#\w+$/.test(x)));
   await p3.goto(BASE + "set.html?demo=worship-part-2");
   await p3.waitForSelector(".trk");
   check("phone: replay page has no sideways scroll", await overflow(), (px) => px <= 0);
   check("phone: ribbon track numbers aren't cut off", await p3.evaluate(() =>
     [...document.querySelectorAll(".r-label")].filter((l) => l.scrollWidth > l.clientWidth + 1).map((l) => l.textContent)), (v) => v.length === 0);
+  await p3.locator("#ribbon").scrollIntoViewIfNeeded();     // long set titles in the header can push it below the fold
   const box = await p3.locator("#ribbon").boundingBox();
   await p3.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height * 0.6);
   await p3.waitForTimeout(300);
@@ -432,7 +441,7 @@ const mock = http.createServer((req, res) => {
     "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Private-Network": "true" };
   if (req.method === "OPTIONS") { res.writeHead(204, cors); return res.end(); }
   const json = (o) => { res.writeHead(200, { ...cors, "Content-Type": "application/json" }); res.end(JSON.stringify(o)); };
-  if (req.url.startsWith("/health")) return json({ ok: true, name: "set-replay-helper", version: 2, fetch: true });
+  if (req.url.startsWith("/health")) return json({ ok: true, name: "set-replay-helper", version: 3, fetch: true });
   // links: one stand-in fetch that's "downloading" on the first poll and ready on the next, whose audio is the synthetic set
   if (req.url === "/fetch" && req.method === "POST") { req.resume(); return req.on("end", () => { fetchPolls = 0; json({ id: "0123456789ab", state: "queued", pct: 0 }); }); }
   if (req.url === "/fetch/0123456789ab") return json(fetchPolls++ < 1 ? { id: "0123456789ab", state: "downloading", pct: 0.5, title: "Test Set (Live)", service: "youtube" }

@@ -33,8 +33,9 @@ export function parseLink(text) {
   return { url: u.href, service: sc ? "soundcloud" : "youtube", label: sc ? "SoundCloud" : "YouTube" };
 }
 
-/** Does the running helper fetch links? (version 2 says so on /health) */
-export const canFetch = (health) => !!(health && health.fetch);
+/** Does the running helper fetch links? Version 2 says so on /health, but YouTube now needs
+ *  the JavaScript runtime version 3 brings (without it, downloads fail with 403): ask for 3. */
+export const canFetch = (health) => !!(health && health.fetch && (health.version || 0) >= 3);
 
 const sleep = (ms, signal) => new Promise((res, rej) => {
   const t = setTimeout(res, ms);

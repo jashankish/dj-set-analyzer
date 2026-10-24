@@ -101,7 +101,7 @@ There are two ways to run it, and both produce the same JSON:
   prompt** / **Open Spotify**. With fewer than two saved, it shows the same
   across the demo sets (*One playlist from several sets*), loaded only when
   the section comes near the screen, if the site lists two or more demos
-  (with one, as now, it stays hidden).
+  (with one it stays hidden).
 - **Teaser:** a preview built from real demo output: the ribbon, cycling mix
   cards and the Camelot path. Under it, **And there's more on every set**:
   twelve cards (the playlist prompt, the set at a glance, highlights, the
@@ -340,9 +340,11 @@ relative.
    `window.SET_REPLAY_ASSETS = { essentiaWasm, essentiaCore, ort, ortWasmPath, models }`
    in a script before `js/landing.js` runs. Each library entry may be one URL
    or a list tried in order; `ortWasmPath[i]` pairs with `ort[i]`.
-5. **Demos.** The site ships one demo: Fred again.. *Rooftop Live (Arun's
-   Roof, London)*, analyzed in the browser from its YouTube link and named
-   with the helper (55 tracks, 48 named). To make your own, analyze a set
+5. **Demos.** The site ships two demos, both analyzed in the browser from
+   their YouTube links and named with the helper, and both playing from
+   their videos (see *Playing from YouTube*): Fred again.. *Rooftop Live
+   (Arun's Roof, London)* (55 tracks, 48 named), the landing page's teaser,
+   and *Fred again.. | Boiler Room: London*. To make your own, analyze a set
    (in the browser, then **Download the analysis**, or with the Python
    pipeline) and run:
 
@@ -357,8 +359,9 @@ relative.
    only one you're allowed to share). Without audio, a demo is fully
    explorable; if it came from a YouTube link it plays from the video
    instead, when the video's owner allows embedding (see *Playing from
-   YouTube*). The Fred again.. video's owner doesn't, so that demo offers
-   *Listen on YouTube from 23:10* instead. The two worship sets the earlier demos used are
+   YouTube*); otherwise it offers *Listen on YouTube from 23:10*. Test
+   embedding on the real domain: YouTube refuses many music videos'
+   embeds on localhost (error 150) that it plays on a public site. The two worship sets the earlier demos used are
    now test fixtures (`tools/fixtures/`): the unit tests read them, and
    `tools/e2e.mjs` serves them to the page at `demo/worship-part-*.json`.
 
@@ -580,6 +583,13 @@ browser: a File named after the video → the queue → analyzeFile() → the se
 - **Keeping working:** yt-dlp isn't pinned (YouTube changes often and old
   versions stop working). Helpers set up before links existed install it on
   their next start, and it updates itself in the background every three days.
+- **A JavaScript runtime (helper version 3):** YouTube now makes downloaders
+  solve a JavaScript challenge, and without a runtime yt-dlp's downloads
+  fail with *HTTP Error 403: Forbidden*. The helper installs
+  `yt-dlp[default]` (with its solver, `yt-dlp-ejs`) and **Deno** from PyPI
+  (`deno`, Deno's own redistribution) into its private environment, and
+  points yt-dlp at it (`js_runtimes`). Older helpers add them on their next
+  start; if Deno can't be installed, it says so and links to deno.com.
 - **Errors in plain words:** private, sign-in-only (age-restricted or
   members-only), unavailable or blocked videos, YouTube's "confirm you're not
   a bot", and *the helper stopped answering*. A failed fetch can be retried.

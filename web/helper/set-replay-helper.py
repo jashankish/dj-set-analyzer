@@ -26,13 +26,17 @@ import subprocess
 import sys
 import time
 
-VERSION = 2          # 2: fetches YouTube / SoundCloud links
+VERSION = 3          # 2: fetches YouTube / SoundCloud links; 3: with a JavaScript runtime (Deno) for YouTube
 HOME = os.path.join(os.path.expanduser("~"), ".set-replay-helper")
 VENV = os.path.join(HOME, "venv")
 FETCHED = os.path.join(HOME, "fetched")         # audio fetched from links, deleted once the page has it
 # audioop left the standard library in Python 3.13; shazamio's pydub still imports it
-# yt-dlp isn't pinned: YouTube changes often and old versions stop working (it's updated every few days)
-REQUIREMENTS = ["shazamio==0.8.1", 'audioop-lts; python_version >= "3.13"', "yt-dlp"]
+# yt-dlp isn't pinned: YouTube changes often and old versions stop working (it's updated every few days).
+# YouTube now makes downloaders solve a JavaScript challenge; without a runtime yt-dlp gets
+# "HTTP Error 403: Forbidden". yt-dlp[default] brings its solver (yt-dlp-ejs), and "deno" is
+# Deno's own redistribution on PyPI, so nothing has to be installed by hand.
+YTDLP = ["yt-dlp[default]", "deno"]
+REQUIREMENTS = ["shazamio==0.8.1", 'audioop-lts; python_version >= "3.13"', *YTDLP]
 YTDLP_STAMP = os.path.join(HOME, "yt-dlp-updated")
 YTDLP_EVERY = 3 * 24 * 3600
 
@@ -93,17 +97,32 @@ def ensure_dependencies():
     os.execv(venv_python(), [venv_python(), os.path.abspath(__file__), *sys.argv[1:]])
 
 
+def deno_path():
+    """The Deno binary the helper's environment installed (pip's "deno"), or one on the PATH."""
+    import shutil
+    here = os.path.join(os.path.dirname(sys.executable), "deno.exe" if os.name == "nt" else "deno")
+    return here if os.path.exists(here) else shutil.which("deno")
+
+
 def ensure_ytdlp():
-    """Helpers set up before links existed don't have yt-dlp yet; old copies stop working as
-    YouTube changes, so it's updated in the background every few days."""
+    """Helpers set up before links existed don't have yt-dlp, and ones from before YouTube's
+    JavaScript challenge lack the solver and Deno; install what's missing. Old copies stop
+    working as YouTube changes, so it's all updated in the background every few days."""
     import threading
-    pip = [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "--upgrade", "yt-dlp"]
+    pip = [sys.executable, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "--upgrade", *YTDLP]
     try:
         import yt_dlp  # noqa: F401
+        import yt_dlp_ejs  # noqa: F401
+        missing = not deno_path()
     except ImportError:
-        print("Installing yt-dlp (for YouTube and SoundCloud links)…", flush=True)
+        missing = True
+    if missing:
+        print("Installing yt-dlp and Deno (for YouTube and SoundCloud links)…", flush=True)
         if subprocess.run(pip).returncode == 0:
             open(YTDLP_STAMP, "w").close()
+        if not deno_path():
+            print("  Deno couldn't be installed here, so YouTube links may fail with 403 Forbidden.\n"
+                  "  Install Deno from https://deno.com and restart the helper.", flush=True)
         return
     try:
         stale = time.time() - os.path.getmtime(YTDLP_STAMP) > YTDLP_EVERY
@@ -196,7 +215,8 @@ class Fetcher:
                 elif d.get("fragment_count"):
                     job["pct"] = min(0.99, (d.get("fragment_index") or 0) / d["fragment_count"])
 
-        opts = {"format": FORMAT, "noplaylist": True, "quiet": True, "no_warnings": True, "noprogress": True,
+        deno = deno_path()
+        opts = {"format": FORMAT, "noplaylist": True, **({"js_runtimes": {"deno": {"path": deno}}} if deno else {}), "quiet": True, "no_warnings": True, "noprogress": True,
                 "fixup": "never", "outtmpl": os.path.join(folder, "audio.%(ext)s"), "progress_hooks": [hook],
                 "concurrent_fragment_downloads": 4, "retries": 3, "socket_timeout": 30}
         with self.lock:   # one at a time
