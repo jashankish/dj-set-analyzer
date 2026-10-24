@@ -483,6 +483,57 @@ try {
     await cs.close();
   }
 
+  // playing a set from its YouTube video (no recording), against a stand-in for YouTube's IFrame
+  // Player API: video "okvideo0001" plays on a simulated clock; the demo's own video is blocked
+  // by its owner (error 150), as on YouTube
+  {
+    const YT_STUB = `(() => {
+      const PLAYING = 1, PAUSED = 2;
+      class Player {
+        constructor(id, o) {
+          this.o = o; this.t = 0; this.rate = 1; this.at = null;
+          const f = document.createElement("iframe"); f.src = "about:blank"; document.getElementById(id).replaceWith(f);
+          setTimeout(() => o.videoId === "okvideo0001" ? o.events.onReady({ target: this }) : o.events.onError({ data: 150 }), 50);
+        }
+        now() { return this.at == null ? this.t : this.t + ((Date.now() - this.at) / 1000) * this.rate; }
+        getCurrentTime() { return this.now(); }
+        getDuration() { return 9999; }
+        seekTo(t) { this.t = t; if (this.at != null) this.at = Date.now(); }
+        setPlaybackRate(r) { this.t = this.now(); if (this.at != null) this.at = Date.now(); this.rate = r; }
+        playVideo() { if (this.at == null) { this.at = Date.now(); this.o.events.onStateChange({ data: PLAYING }); } }
+        pauseVideo() { if (this.at != null) { this.t = this.now(); this.at = null; this.o.events.onStateChange({ data: PAUSED }); } }
+      }
+      window.YT = { Player, PlayerState: { PLAYING, PAUSED, ENDED: 0 } };
+      window.onYouTubeIframeAPIReady && window.onYouTubeIframeAPIReady();
+    })();`;
+    const cy = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await cy.route("https://www.youtube.com/iframe_api", (r) => r.fulfill({ contentType: "text/javascript", body: YT_STUB }));
+    await cy.route(/\/demo\/yt-ok\.json$/, (r) => {
+      const D = JSON.parse(fs.readFileSync(path.join(ROOT, "tools/fixtures/worship-part-1.json")));
+      D.slug = "yt-ok"; D.link = { url: "https://www.youtube.com/watch?v=okvideo0001", service: "youtube", title: "A set", uploader: "A channel" };
+      r.fulfill({ contentType: "application/json", body: JSON.stringify(D) });
+    });
+    const py = await cy.newPage(), errsY = [];
+    py.on("pageerror", (e) => errsY.push(String(e)));
+    await py.goto(`${BASE}set.html?demo=yt-ok`);
+    await py.waitForSelector(".trk");
+    await py.click("#playBtn");
+    await py.waitForTimeout(2500);
+    const label = await py.locator("#playBtn").getAttribute("aria-label");
+    const t1 = await py.evaluate(() => document.getElementById("tCur").textContent);
+    await py.locator('.trk[data-i="3"]').click();
+    await py.waitForTimeout(800);
+    check("a set with only its YouTube link plays from the video, docked, and the page follows its clock", [label, t1, await py.locator(".yt-dock").isVisible(), await py.locator("#pNow").textContent()], ([l, t, dock, now]) => l === "Pause" && /^0:0[1-4]$/.test(t) && dock && now.length > 0);
+    check("…and clicking a track seeks the video there", await py.evaluate(() => document.getElementById("tCur").textContent), (t) => t !== "0:00" && t !== "0:01" && t !== "0:02" && t !== "0:03");
+    await py.goto(`${BASE}set.html?demo=${JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/index.json")))[0].slug}`);
+    await py.waitForSelector(".trk");
+    await py.click("#playBtn");
+    const blockedMsg = await py.waitForSelector(".activity:not([hidden]) .act-title", { timeout: 10000 }).then((e) => e.textContent()).catch(() => "");
+    check("a video its owner keeps off other sites says so, and offers it on YouTube at that moment", [blockedMsg, await py.locator(".act-do").textContent().catch(() => "")], ([m, b]) => m === "This video can't play inside Set Replay" && /^Listen on YouTube from \d+:\d\d$/.test(b));
+    check("YouTube playback: no page errors", errsY, (e) => e.length === 0);
+    await cy.close();
+  }
+
   // a YouTube link, fetched through the (stand-in) helper and analyzed like a dropped file
   {
     const cl = await browser.newContext();

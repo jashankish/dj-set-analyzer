@@ -11,6 +11,7 @@ import { isVideo, extractAudio } from "./engine/demux.js";
 import { openNamingDialog } from "./naming-ui.js";
 import { restoreProbes } from "./engine/naming.js";
 import { activity } from "./progress.js";
+import { youTubeMedia, youTubeId } from "./youtube.js";
 import { mountVibe, vibeTrack, vibeNames, vibeAuthReturn, copyPrompt, vibeHere } from "./vibe-ui.js";
 import { findPhases } from "./phases.js";
 import { mixScore, mixTips } from "./craft.js";
@@ -44,7 +45,37 @@ import { tableSection } from "./sections/table-ui.js";
 
   const { keyRgb, keyColor } = window.KeyColor;
   const $ = (id) => document.getElementById(id);
-  const audio = $("audio");
+  /* what plays: the page's <audio> element, or for a set that has its YouTube link but not
+     its recording, YouTube's embedded player (youtube.js). The rest of the page talks to this
+     stand-in, which forwards to whichever is in use and relays their events. */
+  const el = $("audio");
+  const audio = (() => {
+    const ls = {};
+    let yt = null;
+    const fire = (t) => (ls[t] || []).forEach((f) => f());
+    ["play", "pause", "seeked", "loadedmetadata", "ended"].forEach((t) => el.addEventListener(t, () => { if (!yt) fire(t); }));
+    return {
+      element: el, fire,
+      use(backend) { yt = backend; },
+      get youtube() { return !!yt; },
+      get youtubeMedia() { return yt; },
+      get currentTime() { return yt ? yt.currentTime : el.currentTime; },
+      set currentTime(v) { if (yt) yt.currentTime = v; else el.currentTime = v; },
+      get paused() { return yt ? yt.paused : el.paused; },
+      get playbackRate() { return yt ? yt.playbackRate : el.playbackRate; },
+      set playbackRate(v) { el.playbackRate = v; if (yt) yt.playbackRate = v; },
+      get defaultPlaybackRate() { return el.defaultPlaybackRate; },
+      set defaultPlaybackRate(v) { el.defaultPlaybackRate = v; },
+      set preservesPitch(v) { el.preservesPitch = v; },
+      set mozPreservesPitch(v) { el.mozPreservesPitch = v; },
+      set webkitPreservesPitch(v) { el.webkitPreservesPitch = v; },
+      set src(v) { el.src = v; },
+      removeAttribute(a) { el.removeAttribute(a); },
+      play() { return yt ? yt.play() : el.play(); },
+      pause() { if (yt) yt.pause(); else el.pause(); },
+      addEventListener(t, f) { (ls[t] ||= []).push(f); },
+    };
+  })();
 
   const S = {
     sets: [], set: null, D: null,
@@ -302,7 +333,11 @@ import { tableSection } from "./sections/table-ui.js";
     S.clues = idClues(D, S.sim, trust);      // for each ID, the named track it sounds most like
     S.roles = roles(D, S.sim);               // what each track does in the set: Peak, Lift, Curveball…
     prepColors();
-    S.noAudio = !audioUrl;
+    // no recording but a YouTube link (the bundled demo, an imported analysis): play the video
+    const ytId = !audioUrl && D.link && D.link.service === "youtube" ? youTubeId(D.link.url) : null;
+    audio.pause();
+    audio.use(ytId ? youTubeMedia(ytId, (ev) => (ev === "blocked" ? ytBlocked() : audio.fire(ev)), { title: D.link.uploader || "" }) : null);
+    S.noAudio = !audioUrl && !ytId;
     S.vt = span()[0];
     if (audioUrl) audio.src = audioUrl; else audio.removeAttribute("src");
     document.body.classList.toggle("no-audio", S.noAudio);
@@ -774,7 +809,7 @@ import { tableSection } from "./sections/table-ui.js";
     if (S.actx || !window.AudioContext) return;
     try {
       S.actx = new AudioContext();
-      const src = S.actx.createMediaElementSource(audio);
+      const src = S.actx.createMediaElementSource(el);       // YouTube's audio can't be read: no spectrum then
       S.analyzer = S.actx.createAnalyser();
       S.analyzer.fftSize = 4096;
       S.analyzer.smoothingTimeConstant = 0.72;
@@ -1392,6 +1427,14 @@ import { tableSection } from "./sections/table-ui.js";
     }
   }
 
+  /* a video whose owner doesn't allow it in other sites' players: offer it on YouTube, at this moment */
+  function ytBlocked() {
+    const y = audio.youtubeMedia;
+    if (!y) return;
+    activity().finish({ title: "This video can't play inside Set Replay", text: "Its owner only allows it on YouTube itself. Everything else here works; to listen, open it on YouTube at the moment you're looking at.", tone: "warn",
+      action: { label: `Listen on YouTube from ${fmt(now())}`, run: () => window.open(y.watchUrl(now()), "_blank", "noopener") } });
+  }
+
   /* ------------------------------------------------ playback */
   function seek(t, play) {
     t = clamp(t, 0, S.D.duration - 0.1);
@@ -1405,7 +1448,7 @@ import { tableSection } from "./sections/table-ui.js";
       S.toldNoAudio = true;
       return;
     }
-    ensureAudioGraph();
+    if (!audio.youtube) ensureAudioGraph();
     if (S.actx && S.actx.state === "suspended") S.actx.resume().catch(() => {});   // Firefox rejects it on navigation
     const p = audio.play();
     if (p && p.catch) p.catch(() => toast("Press play to start the audio"));

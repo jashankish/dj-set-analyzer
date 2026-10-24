@@ -355,7 +355,10 @@ relative.
    landing page's teaser. Demos ship without audio unless you add
    `--audio my-demo=https://…/set.m4a` (a file on your own host or CDN, and
    only one you're allowed to share). Without audio, a demo is fully
-   explorable but silent. The two worship sets the earlier demos used are
+   explorable; if it came from a YouTube link it plays from the video
+   instead, when the video's owner allows embedding (see *Playing from
+   YouTube*). The Fred again.. video's owner doesn't, so that demo offers
+   *Listen on YouTube from 23:10* instead. The two worship sets the earlier demos used are
    now test fixtures (`tools/fixtures/`): the unit tests read them, and
    `tools/e2e.mjs` serves them to the page at `demo/worship-part-*.json`.
 
@@ -519,6 +522,24 @@ browser: probes → setlist.js anchors tracks on matches (same as the Python pip
 Browsers: Chrome, Edge and Firefox work. Safari may refuse to let an https
 page talk to `127.0.0.1`, and the pop-up says so. The rest of the site runs
 in all three engines, checked on every push.
+
+### Playing from YouTube
+
+A set that has its YouTube link but not its recording (a demo, an imported
+analysis) plays from the video itself (`youtube.js`). Pressing play loads
+YouTube's IFrame Player API (privacy-enhanced `youtube-nocookie.com`, and
+only then) and docks a small player above the transport bar: YouTube's terms
+require the video to stay visible, so it isn't hidden or split off. A
+stand-in for the page's `<audio>` element in `app.js` forwards play, pause,
+seeking, speed (YouTube's steps: 0.25–2×) and the clock to it, so the
+setlist, ribbon and every chart follow the video; the analysis came from
+the same video's audio, so their timelines match. The live spectrum stays
+idle (a page can't read YouTube's audio). Some owners, often record labels,
+keep their videos off other sites' players (YouTube errors 101 and 150):
+then the dock closes and the banner says *This video can't play inside Set
+Replay*, with **Listen on YouTube from 23:10**, which opens the video at the
+moment on screen. `tools/e2e.mjs` checks both against a stand-in for
+YouTube's API.
 
 ### YouTube and SoundCloud links
 
@@ -1564,6 +1585,7 @@ dj-set-analyzer/
 │   ├── js/similarity.js  # track-by-track similarity matrix and what stands out in it (no DOM)
 │   ├── js/review.js      # the written review and its scorecard, from every analysis (no DOM)
 │   ├── js/cover.js       # a 640 × 640 JPEG cover for playlists saved to Spotify
+│   ├── js/youtube.js     # play a set from its YouTube video (IFrame API), or offer it on YouTube
 │   ├── js/progress.js    # the progress bar, and the activity banner pinned to the top while work runs
 │   ├── js/engine/fetchlink.js  # a set from a YouTube / SoundCloud link, through the helper
 │   ├── js/handoff.js     # Send to your phone: the prompt as a QR code (link to prompt.html, or text)
