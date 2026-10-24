@@ -76,6 +76,12 @@ There are two ways to run it, and both produce the same JSON:
   set finishes, it opens automatically. Dropping a saved `.setreplay.json`
   imports that analysis instead. On phones and low-memory devices, sets
   over an hour carry a note that a laptop works best.
+- **The way to a demo:** under the intro, *No set handy? ▶ Check out a
+  demo* opens the first demo directly (its title beside it). In the header,
+  **▶ Demos** is a highlighted button that pulses twice on arrival with a
+  *Check out a demo →* hint under it, on a visitor's first three visits
+  only (`set-replay:demo-hint`); the hint goes after 6 s or at the first
+  click or scroll, and it doesn't animate with reduced motion.
 - **Or a link:** under the drop zone, paste the link of a **YouTube video or
   SoundCloud track** of a set (pasting onto the drop zone works too). The
   audio is fetched on the visitor's computer by the [Set Replay

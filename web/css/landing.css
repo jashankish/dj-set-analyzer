@@ -17,6 +17,25 @@ body.landing { padding-bottom: 0; }
 .l-nav { display: flex; gap: 22px; }
 .l-nav a { color: var(--ink-2); text-decoration: none; font-size: .9rem; font-stretch: 90%; }
 .l-nav a:hover { color: var(--ink); }
+/* the Demos button: a pill that pulses twice on arrival, with a "Check out a demo" hint under it */
+.l-nav { align-items: center; }
+.nav-demo-wrap { position: relative; }
+.l-nav a.nav-demo { color: var(--ink); background: rgba(144,133,233,.18); border: 1px solid rgba(144,133,233,.6); border-radius: 999px; padding: 6px 14px; font-weight: 600; }
+.l-nav a.nav-demo:hover { background: rgba(144,133,233,.3); }
+.nav-demo.flash { animation: demo-pulse 1.2s ease-in-out 2; }
+@keyframes demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(144,133,233,.7); }
+  50% { box-shadow: 0 0 0 10px rgba(144,133,233,0); background: rgba(144,133,233,.45); }
+}
+.demo-tip { position: absolute; top: calc(100% + 10px); right: 0; white-space: nowrap; z-index: 50; background: #9085E9; color: #16151E; font-weight: 700; font-size: .84rem; padding: 7px 12px; border-radius: 8px; box-shadow: 0 8px 22px rgba(0,0,0,.4); opacity: 0; transform: translateY(-4px); transition: opacity .35s, transform .35s; pointer-events: none; }
+.demo-tip::before { content: ""; position: absolute; top: -6px; right: 22px; border: 6px solid transparent; border-top: 0; border-bottom-color: #9085E9; }
+.demo-tip.on { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .nav-demo.flash { animation: none; } .demo-tip { transition: none; } }
+/* and in the hero, straight to the first demo */
+.hero-try { margin: 16px 0 0; color: var(--ink-2); font-size: 1rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-try-btn { color: #16151E; background: #9085E9; text-decoration: none; font-weight: 700; padding: 8px 16px; border-radius: 999px; }
+.hero-try-btn:hover { background: #A79DF0; }
+.hero-try-name { color: var(--muted); font-size: .9rem; }
 
 /* ---------------------------------------------------------------- hero */
 .hero { max-width: var(--maxw); margin: 0 auto; padding: 40px var(--gut) 0; }

@@ -28,7 +28,10 @@
     <a class="brand" href="./">Set Replay</a>
     <nav class="l-nav" aria-label="Sections">
       <a href="#library" id="navLibrary" hidden>Your sets</a>
-      <a href="#demos">Demos</a>
+      <span class="nav-demo-wrap">
+        <a href="#demos" class="nav-demo" id="navDemo">▶ Demos</a>
+        <span class="demo-tip" id="demoTip" hidden>Check out a demo →</span>
+      </span>
       <a href="#how">How it works</a>
     </nav>
   </header>
@@ -37,6 +40,7 @@
     <section class="hero" aria-labelledby="heroTitle">
       <h1 class="hero-title" id="heroTitle">Drop a DJ set.<br>Get the whole night back.</h1>
       <p class="hero-sub">Set Replay listens to a recording or a video of a set (or a YouTube or SoundCloud link) and hands you the setlist, every transition, the keys, tempo and energy, a written review, and a playlist prompt in the set's sound for Spotify. Replay any moment. It all runs in your browser. Your audio never leaves this computer.</p>
+      <p class="hero-try" id="heroTry" hidden>No set handy? <a class="hero-try-btn" id="heroTryLink" href="#demos">▶ Check out a demo</a> <span class="hero-try-name" id="heroTryName"></span></p>
 
       <div class="drop" id="drop" tabindex="0" role="button" aria-labelledby="dropTitle dropHint">
         <canvas class="drop-ribbon" id="dropRibbon" aria-hidden="true"></canvas>

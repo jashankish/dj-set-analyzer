@@ -46,7 +46,12 @@ async function loadDemos() {
       <p>${d.tracks} tracks · ${mins(d.set_length || d.duration)} · ${d.bpm_avg ? Math.round(d.bpm_avg) + " BPM" : ""}${d.harmonic_pct != null ? ` · ${d.harmonic_pct}% harmonic` : ""}</p>
     </a></li>`).join("");
   drawCards($("demoList"));
-  if (!idx.length) { document.querySelector(".tease").hidden = true; $("demos").hidden = true; return; }
+  if (!idx.length) { document.querySelector(".tease").hidden = true; $("demos").hidden = true; $("navDemo").hidden = true; return; }
+  // straight to the first demo from the top of the page, and a nudge toward the Demos button
+  $("heroTryLink").href = `set.html?demo=${encodeURIComponent(idx[0].slug)}`;
+  $("heroTryName").textContent = idx[0].title;
+  $("heroTry").hidden = false;
+  nudgeDemos();
   try {
     demo = await (await fetch(`demo/${idx[0].slug}.json`)).json();
   } catch (e) {
@@ -107,6 +112,30 @@ function showMixCard(i) {
     </div>`;
   clearTimeout(mixTimer);
   if (!reduced) mixTimer = setTimeout(() => showMixCard(i + 1), 4200);
+}
+
+/* the Demos button pulses twice and says "Check out a demo" on a visitor's first three visits,
+   then leaves them alone; the hint goes after 6 s, or at the first click or scroll */
+const K_HINT = "set-replay:demo-hint";
+function nudgeDemos() {
+  let seen = 0;
+  try { seen = +localStorage.getItem(K_HINT) || 0; localStorage.setItem(K_HINT, String(seen + 1)); } catch (e) { /* private mode: show it */ }
+  if (seen >= 3) return;
+  const btn = $("navDemo"), tip = $("demoTip");
+  btn.classList.add("flash");
+  tip.hidden = false;
+  requestAnimationFrame(() => tip.classList.add("on"));
+  const done = () => {
+    tip.classList.remove("on");
+    btn.classList.remove("flash");
+    setTimeout(() => (tip.hidden = true), 400);
+    window.removeEventListener("scroll", done);
+    document.removeEventListener("pointerdown", done);
+  };
+  setTimeout(done, 6000);
+  window.addEventListener("scroll", done, { passive: true, once: true });
+  document.addEventListener("pointerdown", done, { once: true });
+  btn.addEventListener("click", () => { try { localStorage.setItem(K_HINT, "3"); } catch (e) { /* private mode */ } });
 }
 
 /* ------------------------------------------------ library */

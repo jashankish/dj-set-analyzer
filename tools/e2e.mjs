@@ -272,6 +272,20 @@ try {
   await p3.waitForSelector("#demoList .card");
   check("phone: landing has no sideways scroll", await overflow(), (px) => px <= 0);
   {
+    // the way to a demo is obvious: a hero button straight to the first one, and a hint on the Demos button
+    const first = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/index.json")))[0];
+    check("phone: the hero has a Check out a demo button to the first demo", [await p3.locator("#heroTryLink").textContent(), await p3.locator("#heroTryLink").getAttribute("href"), await p3.locator("#heroTryName").textContent()], ([t, h, n]) => /Check out a demo/.test(t) && h === `set.html?demo=${first.slug}` && n === first.title);
+    check("phone: on a first visit the Demos button says Check out a demo", await p3.locator("#demoTip").isVisible(), (v) => v === true);
+    await p3.mouse.wheel(0, 300);
+    await p3.waitForTimeout(700);
+    check("…and the hint goes once the visitor scrolls", await p3.locator("#demoTip").isHidden(), (v) => v === true);
+    await p3.evaluate(() => scrollTo(0, 0));
+    const pv3 = await phone.newPage();
+    for (let i = 0; i < 3; i++) { await pv3.goto(BASE); await pv3.waitForSelector("#heroTry:not([hidden])"); }
+    check("…and after three visits it stops", await pv3.locator("#demoTip").isHidden(), (v) => v === true);
+    await pv3.close();
+  }
+  {
     // the demo the site ships (whatever web/demo/index.json lists first) opens cleanly
     const idx = JSON.parse(fs.readFileSync(path.join(ROOT, "web/demo/index.json")));
     const dp = await phone.newPage(), errsD = [];
